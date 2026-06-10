@@ -35,6 +35,10 @@ func heal(amount: int) -> void:
 func consume_mp(amount: int) -> void:
 	mp = maxi(0, mp - amount)
 
+func restore_mp(amount: int) -> void:
+	mp = mini(max_mp, mp + amount)
+	Log.info("BattleUnit", "%s 回复 %d 点 MP，当前: %d/%d" % [display_name, amount, mp, max_mp])
+
 func has_status(effect_type: StatusEffect.Type) -> bool:
 	for effect in status_effects:
 		if effect.type == effect_type:
