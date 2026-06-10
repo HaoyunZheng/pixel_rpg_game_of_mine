@@ -1,0 +1,2277 @@
+{
+  "compressionlevel": -1,
+  "height": 16,
+  "infinite": false,
+  "layers": [
+    {
+      "id": 1,
+      "name": "default layer",
+      "type": "tilelayer",
+      "data": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        7,
+        7,
+        0,
+        0,
+        10,
+        10,
+        10,
+        10,
+        10,
+        10,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        7,
+        7,
+        7,
+        7,
+        0,
+        10,
+        10,
+        10,
+        10,
+        10,
+        0,
+        0,
+        10,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        7,
+        7,
+        7,
+        7,
+        0,
+        10,
+        10,
+        10,
+        10,
+        10,
+        10,
+        10,
+        0,
+        10,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        7,
+        7,
+        7,
+        7,
+        0,
+        10,
+        0,
+        10,
+        10,
+        10,
+        10,
+        10,
+        0,
+        10,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        7,
+        7,
+        7,
+        7,
+        7,
+        0,
+        10,
+        10,
+        10,
+        10,
+        10,
+        10,
+        10,
+        0,
+        10,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        10,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        10,
+        10,
+        10,
+        10,
+        10,
+        10,
+        10,
+        10,
+        10,
+        10,
+        10,
+        10,
+        10,
+        10,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        10,
+        10,
+        10,
+        10,
+        10,
+        10,
+        10,
+        10,
+        10,
+        10,
+        10,
+        10,
+        10,
+        10,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        10,
+        10,
+        10,
+        10,
+        10,
+        10,
+        10,
+        10,
+        10,
+        10,
+        10,
+        10,
+        10,
+        10,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "width": 24,
+      "height": 16,
+      "opacity": 1,
+      "visible": true,
+      "x": 0,
+      "y": 0,
+      "properties": [
+        {
+          "name": "meowa_layer_id",
+          "type": "string",
+          "value": "map-layer-1"
+        },
+        {
+          "name": "meowa_locked",
+          "type": "bool",
+          "value": false
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "name": "default layer Objects",
+      "type": "objectgroup",
+      "draworder": "topdown",
+      "objects": [
+        {
+          "id": 1,
+          "gid": 17,
+          "name": "针叶树",
+          "type": "meowa-object",
+          "x": 545,
+          "y": 658,
+          "width": 64,
+          "height": 64,
+          "rotation": 0,
+          "opacity": 1,
+          "visible": true,
+          "properties": [
+            {
+              "name": "meowa_object_id",
+              "type": "string",
+              "value": "history:pixel-history-25426-output:0:https://media.meowa.ai/public/pixel-gen/output/2026-06-08/08%3A16%3A14-b9b4c9c3-2007-4195-8b2f-af7501c34cb7/sprite_00.png"
+            },
+            {
+              "name": "meowa_object_placement_id",
+              "type": "string",
+              "value": "map-object-1780989756755-rt8c8ipsrf9"
+            },
+            {
+              "name": "meowa_layer_id",
+              "type": "string",
+              "value": "map-layer-1"
+            },
+            {
+              "name": "meowa_source",
+              "type": "string",
+              "value": "history"
+            }
+          ]
+        },
+        {
+          "id": 2,
+          "gid": 17,
+          "name": "针叶树",
+          "type": "meowa-object",
+          "x": 542,
+          "y": 610,
+          "width": 64,
+          "height": 64,
+          "rotation": 0,
+          "opacity": 1,
+          "visible": true,
+          "properties": [
+            {
+              "name": "meowa_object_id",
+              "type": "string",
+              "value": "history:pixel-history-25426-output:0:https://media.meowa.ai/public/pixel-gen/output/2026-06-08/08%3A16%3A14-b9b4c9c3-2007-4195-8b2f-af7501c34cb7/sprite_00.png"
+            },
+            {
+              "name": "meowa_object_placement_id",
+              "type": "string",
+              "value": "map-object-1780989758120-rspkpendeqq"
+            },
+            {
+              "name": "meowa_layer_id",
+              "type": "string",
+              "value": "map-layer-1"
+            },
+            {
+              "name": "meowa_source",
+              "type": "string",
+              "value": "history"
+            }
+          ]
+        },
+        {
+          "id": 3,
+          "gid": 17,
+          "name": "针叶树",
+          "type": "meowa-object",
+          "x": 583,
+          "y": 639,
+          "width": 64,
+          "height": 64,
+          "rotation": 0,
+          "opacity": 1,
+          "visible": true,
+          "properties": [
+            {
+              "name": "meowa_object_id",
+              "type": "string",
+              "value": "history:pixel-history-25426-output:0:https://media.meowa.ai/public/pixel-gen/output/2026-06-08/08%3A16%3A14-b9b4c9c3-2007-4195-8b2f-af7501c34cb7/sprite_00.png"
+            },
+            {
+              "name": "meowa_object_placement_id",
+              "type": "string",
+              "value": "map-object-1780989760604-96ipat36p0p"
+            },
+            {
+              "name": "meowa_layer_id",
+              "type": "string",
+              "value": "map-layer-1"
+            },
+            {
+              "name": "meowa_source",
+              "type": "string",
+              "value": "history"
+            }
+          ]
+        },
+        {
+          "id": 4,
+          "gid": 17,
+          "name": "针叶树",
+          "type": "meowa-object",
+          "x": 581,
+          "y": 598,
+          "width": 64,
+          "height": 64,
+          "rotation": 0,
+          "opacity": 1,
+          "visible": true,
+          "properties": [
+            {
+              "name": "meowa_object_id",
+              "type": "string",
+              "value": "history:pixel-history-25426-output:0:https://media.meowa.ai/public/pixel-gen/output/2026-06-08/08%3A16%3A14-b9b4c9c3-2007-4195-8b2f-af7501c34cb7/sprite_00.png"
+            },
+            {
+              "name": "meowa_object_placement_id",
+              "type": "string",
+              "value": "map-object-1780989761571-873jyzaoo4o"
+            },
+            {
+              "name": "meowa_layer_id",
+              "type": "string",
+              "value": "map-layer-1"
+            },
+            {
+              "name": "meowa_source",
+              "type": "string",
+              "value": "history"
+            }
+          ]
+        },
+        {
+          "id": 5,
+          "gid": 17,
+          "name": "针叶树",
+          "type": "meowa-object",
+          "x": 608,
+          "y": 561,
+          "width": 64,
+          "height": 64,
+          "rotation": 0,
+          "opacity": 1,
+          "visible": true,
+          "properties": [
+            {
+              "name": "meowa_object_id",
+              "type": "string",
+              "value": "history:pixel-history-25426-output:0:https://media.meowa.ai/public/pixel-gen/output/2026-06-08/08%3A16%3A14-b9b4c9c3-2007-4195-8b2f-af7501c34cb7/sprite_00.png"
+            },
+            {
+              "name": "meowa_object_placement_id",
+              "type": "string",
+              "value": "map-object-1780989762420-mdlsbh8qoa9"
+            },
+            {
+              "name": "meowa_layer_id",
+              "type": "string",
+              "value": "map-layer-1"
+            },
+            {
+              "name": "meowa_source",
+              "type": "string",
+              "value": "history"
+            }
+          ]
+        },
+        {
+          "id": 6,
+          "gid": 17,
+          "name": "针叶树",
+          "type": "meowa-object",
+          "x": 564,
+          "y": 555,
+          "width": 64,
+          "height": 64,
+          "rotation": 0,
+          "opacity": 1,
+          "visible": true,
+          "properties": [
+            {
+              "name": "meowa_object_id",
+              "type": "string",
+              "value": "history:pixel-history-25426-output:0:https://media.meowa.ai/public/pixel-gen/output/2026-06-08/08%3A16%3A14-b9b4c9c3-2007-4195-8b2f-af7501c34cb7/sprite_00.png"
+            },
+            {
+              "name": "meowa_object_placement_id",
+              "type": "string",
+              "value": "map-object-1780989763020-oo2yovtibb"
+            },
+            {
+              "name": "meowa_layer_id",
+              "type": "string",
+              "value": "map-layer-1"
+            },
+            {
+              "name": "meowa_source",
+              "type": "string",
+              "value": "history"
+            }
+          ]
+        },
+        {
+          "id": 7,
+          "gid": 17,
+          "name": "针叶树",
+          "type": "meowa-object",
+          "x": 584,
+          "y": 517,
+          "width": 64,
+          "height": 64,
+          "rotation": 0,
+          "opacity": 1,
+          "visible": true,
+          "properties": [
+            {
+              "name": "meowa_object_id",
+              "type": "string",
+              "value": "history:pixel-history-25426-output:0:https://media.meowa.ai/public/pixel-gen/output/2026-06-08/08%3A16%3A14-b9b4c9c3-2007-4195-8b2f-af7501c34cb7/sprite_00.png"
+            },
+            {
+              "name": "meowa_object_placement_id",
+              "type": "string",
+              "value": "map-object-1780989763903-1l3cn20d8cr"
+            },
+            {
+              "name": "meowa_layer_id",
+              "type": "string",
+              "value": "map-layer-1"
+            },
+            {
+              "name": "meowa_source",
+              "type": "string",
+              "value": "history"
+            }
+          ]
+        },
+        {
+          "id": 8,
+          "gid": 17,
+          "name": "针叶树",
+          "type": "meowa-object",
+          "x": 873,
+          "y": 664,
+          "width": 64,
+          "height": 64,
+          "rotation": 0,
+          "opacity": 1,
+          "visible": true,
+          "properties": [
+            {
+              "name": "meowa_object_id",
+              "type": "string",
+              "value": "history:pixel-history-25426-output:0:https://media.meowa.ai/public/pixel-gen/output/2026-06-08/08%3A16%3A14-b9b4c9c3-2007-4195-8b2f-af7501c34cb7/sprite_00.png"
+            },
+            {
+              "name": "meowa_object_placement_id",
+              "type": "string",
+              "value": "map-object-1780989766687-s6q8bgnbrbf"
+            },
+            {
+              "name": "meowa_layer_id",
+              "type": "string",
+              "value": "map-layer-1"
+            },
+            {
+              "name": "meowa_source",
+              "type": "string",
+              "value": "history"
+            }
+          ]
+        },
+        {
+          "id": 9,
+          "gid": 17,
+          "name": "针叶树",
+          "type": "meowa-object",
+          "x": 912,
+          "y": 668,
+          "width": 64,
+          "height": 64,
+          "rotation": 0,
+          "opacity": 1,
+          "visible": true,
+          "properties": [
+            {
+              "name": "meowa_object_id",
+              "type": "string",
+              "value": "history:pixel-history-25426-output:0:https://media.meowa.ai/public/pixel-gen/output/2026-06-08/08%3A16%3A14-b9b4c9c3-2007-4195-8b2f-af7501c34cb7/sprite_00.png"
+            },
+            {
+              "name": "meowa_object_placement_id",
+              "type": "string",
+              "value": "map-object-1780989767905-hwnccpsfd7c"
+            },
+            {
+              "name": "meowa_layer_id",
+              "type": "string",
+              "value": "map-layer-1"
+            },
+            {
+              "name": "meowa_source",
+              "type": "string",
+              "value": "history"
+            }
+          ]
+        },
+        {
+          "id": 10,
+          "gid": 17,
+          "name": "针叶树",
+          "type": "meowa-object",
+          "x": 891,
+          "y": 397,
+          "width": 64,
+          "height": 64,
+          "rotation": 0,
+          "opacity": 1,
+          "visible": true,
+          "properties": [
+            {
+              "name": "meowa_object_id",
+              "type": "string",
+              "value": "history:pixel-history-25426-output:0:https://media.meowa.ai/public/pixel-gen/output/2026-06-08/08%3A16%3A14-b9b4c9c3-2007-4195-8b2f-af7501c34cb7/sprite_00.png"
+            },
+            {
+              "name": "meowa_object_placement_id",
+              "type": "string",
+              "value": "map-object-1780989769521-iqauv9p3fx"
+            },
+            {
+              "name": "meowa_layer_id",
+              "type": "string",
+              "value": "map-layer-1"
+            },
+            {
+              "name": "meowa_source",
+              "type": "string",
+              "value": "history"
+            }
+          ]
+        },
+        {
+          "id": 11,
+          "gid": 17,
+          "name": "针叶树",
+          "type": "meowa-object",
+          "x": 878,
+          "y": 434,
+          "width": 64,
+          "height": 64,
+          "rotation": 0,
+          "opacity": 1,
+          "visible": true,
+          "properties": [
+            {
+              "name": "meowa_object_id",
+              "type": "string",
+              "value": "history:pixel-history-25426-output:0:https://media.meowa.ai/public/pixel-gen/output/2026-06-08/08%3A16%3A14-b9b4c9c3-2007-4195-8b2f-af7501c34cb7/sprite_00.png"
+            },
+            {
+              "name": "meowa_object_placement_id",
+              "type": "string",
+              "value": "map-object-1780989770204-c6xzwn3p33i"
+            },
+            {
+              "name": "meowa_layer_id",
+              "type": "string",
+              "value": "map-layer-1"
+            },
+            {
+              "name": "meowa_source",
+              "type": "string",
+              "value": "history"
+            }
+          ]
+        },
+        {
+          "id": 12,
+          "gid": 17,
+          "name": "针叶树",
+          "type": "meowa-object",
+          "x": 914,
+          "y": 434,
+          "width": 64,
+          "height": 64,
+          "rotation": 0,
+          "opacity": 1,
+          "visible": true,
+          "properties": [
+            {
+              "name": "meowa_object_id",
+              "type": "string",
+              "value": "history:pixel-history-25426-output:0:https://media.meowa.ai/public/pixel-gen/output/2026-06-08/08%3A16%3A14-b9b4c9c3-2007-4195-8b2f-af7501c34cb7/sprite_00.png"
+            },
+            {
+              "name": "meowa_object_placement_id",
+              "type": "string",
+              "value": "map-object-1780989770769-4vohqvy0038"
+            },
+            {
+              "name": "meowa_layer_id",
+              "type": "string",
+              "value": "map-layer-1"
+            },
+            {
+              "name": "meowa_source",
+              "type": "string",
+              "value": "history"
+            }
+          ]
+        },
+        {
+          "id": 13,
+          "gid": 17,
+          "name": "针叶树",
+          "type": "meowa-object",
+          "x": 893,
+          "y": 470,
+          "width": 64,
+          "height": 64,
+          "rotation": 0,
+          "opacity": 1,
+          "visible": true,
+          "properties": [
+            {
+              "name": "meowa_object_id",
+              "type": "string",
+              "value": "history:pixel-history-25426-output:0:https://media.meowa.ai/public/pixel-gen/output/2026-06-08/08%3A16%3A14-b9b4c9c3-2007-4195-8b2f-af7501c34cb7/sprite_00.png"
+            },
+            {
+              "name": "meowa_object_placement_id",
+              "type": "string",
+              "value": "map-object-1780989771753-nxjcgnw9tti"
+            },
+            {
+              "name": "meowa_layer_id",
+              "type": "string",
+              "value": "map-layer-1"
+            },
+            {
+              "name": "meowa_source",
+              "type": "string",
+              "value": "history"
+            }
+          ]
+        },
+        {
+          "id": 14,
+          "gid": 17,
+          "name": "针叶树",
+          "type": "meowa-object",
+          "x": 938,
+          "y": 488,
+          "width": 64,
+          "height": 64,
+          "rotation": 0,
+          "opacity": 1,
+          "visible": true,
+          "properties": [
+            {
+              "name": "meowa_object_id",
+              "type": "string",
+              "value": "history:pixel-history-25426-output:0:https://media.meowa.ai/public/pixel-gen/output/2026-06-08/08%3A16%3A14-b9b4c9c3-2007-4195-8b2f-af7501c34cb7/sprite_00.png"
+            },
+            {
+              "name": "meowa_object_placement_id",
+              "type": "string",
+              "value": "map-object-1780989773036-au8awoshsjn"
+            },
+            {
+              "name": "meowa_layer_id",
+              "type": "string",
+              "value": "map-layer-1"
+            },
+            {
+              "name": "meowa_source",
+              "type": "string",
+              "value": "history"
+            }
+          ]
+        },
+        {
+          "id": 15,
+          "gid": 17,
+          "name": "针叶树",
+          "type": "meowa-object",
+          "x": 852,
+          "y": 491,
+          "width": 64,
+          "height": 64,
+          "rotation": 0,
+          "opacity": 1,
+          "visible": true,
+          "properties": [
+            {
+              "name": "meowa_object_id",
+              "type": "string",
+              "value": "history:pixel-history-25426-output:0:https://media.meowa.ai/public/pixel-gen/output/2026-06-08/08%3A16%3A14-b9b4c9c3-2007-4195-8b2f-af7501c34cb7/sprite_00.png"
+            },
+            {
+              "name": "meowa_object_placement_id",
+              "type": "string",
+              "value": "map-object-1780989774237-gb5y7vv2qqf"
+            },
+            {
+              "name": "meowa_layer_id",
+              "type": "string",
+              "value": "map-layer-1"
+            },
+            {
+              "name": "meowa_source",
+              "type": "string",
+              "value": "history"
+            }
+          ]
+        },
+        {
+          "id": 16,
+          "gid": 17,
+          "name": "针叶树",
+          "type": "meowa-object",
+          "x": 888,
+          "y": 522,
+          "width": 64,
+          "height": 64,
+          "rotation": 0,
+          "opacity": 1,
+          "visible": true,
+          "properties": [
+            {
+              "name": "meowa_object_id",
+              "type": "string",
+              "value": "history:pixel-history-25426-output:0:https://media.meowa.ai/public/pixel-gen/output/2026-06-08/08%3A16%3A14-b9b4c9c3-2007-4195-8b2f-af7501c34cb7/sprite_00.png"
+            },
+            {
+              "name": "meowa_object_placement_id",
+              "type": "string",
+              "value": "map-object-1780989775004-8s3fobsg3i"
+            },
+            {
+              "name": "meowa_layer_id",
+              "type": "string",
+              "value": "map-layer-1"
+            },
+            {
+              "name": "meowa_source",
+              "type": "string",
+              "value": "history"
+            }
+          ]
+        },
+        {
+          "id": 17,
+          "gid": 17,
+          "name": "针叶树",
+          "type": "meowa-object",
+          "x": 928,
+          "y": 542,
+          "width": 64,
+          "height": 64,
+          "rotation": 0,
+          "opacity": 1,
+          "visible": true,
+          "properties": [
+            {
+              "name": "meowa_object_id",
+              "type": "string",
+              "value": "history:pixel-history-25426-output:0:https://media.meowa.ai/public/pixel-gen/output/2026-06-08/08%3A16%3A14-b9b4c9c3-2007-4195-8b2f-af7501c34cb7/sprite_00.png"
+            },
+            {
+              "name": "meowa_object_placement_id",
+              "type": "string",
+              "value": "map-object-1780989776903-9tzxzs3xjeu"
+            },
+            {
+              "name": "meowa_layer_id",
+              "type": "string",
+              "value": "map-layer-1"
+            },
+            {
+              "name": "meowa_source",
+              "type": "string",
+              "value": "history"
+            }
+          ]
+        },
+        {
+          "id": 18,
+          "gid": 17,
+          "name": "针叶树",
+          "type": "meowa-object",
+          "x": 859,
+          "y": 559,
+          "width": 64,
+          "height": 64,
+          "rotation": 0,
+          "opacity": 1,
+          "visible": true,
+          "properties": [
+            {
+              "name": "meowa_object_id",
+              "type": "string",
+              "value": "history:pixel-history-25426-output:0:https://media.meowa.ai/public/pixel-gen/output/2026-06-08/08%3A16%3A14-b9b4c9c3-2007-4195-8b2f-af7501c34cb7/sprite_00.png"
+            },
+            {
+              "name": "meowa_object_placement_id",
+              "type": "string",
+              "value": "map-object-1780989778287-s81x445ouul"
+            },
+            {
+              "name": "meowa_layer_id",
+              "type": "string",
+              "value": "map-layer-1"
+            },
+            {
+              "name": "meowa_source",
+              "type": "string",
+              "value": "history"
+            }
+          ]
+        },
+        {
+          "id": 19,
+          "gid": 17,
+          "name": "针叶树",
+          "type": "meowa-object",
+          "x": 896,
+          "y": 576,
+          "width": 64,
+          "height": 64,
+          "rotation": 0,
+          "opacity": 1,
+          "visible": true,
+          "properties": [
+            {
+              "name": "meowa_object_id",
+              "type": "string",
+              "value": "history:pixel-history-25426-output:0:https://media.meowa.ai/public/pixel-gen/output/2026-06-08/08%3A16%3A14-b9b4c9c3-2007-4195-8b2f-af7501c34cb7/sprite_00.png"
+            },
+            {
+              "name": "meowa_object_placement_id",
+              "type": "string",
+              "value": "map-object-1780989779503-hwh079d46eh"
+            },
+            {
+              "name": "meowa_layer_id",
+              "type": "string",
+              "value": "map-layer-1"
+            },
+            {
+              "name": "meowa_source",
+              "type": "string",
+              "value": "history"
+            }
+          ]
+        },
+        {
+          "id": 20,
+          "gid": 17,
+          "name": "针叶树",
+          "type": "meowa-object",
+          "x": 932,
+          "y": 594,
+          "width": 64,
+          "height": 64,
+          "rotation": 0,
+          "opacity": 1,
+          "visible": true,
+          "properties": [
+            {
+              "name": "meowa_object_id",
+              "type": "string",
+              "value": "history:pixel-history-25426-output:0:https://media.meowa.ai/public/pixel-gen/output/2026-06-08/08%3A16%3A14-b9b4c9c3-2007-4195-8b2f-af7501c34cb7/sprite_00.png"
+            },
+            {
+              "name": "meowa_object_placement_id",
+              "type": "string",
+              "value": "map-object-1780989780637-ywrv7kzpk8n"
+            },
+            {
+              "name": "meowa_layer_id",
+              "type": "string",
+              "value": "map-layer-1"
+            },
+            {
+              "name": "meowa_source",
+              "type": "string",
+              "value": "history"
+            }
+          ]
+        },
+        {
+          "id": 21,
+          "gid": 17,
+          "name": "针叶树",
+          "type": "meowa-object",
+          "x": 862,
+          "y": 607,
+          "width": 64,
+          "height": 64,
+          "rotation": 0,
+          "opacity": 1,
+          "visible": true,
+          "properties": [
+            {
+              "name": "meowa_object_id",
+              "type": "string",
+              "value": "history:pixel-history-25426-output:0:https://media.meowa.ai/public/pixel-gen/output/2026-06-08/08%3A16%3A14-b9b4c9c3-2007-4195-8b2f-af7501c34cb7/sprite_00.png"
+            },
+            {
+              "name": "meowa_object_placement_id",
+              "type": "string",
+              "value": "map-object-1780989781503-mw2qkxgk49"
+            },
+            {
+              "name": "meowa_layer_id",
+              "type": "string",
+              "value": "map-layer-1"
+            },
+            {
+              "name": "meowa_source",
+              "type": "string",
+              "value": "history"
+            }
+          ]
+        },
+        {
+          "id": 22,
+          "gid": 17,
+          "name": "针叶树",
+          "type": "meowa-object",
+          "x": 897,
+          "y": 623,
+          "width": 64,
+          "height": 64,
+          "rotation": 0,
+          "opacity": 1,
+          "visible": true,
+          "properties": [
+            {
+              "name": "meowa_object_id",
+              "type": "string",
+              "value": "history:pixel-history-25426-output:0:https://media.meowa.ai/public/pixel-gen/output/2026-06-08/08%3A16%3A14-b9b4c9c3-2007-4195-8b2f-af7501c34cb7/sprite_00.png"
+            },
+            {
+              "name": "meowa_object_placement_id",
+              "type": "string",
+              "value": "map-object-1780989782870-gqcs4cku4g8"
+            },
+            {
+              "name": "meowa_layer_id",
+              "type": "string",
+              "value": "map-layer-1"
+            },
+            {
+              "name": "meowa_source",
+              "type": "string",
+              "value": "history"
+            }
+          ]
+        },
+        {
+          "id": 23,
+          "gid": 17,
+          "name": "针叶树",
+          "type": "meowa-object",
+          "x": 945,
+          "y": 642,
+          "width": 64,
+          "height": 64,
+          "rotation": 0,
+          "opacity": 1,
+          "visible": true,
+          "properties": [
+            {
+              "name": "meowa_object_id",
+              "type": "string",
+              "value": "history:pixel-history-25426-output:0:https://media.meowa.ai/public/pixel-gen/output/2026-06-08/08%3A16%3A14-b9b4c9c3-2007-4195-8b2f-af7501c34cb7/sprite_00.png"
+            },
+            {
+              "name": "meowa_object_placement_id",
+              "type": "string",
+              "value": "map-object-1780989785103-mxr6gi7vd6r"
+            },
+            {
+              "name": "meowa_layer_id",
+              "type": "string",
+              "value": "map-layer-1"
+            },
+            {
+              "name": "meowa_source",
+              "type": "string",
+              "value": "history"
+            }
+          ]
+        },
+        {
+          "id": 24,
+          "gid": 17,
+          "name": "针叶树",
+          "type": "meowa-object",
+          "x": 1261,
+          "y": 422,
+          "width": 64,
+          "height": 64,
+          "rotation": 0,
+          "opacity": 1,
+          "visible": true,
+          "properties": [
+            {
+              "name": "meowa_object_id",
+              "type": "string",
+              "value": "history:pixel-history-25426-output:0:https://media.meowa.ai/public/pixel-gen/output/2026-06-08/08%3A16%3A14-b9b4c9c3-2007-4195-8b2f-af7501c34cb7/sprite_00.png"
+            },
+            {
+              "name": "meowa_object_placement_id",
+              "type": "string",
+              "value": "map-object-1780989793387-8dlfg1hep8w"
+            },
+            {
+              "name": "meowa_layer_id",
+              "type": "string",
+              "value": "map-layer-1"
+            },
+            {
+              "name": "meowa_source",
+              "type": "string",
+              "value": "history"
+            }
+          ]
+        },
+        {
+          "id": 25,
+          "gid": 17,
+          "name": "针叶树",
+          "type": "meowa-object",
+          "x": 1268,
+          "y": 458,
+          "width": 64,
+          "height": 64,
+          "rotation": 0,
+          "opacity": 1,
+          "visible": true,
+          "properties": [
+            {
+              "name": "meowa_object_id",
+              "type": "string",
+              "value": "history:pixel-history-25426-output:0:https://media.meowa.ai/public/pixel-gen/output/2026-06-08/08%3A16%3A14-b9b4c9c3-2007-4195-8b2f-af7501c34cb7/sprite_00.png"
+            },
+            {
+              "name": "meowa_object_placement_id",
+              "type": "string",
+              "value": "map-object-1780989794288-u951ip6xjk"
+            },
+            {
+              "name": "meowa_layer_id",
+              "type": "string",
+              "value": "map-layer-1"
+            },
+            {
+              "name": "meowa_source",
+              "type": "string",
+              "value": "history"
+            }
+          ]
+        },
+        {
+          "id": 26,
+          "gid": 17,
+          "name": "针叶树",
+          "type": "meowa-object",
+          "x": 1311,
+          "y": 457,
+          "width": 64,
+          "height": 64,
+          "rotation": 0,
+          "opacity": 1,
+          "visible": true,
+          "properties": [
+            {
+              "name": "meowa_object_id",
+              "type": "string",
+              "value": "history:pixel-history-25426-output:0:https://media.meowa.ai/public/pixel-gen/output/2026-06-08/08%3A16%3A14-b9b4c9c3-2007-4195-8b2f-af7501c34cb7/sprite_00.png"
+            },
+            {
+              "name": "meowa_object_placement_id",
+              "type": "string",
+              "value": "map-object-1780989794938-gavv1tmtay"
+            },
+            {
+              "name": "meowa_layer_id",
+              "type": "string",
+              "value": "map-layer-1"
+            },
+            {
+              "name": "meowa_source",
+              "type": "string",
+              "value": "history"
+            }
+          ]
+        },
+        {
+          "id": 27,
+          "gid": 17,
+          "name": "针叶树",
+          "type": "meowa-object",
+          "x": 1294,
+          "y": 417,
+          "width": 64,
+          "height": 64,
+          "rotation": 0,
+          "opacity": 1,
+          "visible": true,
+          "properties": [
+            {
+              "name": "meowa_object_id",
+              "type": "string",
+              "value": "history:pixel-history-25426-output:0:https://media.meowa.ai/public/pixel-gen/output/2026-06-08/08%3A16%3A14-b9b4c9c3-2007-4195-8b2f-af7501c34cb7/sprite_00.png"
+            },
+            {
+              "name": "meowa_object_placement_id",
+              "type": "string",
+              "value": "map-object-1780989796071-ffqr2tgubpj"
+            },
+            {
+              "name": "meowa_layer_id",
+              "type": "string",
+              "value": "map-layer-1"
+            },
+            {
+              "name": "meowa_source",
+              "type": "string",
+              "value": "history"
+            }
+          ]
+        },
+        {
+          "id": 28,
+          "gid": 17,
+          "name": "针叶树",
+          "type": "meowa-object",
+          "x": 1336,
+          "y": 415,
+          "width": 64,
+          "height": 64,
+          "rotation": 0,
+          "opacity": 1,
+          "visible": true,
+          "properties": [
+            {
+              "name": "meowa_object_id",
+              "type": "string",
+              "value": "history:pixel-history-25426-output:0:https://media.meowa.ai/public/pixel-gen/output/2026-06-08/08%3A16%3A14-b9b4c9c3-2007-4195-8b2f-af7501c34cb7/sprite_00.png"
+            },
+            {
+              "name": "meowa_object_placement_id",
+              "type": "string",
+              "value": "map-object-1780989796937-y0s7c3mmn2d"
+            },
+            {
+              "name": "meowa_layer_id",
+              "type": "string",
+              "value": "map-layer-1"
+            },
+            {
+              "name": "meowa_source",
+              "type": "string",
+              "value": "history"
+            }
+          ]
+        },
+        {
+          "id": 29,
+          "gid": 17,
+          "name": "针叶树",
+          "type": "meowa-object",
+          "x": 1349,
+          "y": 460,
+          "width": 64,
+          "height": 64,
+          "rotation": 0,
+          "opacity": 1,
+          "visible": true,
+          "properties": [
+            {
+              "name": "meowa_object_id",
+              "type": "string",
+              "value": "history:pixel-history-25426-output:0:https://media.meowa.ai/public/pixel-gen/output/2026-06-08/08%3A16%3A14-b9b4c9c3-2007-4195-8b2f-af7501c34cb7/sprite_00.png"
+            },
+            {
+              "name": "meowa_object_placement_id",
+              "type": "string",
+              "value": "map-object-1780989797570-3d3yxnwibp"
+            },
+            {
+              "name": "meowa_layer_id",
+              "type": "string",
+              "value": "map-layer-1"
+            },
+            {
+              "name": "meowa_source",
+              "type": "string",
+              "value": "history"
+            }
+          ]
+        },
+        {
+          "id": 30,
+          "gid": 17,
+          "name": "针叶树",
+          "type": "meowa-object",
+          "x": 1390,
+          "y": 459,
+          "width": 64,
+          "height": 64,
+          "rotation": 0,
+          "opacity": 1,
+          "visible": true,
+          "properties": [
+            {
+              "name": "meowa_object_id",
+              "type": "string",
+              "value": "history:pixel-history-25426-output:0:https://media.meowa.ai/public/pixel-gen/output/2026-06-08/08%3A16%3A14-b9b4c9c3-2007-4195-8b2f-af7501c34cb7/sprite_00.png"
+            },
+            {
+              "name": "meowa_object_placement_id",
+              "type": "string",
+              "value": "map-object-1780989798405-5mj9a6y0wmk"
+            },
+            {
+              "name": "meowa_layer_id",
+              "type": "string",
+              "value": "map-layer-1"
+            },
+            {
+              "name": "meowa_source",
+              "type": "string",
+              "value": "history"
+            }
+          ]
+        },
+        {
+          "id": 31,
+          "gid": 17,
+          "name": "针叶树",
+          "type": "meowa-object",
+          "x": 1131,
+          "y": 746,
+          "width": 64,
+          "height": 64,
+          "rotation": 0,
+          "opacity": 1,
+          "visible": true,
+          "properties": [
+            {
+              "name": "meowa_object_id",
+              "type": "string",
+              "value": "history:pixel-history-25426-output:0:https://media.meowa.ai/public/pixel-gen/output/2026-06-08/08%3A16%3A14-b9b4c9c3-2007-4195-8b2f-af7501c34cb7/sprite_00.png"
+            },
+            {
+              "name": "meowa_object_placement_id",
+              "type": "string",
+              "value": "map-object-1780989829421-1zpft3hya05"
+            },
+            {
+              "name": "meowa_layer_id",
+              "type": "string",
+              "value": "map-layer-1"
+            },
+            {
+              "name": "meowa_source",
+              "type": "string",
+              "value": "history"
+            }
+          ]
+        },
+        {
+          "id": 32,
+          "gid": 17,
+          "name": "针叶树",
+          "type": "meowa-object",
+          "x": 1168,
+          "y": 736,
+          "width": 64,
+          "height": 64,
+          "rotation": 0,
+          "opacity": 1,
+          "visible": true,
+          "properties": [
+            {
+              "name": "meowa_object_id",
+              "type": "string",
+              "value": "history:pixel-history-25426-output:0:https://media.meowa.ai/public/pixel-gen/output/2026-06-08/08%3A16%3A14-b9b4c9c3-2007-4195-8b2f-af7501c34cb7/sprite_00.png"
+            },
+            {
+              "name": "meowa_object_placement_id",
+              "type": "string",
+              "value": "map-object-1780989830237-cb51rtxv9nq"
+            },
+            {
+              "name": "meowa_layer_id",
+              "type": "string",
+              "value": "map-layer-1"
+            },
+            {
+              "name": "meowa_source",
+              "type": "string",
+              "value": "history"
+            }
+          ]
+        },
+        {
+          "id": 33,
+          "gid": 17,
+          "name": "针叶树",
+          "type": "meowa-object",
+          "x": 1144,
+          "y": 704,
+          "width": 64,
+          "height": 64,
+          "rotation": 0,
+          "opacity": 1,
+          "visible": true,
+          "properties": [
+            {
+              "name": "meowa_object_id",
+              "type": "string",
+              "value": "history:pixel-history-25426-output:0:https://media.meowa.ai/public/pixel-gen/output/2026-06-08/08%3A16%3A14-b9b4c9c3-2007-4195-8b2f-af7501c34cb7/sprite_00.png"
+            },
+            {
+              "name": "meowa_object_placement_id",
+              "type": "string",
+              "value": "map-object-1780989831020-33epa342tn"
+            },
+            {
+              "name": "meowa_layer_id",
+              "type": "string",
+              "value": "map-layer-1"
+            },
+            {
+              "name": "meowa_source",
+              "type": "string",
+              "value": "history"
+            }
+          ]
+        },
+        {
+          "id": 34,
+          "gid": 17,
+          "name": "针叶树",
+          "type": "meowa-object",
+          "x": 1205,
+          "y": 733,
+          "width": 64,
+          "height": 64,
+          "rotation": 0,
+          "opacity": 1,
+          "visible": true,
+          "properties": [
+            {
+              "name": "meowa_object_id",
+              "type": "string",
+              "value": "history:pixel-history-25426-output:0:https://media.meowa.ai/public/pixel-gen/output/2026-06-08/08%3A16%3A14-b9b4c9c3-2007-4195-8b2f-af7501c34cb7/sprite_00.png"
+            },
+            {
+              "name": "meowa_object_placement_id",
+              "type": "string",
+              "value": "map-object-1780989831805-fnj88jl50nv"
+            },
+            {
+              "name": "meowa_layer_id",
+              "type": "string",
+              "value": "map-layer-1"
+            },
+            {
+              "name": "meowa_source",
+              "type": "string",
+              "value": "history"
+            }
+          ]
+        },
+        {
+          "id": 35,
+          "gid": 17,
+          "name": "针叶树",
+          "type": "meowa-object",
+          "x": 1183,
+          "y": 699,
+          "width": 64,
+          "height": 64,
+          "rotation": 0,
+          "opacity": 1,
+          "visible": true,
+          "properties": [
+            {
+              "name": "meowa_object_id",
+              "type": "string",
+              "value": "history:pixel-history-25426-output:0:https://media.meowa.ai/public/pixel-gen/output/2026-06-08/08%3A16%3A14-b9b4c9c3-2007-4195-8b2f-af7501c34cb7/sprite_00.png"
+            },
+            {
+              "name": "meowa_object_placement_id",
+              "type": "string",
+              "value": "map-object-1780989832487-bgmh1vmpplh"
+            },
+            {
+              "name": "meowa_layer_id",
+              "type": "string",
+              "value": "map-layer-1"
+            },
+            {
+              "name": "meowa_source",
+              "type": "string",
+              "value": "history"
+            }
+          ]
+        },
+        {
+          "id": 36,
+          "gid": 17,
+          "name": "针叶树",
+          "type": "meowa-object",
+          "x": 1257,
+          "y": 747,
+          "width": 64,
+          "height": 64,
+          "rotation": 0,
+          "opacity": 1,
+          "visible": true,
+          "properties": [
+            {
+              "name": "meowa_object_id",
+              "type": "string",
+              "value": "history:pixel-history-25426-output:0:https://media.meowa.ai/public/pixel-gen/output/2026-06-08/08%3A16%3A14-b9b4c9c3-2007-4195-8b2f-af7501c34cb7/sprite_00.png"
+            },
+            {
+              "name": "meowa_object_placement_id",
+              "type": "string",
+              "value": "map-object-1780989833253-xh0dn51o0g"
+            },
+            {
+              "name": "meowa_layer_id",
+              "type": "string",
+              "value": "map-layer-1"
+            },
+            {
+              "name": "meowa_source",
+              "type": "string",
+              "value": "history"
+            }
+          ]
+        },
+        {
+          "id": 37,
+          "gid": 17,
+          "name": "针叶树",
+          "type": "meowa-object",
+          "x": 1241,
+          "y": 708,
+          "width": 64,
+          "height": 64,
+          "rotation": 0,
+          "opacity": 1,
+          "visible": true,
+          "properties": [
+            {
+              "name": "meowa_object_id",
+              "type": "string",
+              "value": "history:pixel-history-25426-output:0:https://media.meowa.ai/public/pixel-gen/output/2026-06-08/08%3A16%3A14-b9b4c9c3-2007-4195-8b2f-af7501c34cb7/sprite_00.png"
+            },
+            {
+              "name": "meowa_object_placement_id",
+              "type": "string",
+              "value": "map-object-1780989833953-ufveqepn3n"
+            },
+            {
+              "name": "meowa_layer_id",
+              "type": "string",
+              "value": "map-layer-1"
+            },
+            {
+              "name": "meowa_source",
+              "type": "string",
+              "value": "history"
+            }
+          ]
+        },
+        {
+          "id": 38,
+          "gid": 17,
+          "name": "针叶树",
+          "type": "meowa-object",
+          "x": 1298,
+          "y": 703,
+          "width": 64,
+          "height": 64,
+          "rotation": 0,
+          "opacity": 1,
+          "visible": true,
+          "properties": [
+            {
+              "name": "meowa_object_id",
+              "type": "string",
+              "value": "history:pixel-history-25426-output:0:https://media.meowa.ai/public/pixel-gen/output/2026-06-08/08%3A16%3A14-b9b4c9c3-2007-4195-8b2f-af7501c34cb7/sprite_00.png"
+            },
+            {
+              "name": "meowa_object_placement_id",
+              "type": "string",
+              "value": "map-object-1780989835438-38via9yx6ah"
+            },
+            {
+              "name": "meowa_layer_id",
+              "type": "string",
+              "value": "map-layer-1"
+            },
+            {
+              "name": "meowa_source",
+              "type": "string",
+              "value": "history"
+            }
+          ]
+        },
+        {
+          "id": 39,
+          "gid": 17,
+          "name": "针叶树",
+          "type": "meowa-object",
+          "x": 1292,
+          "y": 751,
+          "width": 64,
+          "height": 64,
+          "rotation": 0,
+          "opacity": 1,
+          "visible": true,
+          "properties": [
+            {
+              "name": "meowa_object_id",
+              "type": "string",
+              "value": "history:pixel-history-25426-output:0:https://media.meowa.ai/public/pixel-gen/output/2026-06-08/08%3A16%3A14-b9b4c9c3-2007-4195-8b2f-af7501c34cb7/sprite_00.png"
+            },
+            {
+              "name": "meowa_object_placement_id",
+              "type": "string",
+              "value": "map-object-1780989837554-y8gm37xjmd"
+            },
+            {
+              "name": "meowa_layer_id",
+              "type": "string",
+              "value": "map-layer-1"
+            },
+            {
+              "name": "meowa_source",
+              "type": "string",
+              "value": "history"
+            }
+          ]
+        },
+        {
+          "id": 40,
+          "gid": 17,
+          "name": "针叶树",
+          "type": "meowa-object",
+          "x": 1338,
+          "y": 718,
+          "width": 64,
+          "height": 64,
+          "rotation": 0,
+          "opacity": 1,
+          "visible": true,
+          "properties": [
+            {
+              "name": "meowa_object_id",
+              "type": "string",
+              "value": "history:pixel-history-25426-output:0:https://media.meowa.ai/public/pixel-gen/output/2026-06-08/08%3A16%3A14-b9b4c9c3-2007-4195-8b2f-af7501c34cb7/sprite_00.png"
+            },
+            {
+              "name": "meowa_object_placement_id",
+              "type": "string",
+              "value": "map-object-1780989838169-gs5dvn7al5u"
+            },
+            {
+              "name": "meowa_layer_id",
+              "type": "string",
+              "value": "map-layer-1"
+            },
+            {
+              "name": "meowa_source",
+              "type": "string",
+              "value": "history"
+            }
+          ]
+        },
+        {
+          "id": 41,
+          "gid": 17,
+          "name": "针叶树",
+          "type": "meowa-object",
+          "x": 1326,
+          "y": 751,
+          "width": 64,
+          "height": 64,
+          "rotation": 0,
+          "opacity": 1,
+          "visible": true,
+          "properties": [
+            {
+              "name": "meowa_object_id",
+              "type": "string",
+              "value": "history:pixel-history-25426-output:0:https://media.meowa.ai/public/pixel-gen/output/2026-06-08/08%3A16%3A14-b9b4c9c3-2007-4195-8b2f-af7501c34cb7/sprite_00.png"
+            },
+            {
+              "name": "meowa_object_placement_id",
+              "type": "string",
+              "value": "map-object-1780989839372-muh79fcr8ki"
+            },
+            {
+              "name": "meowa_layer_id",
+              "type": "string",
+              "value": "map-layer-1"
+            },
+            {
+              "name": "meowa_source",
+              "type": "string",
+              "value": "history"
+            }
+          ]
+        },
+        {
+          "id": 42,
+          "gid": 17,
+          "name": "针叶树",
+          "type": "meowa-object",
+          "x": 1380,
+          "y": 664,
+          "width": 64,
+          "height": 64,
+          "rotation": 0,
+          "opacity": 1,
+          "visible": true,
+          "properties": [
+            {
+              "name": "meowa_object_id",
+              "type": "string",
+              "value": "history:pixel-history-25426-output:0:https://media.meowa.ai/public/pixel-gen/output/2026-06-08/08%3A16%3A14-b9b4c9c3-2007-4195-8b2f-af7501c34cb7/sprite_00.png"
+            },
+            {
+              "name": "meowa_object_placement_id",
+              "type": "string",
+              "value": "map-object-1780989840620-m4fxaa7ae58"
+            },
+            {
+              "name": "meowa_layer_id",
+              "type": "string",
+              "value": "map-layer-1"
+            },
+            {
+              "name": "meowa_source",
+              "type": "string",
+              "value": "history"
+            }
+          ]
+        },
+        {
+          "id": 43,
+          "gid": 17,
+          "name": "针叶树",
+          "type": "meowa-object",
+          "x": 1378,
+          "y": 707,
+          "width": 64,
+          "height": 64,
+          "rotation": 0,
+          "opacity": 1,
+          "visible": true,
+          "properties": [
+            {
+              "name": "meowa_object_id",
+              "type": "string",
+              "value": "history:pixel-history-25426-output:0:https://media.meowa.ai/public/pixel-gen/output/2026-06-08/08%3A16%3A14-b9b4c9c3-2007-4195-8b2f-af7501c34cb7/sprite_00.png"
+            },
+            {
+              "name": "meowa_object_placement_id",
+              "type": "string",
+              "value": "map-object-1780989841236-g8q30258w6"
+            },
+            {
+              "name": "meowa_layer_id",
+              "type": "string",
+              "value": "map-layer-1"
+            },
+            {
+              "name": "meowa_source",
+              "type": "string",
+              "value": "history"
+            }
+          ]
+        },
+        {
+          "id": 44,
+          "gid": 17,
+          "name": "针叶树",
+          "type": "meowa-object",
+          "x": 1371,
+          "y": 754,
+          "width": 64,
+          "height": 64,
+          "rotation": 0,
+          "opacity": 1,
+          "visible": true,
+          "properties": [
+            {
+              "name": "meowa_object_id",
+              "type": "string",
+              "value": "history:pixel-history-25426-output:0:https://media.meowa.ai/public/pixel-gen/output/2026-06-08/08%3A16%3A14-b9b4c9c3-2007-4195-8b2f-af7501c34cb7/sprite_00.png"
+            },
+            {
+              "name": "meowa_object_placement_id",
+              "type": "string",
+              "value": "map-object-1780989845287-4nry2u0iryg"
+            },
+            {
+              "name": "meowa_layer_id",
+              "type": "string",
+              "value": "map-layer-1"
+            },
+            {
+              "name": "meowa_source",
+              "type": "string",
+              "value": "history"
+            }
+          ]
+        },
+        {
+          "id": 45,
+          "gid": 18,
+          "name": "图像 18",
+          "type": "meowa-object",
+          "x": 1025,
+          "y": 565,
+          "width": 64,
+          "height": 64,
+          "rotation": 0,
+          "opacity": 1,
+          "visible": true,
+          "properties": [
+            {
+              "name": "meowa_object_id",
+              "type": "string",
+              "value": "canvas:1780990117011-mgz5lr3oeh"
+            },
+            {
+              "name": "meowa_object_placement_id",
+              "type": "string",
+              "value": "map-object-1780990186885-f26yqdw8nzn"
+            },
+            {
+              "name": "meowa_layer_id",
+              "type": "string",
+              "value": "map-layer-1"
+            },
+            {
+              "name": "meowa_source",
+              "type": "string",
+              "value": "canvas"
+            }
+          ]
+        },
+        {
+          "id": 46,
+          "gid": 18,
+          "name": "图像 18",
+          "type": "meowa-object",
+          "x": 992,
+          "y": 584,
+          "width": 64,
+          "height": 64,
+          "rotation": 0,
+          "opacity": 1,
+          "visible": true,
+          "properties": [
+            {
+              "name": "meowa_object_id",
+              "type": "string",
+              "value": "canvas:1780990117011-mgz5lr3oeh"
+            },
+            {
+              "name": "meowa_object_placement_id",
+              "type": "string",
+              "value": "map-object-1780990192150-bbzqjw5cs2h"
+            },
+            {
+              "name": "meowa_layer_id",
+              "type": "string",
+              "value": "map-layer-1"
+            },
+            {
+              "name": "meowa_source",
+              "type": "string",
+              "value": "canvas"
+            }
+          ]
+        },
+        {
+          "id": 47,
+          "gid": 19,
+          "name": "图像 11",
+          "type": "meowa-object",
+          "x": 1034,
+          "y": 598,
+          "width": 64,
+          "height": 64,
+          "rotation": 0,
+          "opacity": 1,
+          "visible": true,
+          "properties": [
+            {
+              "name": "meowa_object_id",
+              "type": "string",
+              "value": "canvas:1780990113023-75g5ajywu9i"
+            },
+            {
+              "name": "meowa_object_placement_id",
+              "type": "string",
+              "value": "map-object-1780990207267-8uk4dxhk5ks"
+            },
+            {
+              "name": "meowa_layer_id",
+              "type": "string",
+              "value": "map-layer-1"
+            },
+            {
+              "name": "meowa_source",
+              "type": "string",
+              "value": "canvas"
+            }
+          ]
+        },
+        {
+          "id": 48,
+          "gid": 19,
+          "name": "图像 11",
+          "type": "meowa-object",
+          "x": 949,
+          "y": 685,
+          "width": 64,
+          "height": 64,
+          "rotation": 0,
+          "opacity": 1,
+          "visible": true,
+          "properties": [
+            {
+              "name": "meowa_object_id",
+              "type": "string",
+              "value": "canvas:1780990113023-75g5ajywu9i"
+            },
+            {
+              "name": "meowa_object_placement_id",
+              "type": "string",
+              "value": "map-object-1780990210985-w2y7zbgq5lc"
+            },
+            {
+              "name": "meowa_layer_id",
+              "type": "string",
+              "value": "map-layer-1"
+            },
+            {
+              "name": "meowa_source",
+              "type": "string",
+              "value": "canvas"
+            }
+          ]
+        },
+        {
+          "id": 49,
+          "gid": 19,
+          "name": "图像 11",
+          "type": "meowa-object",
+          "x": 845,
+          "y": 399,
+          "width": 64,
+          "height": 64,
+          "rotation": 0,
+          "opacity": 1,
+          "visible": true,
+          "properties": [
+            {
+              "name": "meowa_object_id",
+              "type": "string",
+              "value": "canvas:1780990113023-75g5ajywu9i"
+            },
+            {
+              "name": "meowa_object_placement_id",
+              "type": "string",
+              "value": "map-object-1780990219751-svo1q4w0abi"
+            },
+            {
+              "name": "meowa_layer_id",
+              "type": "string",
+              "value": "map-layer-1"
+            },
+            {
+              "name": "meowa_source",
+              "type": "string",
+              "value": "canvas"
+            }
+          ]
+        }
+      ],
+      "opacity": 1,
+      "visible": true,
+      "x": 0,
+      "y": 0,
+      "width": 0,
+      "height": 0,
+      "properties": [
+        {
+          "name": "meowa_layer_id",
+          "type": "string",
+          "value": "map-layer-1"
+        }
+      ]
+    }
+  ],
+  "nextlayerid": 3,
+  "nextobjectid": 50,
+  "orientation": "orthogonal",
+  "renderorder": "right-down",
+  "tiledversion": "1.12.1",
+  "tileheight": 64,
+  "tilesets": [
+    {
+      "firstgid": 1,
+      "name": "生成一个地块文件",
+      "image": "tilesets/history-tileset-local-proj-1780908050682-eakfu68m-1780989463827-map-tileset-pending-1.png",
+      "imagewidth": 256,
+      "imageheight": 256,
+      "margin": 0,
+      "spacing": 0,
+      "tilewidth": 64,
+      "tileheight": 64,
+      "tilecount": 16,
+      "columns": 4,
+      "properties": [
+        {
+          "name": "meowa_tileset_id",
+          "type": "string",
+          "value": "history-tileset:local-proj-1780908050682-eakfu68m-1780989463827-map-tileset-pending-1"
+        },
+        {
+          "name": "meowa_tileset_type",
+          "type": "string",
+          "value": "dual-grid-15"
+        }
+      ]
+    },
+    {
+      "firstgid": 17,
+      "name": "针叶树",
+      "image": "objects/history-pixel-history-25426-output-0-https-media-meowa-ai-public-pixel-gen-output-2026-06-08-08-3a16-3a14-b9b4c9c3-2007-4195-8b2f-af7501c34cb7-sprite_00-png.png",
+      "imagewidth": 64,
+      "imageheight": 64,
+      "margin": 0,
+      "spacing": 0,
+      "tilewidth": 64,
+      "tileheight": 64,
+      "tilecount": 1,
+      "columns": 1,
+      "properties": [
+        {
+          "name": "meowa_object_id",
+          "type": "string",
+          "value": "history:pixel-history-25426-output:0:https://media.meowa.ai/public/pixel-gen/output/2026-06-08/08%3A16%3A14-b9b4c9c3-2007-4195-8b2f-af7501c34cb7/sprite_00.png"
+        },
+        {
+          "name": "meowa_asset_source",
+          "type": "string",
+          "value": "history"
+        }
+      ]
+    },
+    {
+      "firstgid": 18,
+      "name": "图像 18",
+      "image": "objects/canvas-1780990117011-mgz5lr3oeh.png",
+      "imagewidth": 64,
+      "imageheight": 64,
+      "margin": 0,
+      "spacing": 0,
+      "tilewidth": 64,
+      "tileheight": 64,
+      "tilecount": 1,
+      "columns": 1,
+      "properties": [
+        {
+          "name": "meowa_object_id",
+          "type": "string",
+          "value": "canvas:1780990117011-mgz5lr3oeh"
+        },
+        {
+          "name": "meowa_asset_source",
+          "type": "string",
+          "value": "canvas"
+        }
+      ]
+    },
+    {
+      "firstgid": 19,
+      "name": "图像 11",
+      "image": "objects/canvas-1780990113023-75g5ajywu9i.png",
+      "imagewidth": 64,
+      "imageheight": 64,
+      "margin": 0,
+      "spacing": 0,
+      "tilewidth": 64,
+      "tileheight": 64,
+      "tilecount": 1,
+      "columns": 1,
+      "properties": [
+        {
+          "name": "meowa_object_id",
+          "type": "string",
+          "value": "canvas:1780990113023-75g5ajywu9i"
+        },
+        {
+          "name": "meowa_asset_source",
+          "type": "string",
+          "value": "canvas"
+        }
+      ]
+    }
+  ],
+  "tilewidth": 64,
+  "type": "map",
+  "version": "1.10",
+  "width": 24,
+  "backgroundcolor": "#909090",
+  "properties": [
+    {
+      "name": "meowa_export_version",
+      "type": "int",
+      "value": 1
+    },
+    {
+      "name": "meowa_map_type",
+      "type": "string",
+      "value": "topdown"
+    }
+  ]
+}
