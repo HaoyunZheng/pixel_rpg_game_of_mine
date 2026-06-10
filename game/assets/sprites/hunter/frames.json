@@ -1,0 +1,40 @@
+{
+  "character": "hunter",
+  "cell_width": 64,
+  "cell_height": 64,
+  "fps": 8,
+  "animations": {
+    "idle_down": {
+      "row": 0,
+      "frames": 1
+    },
+    "idle_down_left": {
+      "row": 1,
+      "frames": 1
+    },
+    "idle_down_right": {
+      "row": 2,
+      "frames": 1
+    },
+    "idle_left": {
+      "row": 3,
+      "frames": 1
+    },
+    "idle_right": {
+      "row": 4,
+      "frames": 1
+    },
+    "idle_up": {
+      "row": 5,
+      "frames": 1
+    },
+    "idle_up_left": {
+      "row": 6,
+      "frames": 1
+    },
+    "idle_up_right": {
+      "row": 7,
+      "frames": 1
+    }
+  }
+}

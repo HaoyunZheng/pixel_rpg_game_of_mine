@@ -1,9 +1,11 @@
-[gd_scene load_steps=12 format=3]
+[gd_scene load_steps=14 format=3]
 
 [ext_resource type="Script" path="res://scripts/Wilderness.gd" id="1_wilderness"]
 [ext_resource type="Script" path="res://scripts/characters/PlayerController.gd" id="2_player"]
 [ext_resource type="Script" path="res://scripts/characters/EnemyPatrol.gd" id="3_patrol"]
 [ext_resource type="SpriteFrames" path="res://assets/sprites/hooded_player/hooded_player_frames.tres" id="4_player_frames"]
+[ext_resource type="SpriteFrames" path="res://assets/sprites/hunter/hunter_frames.tres" id="5_hunter_frames"]
+[ext_resource type="SpriteFrames" path="res://assets/sprites/mutant/mutant_frames.tres" id="6_mutant_frames"]
 
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_player"]
 size = Vector2(40, 40)
@@ -134,22 +136,16 @@ script = ExtResource("3_patrol")
 encounter_key = "Enemy1"
 patrol_points = [Vector2(-180, 0), Vector2(180, 0)]
 move_speed = 60.0
+sprite_frames = ExtResource("5_hunter_frames")
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="Enemies/Enemy1"]
 shape = SubResource("RectangleShape2D_enemy")
 
-[node name="Visual" type="ColorRect" parent="Enemies/Enemy1"]
-offset_left = -20.0
-offset_top = -20.0
-offset_right = 20.0
-offset_bottom = 20.0
-color = Color(0.82, 0.22, 0.22, 1)
-
 [node name="Label" type="Label" parent="Enemies/Enemy1"]
-offset_left = -20.0
-offset_top = -20.0
-offset_right = 20.0
-offset_bottom = 20.0
+offset_left = -40.0
+offset_top = -62.0
+offset_right = 40.0
+offset_bottom = -46.0
 theme_override_colors/font_color = Color(1, 0.85, 0.85, 1)
 theme_override_colors/font_shadow_color = Color(0.3, 0.05, 0.05, 0.8)
 theme_override_constants/shadow_offset_x = 1
@@ -171,22 +167,17 @@ script = ExtResource("3_patrol")
 encounter_key = "Enemy2"
 patrol_points = [Vector2(0, -80), Vector2(0, 80)]
 move_speed = 50.0
+sprite_frames = ExtResource("6_mutant_frames")
+sprite_offset = Vector2(0, -24)
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="Enemies/Enemy2"]
 shape = SubResource("RectangleShape2D_enemy")
 
-[node name="Visual" type="ColorRect" parent="Enemies/Enemy2"]
-offset_left = -20.0
-offset_top = -20.0
-offset_right = 20.0
-offset_bottom = 20.0
-color = Color(0.82, 0.32, 0.22, 1)
-
 [node name="Label" type="Label" parent="Enemies/Enemy2"]
-offset_left = -20.0
-offset_top = -20.0
-offset_right = 20.0
-offset_bottom = 20.0
+offset_left = -40.0
+offset_top = -106.0
+offset_right = 40.0
+offset_bottom = -90.0
 theme_override_colors/font_color = Color(1, 0.85, 0.85, 1)
 theme_override_colors/font_shadow_color = Color(0.3, 0.05, 0.05, 0.8)
 theme_override_constants/shadow_offset_x = 1
@@ -309,4 +300,4 @@ theme_override_constants/shadow_offset_x = 1
 theme_override_constants/shadow_offset_y = 1
 theme_override_font_sizes/font_size = 13
 horizontal_alignment = 1
-text = "躲避红色敌人，或使用左侧出口返回林间空地"
+text = "躲避巡逻的敌人，或使用左侧出口返回林间空地"
