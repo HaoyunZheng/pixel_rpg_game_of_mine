@@ -12,7 +12,6 @@ const COMMAND_FLEE: String = "flee"
 const COMMAND_ITEM: String = "item"
 const SKILL_TYPE_ATTACK: int = 0
 const SKILL_TYPE_HEAL: int = 1
-const ITEM_HEAL_AMOUNT: int = 30
 
 signal state_changed(new_state: MicroState)
 signal command_selected(command: String, skill)
@@ -27,12 +26,14 @@ var damage_calculator = null
 var _current_actor = null
 var _pending_command: String = ""
 var _pending_skill = null
+var _pending_item = null
 var _pending_target = null
 
 func start_turn(actor) -> void:
 	_current_actor = actor
 	_pending_command = ""
 	_pending_skill = null
+	_pending_item = null
 	_pending_target = null
 	actor.power_multiplier = 1.0   # 兜底复位力度倍率，防上一回合泄漏
 
@@ -59,12 +60,14 @@ func _transition_to(new_state: MicroState) -> void:
 func _on_command_select() -> void:
 	Log.info("TurnState", "%s 等待指令选择" % _current_actor.display_name)
 
-func select_command(command: String, skill = null) -> void:
+## payload：技能指令传 SkillData，物品指令传 ItemData，其余为 null。
+func select_command(command: String, payload = null) -> void:
 	if current_state != MicroState.COMMAND_SELECT:
 		return
 	_pending_command = command
-	_pending_skill = skill
-	command_selected.emit(command, skill)
+	_pending_skill = payload if command == COMMAND_SKILL else null
+	_pending_item = payload if command == COMMAND_ITEM else null
+	command_selected.emit(command, payload)
 	if command == COMMAND_FLEE:
 		_transition_to(MicroState.ACTION_EXECUTE)
 	else:
@@ -100,6 +103,7 @@ func _execute_action() -> Dictionary:
 		"heal": 0,
 		"mp_cost": 0,
 		"fled": false,
+		"item": null,
 	}
 	match _pending_command:
 		COMMAND_ATTACK:
@@ -120,9 +124,19 @@ func _execute_action() -> Dictionary:
 		COMMAND_FLEE:
 			result.fled = _try_flee()
 		COMMAND_ITEM:
-			if _pending_target and not _pending_target.is_dead():
-				result.heal = ITEM_HEAL_AMOUNT
-				_pending_target.heal(result.heal)
+			if _pending_item != null and _pending_target and not _pending_target.is_dead():
+				if GameData.remove_item(_pending_item.id, 1):
+					result.item = _pending_item
+					match _pending_item.effect_type:
+						ItemData.EffectType.HEAL_HP:
+							result.heal = _pending_item.effect_value
+							_pending_target.heal(result.heal)
+						ItemData.EffectType.HEAL_MP:
+							result.heal = _pending_item.effect_value
+							_pending_target.restore_mp(result.heal)
+						ItemData.EffectType.DAMAGE:
+							result.damage = _pending_item.effect_value
+							_pending_target.take_damage(result.damage)
 	return result
 
 func _try_flee() -> bool:

@@ -27,6 +27,8 @@ var _turn_index: int = 0
 var _current_actor = null
 var _enemy_key: String = DEFAULT_ENEMY_KEY
 var _battle_started: bool = false
+# §B.2 战斗数据隔离：开战时快照背包，失败时回滚物品消耗
+var _inventory_snapshot: Array[Dictionary] = []
 
 func _ready() -> void:
 	Log.info("Battle", "战斗场景已加载（P2）")
@@ -56,6 +58,7 @@ func on_scene_enter(data: Dictionary) -> void:
 func _init_battle() -> void:
 	_turn_index = 0
 	_turn_order.clear()
+	_inventory_snapshot = GameData.duplicate_inventory()
 	_party_units.clear()
 	for member in GameData.party_members:
 		_party_units.append(BATTLE_UNIT_SCRIPT.from_party_member(member))
@@ -128,6 +131,7 @@ func _on_battle_ended(victory: bool) -> void:
 	_battle_ui.show_battle_result(victory)
 	if not victory:
 		_reset_party_hp_mp()
+		GameData.restore_inventory(_inventory_snapshot)
 	await get_tree().create_timer(2.0).timeout
 	var return_scene_path := WILDERNESS_SCENE_PATH if victory else FOREST_SCENE_PATH
 	var return_data := {DATA_KEY_SCENE_NAME: "Wilderness" if victory else "ForestClearing", DATA_KEY_FROM: "battle", "victory": victory}

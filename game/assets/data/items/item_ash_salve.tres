@@ -1,0 +1,12 @@
+[gd_resource type="Resource" script_class="ItemData" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/resources/ItemData.gd" id="1_item"]
+
+[resource]
+script = ExtResource("1_item")
+id = "item_ash_salve"
+display_name = "灰烬药膏"
+description = "聚落土法熬制的药膏，恢复少量 HP。"
+item_type = 0
+effect_type = 0
+effect_value = 30
