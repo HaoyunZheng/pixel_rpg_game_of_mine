@@ -12,3 +12,5 @@ enum AIType { HUNTER, BURNER, MUTANT }
 @export var spd: int = 8
 @export var ai_type: AIType = AIType.MUTANT
 @export var skills: Array = []
+## 外观：8 向 idle 的 SpriteFrames（战斗头像取 idle_down 首帧；为空则用占位色块）
+@export var sprite_frames: SpriteFrames = null

@@ -1,6 +1,7 @@
-[gd_resource type="Resource" script_class="EnemyStats" load_steps=2 format=3]
+[gd_resource type="Resource" script_class="EnemyStats" load_steps=3 format=3]
 
 [ext_resource type="Script" path="res://scripts/resources/EnemyStats.gd" id="1_enemy"]
+[ext_resource type="SpriteFrames" path="res://assets/sprites/mutant/mutant_frames.tres" id="2_frames"]
 
 [resource]
 script = ExtResource("1_enemy")
@@ -12,3 +13,4 @@ def = 3
 spd = 7
 ai_type = 2
 skills = []
+sprite_frames = ExtResource("2_frames")

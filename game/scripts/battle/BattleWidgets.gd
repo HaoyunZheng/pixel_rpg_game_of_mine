@@ -64,8 +64,8 @@ static func make_unit_card(unit, is_party: bool) -> Control:
 	if unit.is_dead():
 		row.modulate = Color(0.5, 0.5, 0.5)
 
-	# 头像框（avatar_frame_9p）+ 内部占位纯色块（友蓝/敌红）
-	var avatar := make_avatar(is_party)
+	# 头像框（avatar_frame_9p）+ 单位 sprite 正面帧（无外观时回退占位纯色块）
+	var avatar := make_avatar(unit, is_party)
 	avatar.set_meta("unit_ref", unit)
 	row.add_child(avatar)
 
@@ -90,7 +90,7 @@ static func make_unit_card(unit, is_party: bool) -> Control:
 	row.add_child(info)
 	return row
 
-static func make_avatar(is_party: bool) -> Control:
+static func make_avatar(unit, is_party: bool) -> Control:
 	var size_px: int = 20 * PIXEL_SCALE  # 80px
 	var holder := Control.new()
 	holder.custom_minimum_size = Vector2(size_px, size_px)
@@ -110,7 +110,24 @@ static func make_avatar(is_party: bool) -> Control:
 		frame.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 		frame.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		holder.add_child(frame)
-	# 内部占位色块（友蓝/敌红），叠在框内、内缩到描边以内，让框边可见。
+	# 单位带 sprite 外观：叠 idle_down 正面帧（框内灰烬底透出 sprite 透明区作为背景）。
+	# 内缩 2 源px 只避开外侧描边 → 框内 64px 恰好 1:1 显示 64×64 帧，无重采样。
+	var portrait: Texture2D = get_unit_portrait(unit)
+	if portrait != null:
+		var rect := TextureRect.new()
+		rect.texture = portrait
+		rect.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+		rect.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+		rect.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+		var inset_px: int = 2 * PIXEL_SCALE
+		rect.offset_left = inset_px
+		rect.offset_top = inset_px
+		rect.offset_right = -inset_px
+		rect.offset_bottom = -inset_px
+		rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		holder.add_child(rect)
+		return holder
+	# 无外观回退：内部占位色块（友蓝/敌红），叠在框内、内缩到描边以内，让框边可见。
 	var fill := ColorRect.new()
 	fill.color = COL_ALLY if is_party else COL_ENEMY
 	fill.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
@@ -121,6 +138,15 @@ static func make_avatar(is_party: bool) -> Control:
 	fill.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	holder.add_child(fill)
 	return holder
+
+## 取单位头像纹理：stats_res 带 sprite_frames（8 向 idle）时取 idle_down 首帧，否则 null。
+static func get_unit_portrait(unit) -> Texture2D:
+	if unit.stats_res == null:
+		return null
+	var frames = unit.stats_res.get("sprite_frames")
+	if frames is SpriteFrames and frames.has_animation("idle_down") and frames.get_frame_count("idle_down") > 0:
+		return frames.get_frame_texture("idle_down", 0)
+	return null
 
 static func make_stat_bar(cur: int, maxv: int, fill_tex_path: String, fallback_col: Color) -> Control:
 	var bar := TextureProgressBar.new()
