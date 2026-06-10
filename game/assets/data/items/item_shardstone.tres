@@ -1,0 +1,12 @@
+[gd_resource type="Resource" script_class="ItemData" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/resources/ItemData.gd" id="1_item"]
+
+[resource]
+script = ExtResource("1_item")
+id = "item_shardstone"
+display_name = "碎石雷"
+description = "帝国时代遗留的爆裂石，掷向敌人造成伤害。"
+item_type = 1
+effect_type = 2
+effect_value = 25

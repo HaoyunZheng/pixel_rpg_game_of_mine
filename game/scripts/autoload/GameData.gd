@@ -20,8 +20,16 @@ var curse_values: Dictionary = {}
 # bond_values[character_id] = int  （主角与该同伴的羁绊值）
 var bond_values: Dictionary = {}
 
-# ── 背包（P4 启用，P0 预留结构）──
+# ── 背包（P3 启用：战斗内使用；野外拾取/战斗掉落后续接入）──
+# 槽位结构：{ "item": ItemData, "count": int }
 var inventory: Array[Dictionary] = []
+
+# Demo 初始物品（id → 数量）。正式获取途径（拾取/掉落）接入后可清空。
+const INITIAL_ITEMS: Dictionary = {
+	"res://assets/data/items/item_ash_salve.tres": 2,
+	"res://assets/data/items/item_glimmer_water.tres": 1,
+	"res://assets/data/items/item_shardstone.tres": 1,
+}
 
 # ── 周目识别（前向兼容预留）──
 var cycle_count: int = 1
@@ -34,6 +42,7 @@ func _ready() -> void:
 	_apply_default_fullscreen()
 	_load_meowa_api_key()
 	_init_party()
+	_init_inventory()
 
 func _input(event: InputEvent) -> void:
 	if event.is_action_pressed(&"toggle_fullscreen"):
@@ -71,6 +80,43 @@ func set_bond(character_id: String, value: int) -> void:
 func get_bond(character_id: String) -> int:
 	return bond_values.get(character_id, 0)
 
+# ── 背包接口 ──
+
+func add_item(item: ItemData, n: int = 1) -> void:
+	for slot in inventory:
+		if slot.item.id == item.id:
+			slot.count += n
+			return
+	inventory.append({"item": item, "count": n})
+
+## 扣减指定物品。数量不足时不扣并返回 false；扣到 0 移除该槽位。
+func remove_item(item_id: String, n: int = 1) -> bool:
+	for slot in inventory:
+		if slot.item.id == item_id:
+			if slot.count < n:
+				return false
+			slot.count -= n
+			if slot.count <= 0:
+				inventory.erase(slot)
+			return true
+	return false
+
+func get_item_count(item_id: String) -> int:
+	for slot in inventory:
+		if slot.item.id == item_id:
+			return slot.count
+	return 0
+
+## 背包快照/回滚（§B.2 战斗数据隔离：失败丢弃物品消耗）
+func duplicate_inventory() -> Array[Dictionary]:
+	var snapshot: Array[Dictionary] = []
+	for slot in inventory:
+		snapshot.append({"item": slot.item, "count": slot.count})
+	return snapshot
+
+func restore_inventory(snapshot: Array[Dictionary]) -> void:
+	inventory = snapshot
+
 ## 初始化队伍（P2）
 func _init_party() -> void:
 	if not party_members.is_empty():
@@ -82,6 +128,16 @@ func _init_party() -> void:
 		_create_member_from_stats(companion_stats),
 	]
 	Log.info("GameData", "队伍初始化完成: %d 人" % party_members.size())
+
+## 初始化背包（P3）
+func _init_inventory() -> void:
+	if not inventory.is_empty():
+		return
+	for path in INITIAL_ITEMS:
+		var item: ItemData = load(path)
+		if item != null:
+			add_item(item, INITIAL_ITEMS[path])
+	Log.info("GameData", "背包初始化完成: %d 种物品" % inventory.size())
 
 func _create_member_from_stats(stats) -> Dictionary:
 	return {

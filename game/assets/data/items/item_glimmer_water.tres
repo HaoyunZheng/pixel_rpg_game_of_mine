@@ -1,0 +1,12 @@
+[gd_resource type="Resource" script_class="ItemData" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/resources/ItemData.gd" id="1_item"]
+
+[resource]
+script = ExtResource("1_item")
+id = "item_glimmer_water"
+display_name = "微光水"
+description = "在遗迹泉眼采集的水，残留稀薄魔力，恢复少量 MP。"
+item_type = 0
+effect_type = 1
+effect_value = 20
