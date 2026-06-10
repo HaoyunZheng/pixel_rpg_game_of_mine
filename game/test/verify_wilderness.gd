@@ -60,7 +60,17 @@ func _run() -> void:
 		push_error("[verify] ❌ 敌人巡逻未移动")
 		fails += 1
 
-	# E: 出口传送（把玩家放到左侧出口上，等 Area2D 重叠触发）
+	# E: 玩家右向镜像（右向源图头顶被裁，应改放左向帧并 flip_h）
+	player.set("_facing", Vector2.RIGHT)
+	player.call("_play_idle_for_facing")
+	var spr: AnimatedSprite2D = player.get_node("Sprite")
+	if spr.animation == &"idle_left" and spr.flip_h:
+		print("[verify] ✅ 右向镜像：idle_left + flip_h")
+	else:
+		push_error("[verify] ❌ 右向镜像未生效：anim=%s flip_h=%s" % [spr.animation, spr.flip_h])
+		fails += 1
+
+	# F: 出口传送（把玩家放到左侧出口上，等 Area2D 重叠触发）
 	player.global_position = Vector2(544, 800)
 	for _i in 6:
 		await physics_frame

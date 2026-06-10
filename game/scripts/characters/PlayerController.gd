@@ -57,7 +57,10 @@ func _cardinal_from_input(input: Vector2) -> Vector2:
 func _play_idle_for_facing() -> void:
 	if _sprite == null or _sprite.sprite_frames == null:
 		return
-	var animation_name := "idle_%s" % _direction_name(_facing)
+	# 右向源图头顶被裁（素材缺陷，流水线无源可重出），改放左向帧并水平镜像
+	var dir := _direction_name(_facing)
+	var animation_name := "idle_left" if dir == "right" else "idle_%s" % dir
+	_sprite.flip_h = dir == "right"
 	if _sprite.animation != animation_name:
 		_sprite.play(animation_name)
 	elif not _sprite.is_playing():
