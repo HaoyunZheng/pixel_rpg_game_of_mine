@@ -249,7 +249,6 @@ def stage_process(cfg: dict, work_dir: Path) -> None:
 #  ③ 打包 —— 拼精灵表 + 生成 frames.json
 # ============================================================
 def stage_pack(cfg: dict, work_dir: Path) -> None:
-    size = cfg["pipeline"]["target_size"]
     fps = cfg["generation"]["fps"]
     processed, packed = work_dir / "processed", work_dir / "packed"
     if not processed.exists():
@@ -262,6 +261,11 @@ def stage_pack(cfg: dict, work_dir: Path) -> None:
         frame_lists = {a.name: list_frames(a) for a in actions}
         max_cols = max(len(v) for v in frame_lists.values())
         rows = len(actions)
+
+        # 格子尺寸取自该角色实际帧图(②段/切分工具已把帧规整为统一尺寸),
+        # 允许不同角色用不同像素尺寸(如人形 64、大型兽 128)。
+        first_frame = next(v[0] for v in frame_lists.values() if v)
+        size = Image.open(first_frame).size[0]
 
         sheet = Image.new("RGBA", (max_cols * size, rows * size), (0, 0, 0, 0))
         anims = {}
