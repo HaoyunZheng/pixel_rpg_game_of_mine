@@ -1,0 +1,25 @@
+[mcp_servers.godot]
+command = "npx"
+args = [
+    "-y",
+    "@coding-solo/godot-mcp",
+]
+
+[mcp_servers.godot.env]
+GODOT_PATH = "/Applications/Godot.app/Contents/MacOS/Godot"
+DEBUG = "true"
+
+[mcp_servers.godot.tools.get_debug_output]
+approval_mode = "approve"
+
+[mcp_servers.godot.tools.stop_project]
+approval_mode = "approve"
+
+[mcp_servers.godot.tools.run_project]
+approval_mode = "approve"
+
+[mcp_servers.godot.tools.get_project_info]
+approval_mode = "approve"
+
+[mcp_servers.godot.tools.get_godot_version]
+approval_mode = "approve"

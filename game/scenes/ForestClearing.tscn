@@ -1,0 +1,72 @@
+[gd_scene load_steps=8 format=3]
+
+[ext_resource type="PackedScene" path="res://scenes/ForestClearingMap.tscn" id="1_map"]
+[ext_resource type="Script" path="res://scripts/ForestClearing.gd" id="2_forest"]
+[ext_resource type="Script" path="res://scripts/characters/PlayerController.gd" id="3_player"]
+[ext_resource type="SpriteFrames" path="res://assets/sprites/hooded_player/hooded_player_frames.tres" id="4_player_frames"]
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_player"]
+size = Vector2(40, 40)
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_sensor"]
+size = Vector2(44, 44)
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_gate"]
+size = Vector2(56, 56)
+
+[node name="ForestClearing" type="Node2D"]
+script = ExtResource("2_forest")
+
+[node name="Map" parent="." instance=ExtResource("1_map")]
+
+[node name="Player" type="CharacterBody2D" parent="."]
+position = Vector2(736, 480)
+script = ExtResource("3_player")
+sprite_frames = ExtResource("4_player_frames")
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Player"]
+shape = SubResource("RectangleShape2D_player")
+
+[node name="Visual" type="ColorRect" parent="Player"]
+offset_left = -20.0
+offset_top = -20.0
+offset_right = 20.0
+offset_bottom = 20.0
+color = Color(0.22, 0.52, 0.82, 1)
+
+[node name="GateSensor" type="Area2D" parent="Player"]
+collision_layer = 0
+collision_mask = 4
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Player/GateSensor"]
+shape = SubResource("RectangleShape2D_sensor")
+
+[node name="WildGate" type="Area2D" parent="."]
+position = Vector2(1248, 480)
+collision_layer = 4
+collision_mask = 0
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="WildGate"]
+shape = SubResource("RectangleShape2D_gate")
+
+[node name="Visual" type="ColorRect" parent="WildGate"]
+offset_left = -28.0
+offset_top = -28.0
+offset_right = 28.0
+offset_bottom = 28.0
+color = Color(0.2, 0.65, 0.3, 0.5)
+
+[node name="Label" type="Label" parent="WildGate"]
+offset_left = -28.0
+offset_top = -28.0
+offset_right = 28.0
+offset_bottom = 28.0
+theme_override_colors/font_color = Color(0.85, 1, 0.88, 1)
+theme_override_colors/font_shadow_color = Color(0.05, 0.2, 0.08, 0.8)
+theme_override_constants/shadow_offset_x = 1
+theme_override_constants/shadow_offset_y = 1
+theme_override_font_sizes/font_size = 12
+horizontal_alignment = 1
+vertical_alignment = 1
+text = "→
+野外"

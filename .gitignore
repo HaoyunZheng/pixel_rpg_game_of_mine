@@ -1,0 +1,27 @@
+.DS_Store
+*.import
+.godot/
+game/.godot/
+sprite-pipeline/__pycache__/
+sprite-pipeline/raw/
+sprite-pipeline/processed/
+sprite-pipeline/packed/
+*.pyc
+context.txt
+
+# Claude Code Game Studios — 克隆的工具库（含独立 .git，作为外部依赖，不纳入本仓库）
+.ccgs/
+# Superpowers 外部工具库（obra/superpowers 的克隆，不纳入本仓库）
+superpowers/
+# game 子项目原 .git 的本地备份（不纳入本仓库）
+game/.git.bak/
+# 框架运行时产物
+production/session-logs/
+.claude/agent-memory/
+
+# .ccgs 框架的符号链接（指向被忽略的 .ccgs/，不纳入本仓库）
+.claude/agents
+.claude/docs
+.claude/hooks
+.claude/rules
+.claude/skills

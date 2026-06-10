@@ -1,0 +1,89 @@
+[gd_resource type="SpriteFrames" load_steps=17 format=3]
+
+[ext_resource type="Texture2D" path="res://assets/sprites/hooded_player/hooded_idle_down_01_64.png" id="1_down_01"]
+[ext_resource type="Texture2D" path="res://assets/sprites/hooded_player/hooded_idle_down_02_64.png" id="2_down_02"]
+[ext_resource type="Texture2D" path="res://assets/sprites/hooded_player/hooded_idle_down_03_64.png" id="3_down_03"]
+[ext_resource type="Texture2D" path="res://assets/sprites/hooded_player/hooded_idle_down_04_64.png" id="4_down_04"]
+[ext_resource type="Texture2D" path="res://assets/sprites/hooded_player/hooded_idle_left_01_64.png" id="5_left_01"]
+[ext_resource type="Texture2D" path="res://assets/sprites/hooded_player/hooded_idle_left_02_64.png" id="6_left_02"]
+[ext_resource type="Texture2D" path="res://assets/sprites/hooded_player/hooded_idle_left_03_64.png" id="7_left_03"]
+[ext_resource type="Texture2D" path="res://assets/sprites/hooded_player/hooded_idle_left_04_64.png" id="8_left_04"]
+[ext_resource type="Texture2D" path="res://assets/sprites/hooded_player/hooded_idle_up_01_64.png" id="9_up_01"]
+[ext_resource type="Texture2D" path="res://assets/sprites/hooded_player/hooded_idle_up_02_64.png" id="10_up_02"]
+[ext_resource type="Texture2D" path="res://assets/sprites/hooded_player/hooded_idle_up_03_64.png" id="11_up_03"]
+[ext_resource type="Texture2D" path="res://assets/sprites/hooded_player/hooded_idle_up_04_64.png" id="12_up_04"]
+[ext_resource type="Texture2D" path="res://assets/sprites/hooded_player/hooded_idle_right_01_64.png" id="13_right_01"]
+[ext_resource type="Texture2D" path="res://assets/sprites/hooded_player/hooded_idle_right_02_64.png" id="14_right_02"]
+[ext_resource type="Texture2D" path="res://assets/sprites/hooded_player/hooded_idle_right_03_64.png" id="15_right_03"]
+[ext_resource type="Texture2D" path="res://assets/sprites/hooded_player/hooded_idle_right_04_64.png" id="16_right_04"]
+
+[resource]
+animations = [{
+"frames": [{
+"duration": 1.0,
+"texture": ExtResource("1_down_01")
+}, {
+"duration": 1.0,
+"texture": ExtResource("2_down_02")
+}, {
+"duration": 1.0,
+"texture": ExtResource("3_down_03")
+}, {
+"duration": 1.0,
+"texture": ExtResource("4_down_04")
+}],
+"loop": true,
+"name": &"idle_down",
+"speed": 5.0
+}, {
+"frames": [{
+"duration": 1.0,
+"texture": ExtResource("5_left_01")
+}, {
+"duration": 1.0,
+"texture": ExtResource("6_left_02")
+}, {
+"duration": 1.0,
+"texture": ExtResource("7_left_03")
+}, {
+"duration": 1.0,
+"texture": ExtResource("8_left_04")
+}],
+"loop": true,
+"name": &"idle_left",
+"speed": 5.0
+}, {
+"frames": [{
+"duration": 1.0,
+"texture": ExtResource("9_up_01")
+}, {
+"duration": 1.0,
+"texture": ExtResource("10_up_02")
+}, {
+"duration": 1.0,
+"texture": ExtResource("11_up_03")
+}, {
+"duration": 1.0,
+"texture": ExtResource("12_up_04")
+}],
+"loop": true,
+"name": &"idle_up",
+"speed": 5.0
+}, {
+"frames": [{
+"duration": 1.0,
+"texture": ExtResource("13_right_01")
+}, {
+"duration": 1.0,
+"texture": ExtResource("14_right_02")
+}, {
+"duration": 1.0,
+"texture": ExtResource("15_right_03")
+}, {
+"duration": 1.0,
+"texture": ExtResource("16_right_04")
+}],
+"loop": true,
+"name": &"idle_right",
+"speed": 5.0
+}]

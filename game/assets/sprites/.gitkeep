@@ -1,0 +1,2 @@
+# 资产流水线(../sprite-pipeline)会把 <角色>/sheet.png + frames.json + <角色>_frames.tres 写到这里。
+# 这是「资产层」的地盘 —— vibe-coding agent 不应擅自改/删此目录下的文件。

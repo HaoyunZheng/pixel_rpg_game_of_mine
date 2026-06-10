@@ -1,0 +1,224 @@
+[gd_scene load_steps=15 format=3]
+
+[ext_resource type="Script" path="res://scripts/Battle.gd" id="1_battle"]
+[ext_resource type="Script" path="res://scripts/battle/BattleStateMachine.gd" id="2_bsm"]
+[ext_resource type="Script" path="res://scripts/battle/TurnStateMachine.gd" id="3_tsm"]
+[ext_resource type="Script" path="res://scripts/battle/BattleUI.gd" id="4_bui"]
+[ext_resource type="Theme" path="res://assets/ui/battle/battle_theme.tres" id="5_theme"]
+[ext_resource type="Texture2D" uid="uid://cqts0tbcxl1lm" path="res://assets/ui/battle/panel_central_9p.png" id="6_central"]
+[ext_resource type="Texture2D" uid="uid://bvclctvmsldsh" path="res://assets/ui/battle/bar_command_9p.png" id="7_command"]
+[ext_resource type="Texture2D" path="res://assets/ui/battle/panel_party_strip_9p.png" id="8_strip"]
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_enemy"]
+size = Vector2(60, 60)
+
+[node name="Battle" type="Node2D"]
+script = ExtResource("1_battle")
+
+[node name="Background" type="ColorRect" parent="."]
+offset_right = 1920.0
+offset_bottom = 1080.0
+color = Color(0.04, 0.03, 0.045, 1)
+
+[node name="Ground" type="ColorRect" parent="."]
+offset_left = 0.0
+offset_top = 650.0
+offset_right = 1920.0
+offset_bottom = 1080.0
+color = Color(0.07, 0.05, 0.06, 1)
+
+[node name="PlayerVisual" type="ColorRect" parent="."]
+visible = false
+offset_left = 420.0
+offset_top = 560.0
+offset_right = 460.0
+offset_bottom = 600.0
+color = Color(0.22, 0.52, 0.82, 1)
+
+[node name="CompanionVisual" type="ColorRect" parent="."]
+visible = false
+offset_left = 540.0
+offset_top = 570.0
+offset_right = 580.0
+offset_bottom = 610.0
+color = Color(0.2, 0.82, 0.52, 1)
+
+[node name="EnemyVisual" type="ColorRect" parent="."]
+visible = false
+offset_left = 1320.0
+offset_top = 540.0
+offset_right = 1380.0
+offset_bottom = 600.0
+color = Color(0.82, 0.22, 0.22, 1)
+
+[node name="BattleStateMachine" type="Node" parent="."]
+script = ExtResource("2_bsm")
+
+[node name="TurnStateMachine" type="Node" parent="."]
+script = ExtResource("3_tsm")
+
+[node name="UI" type="CanvasLayer" parent="."]
+
+[node name="BattleUI" type="Control" parent="UI"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme = ExtResource("5_theme")
+script = ExtResource("4_bui")
+
+[node name="TurnOrderBar" type="HBoxContainer" parent="UI/BattleUI"]
+layout_mode = 1
+anchors_preset = 5
+anchor_left = 0.5
+anchor_right = 0.5
+offset_left = -300.0
+offset_top = 24.0
+offset_right = 300.0
+offset_bottom = 72.0
+grow_horizontal = 2
+mouse_filter = 2
+alignment = 1
+theme_override_constants/separation = 16
+
+[node name="EnemyContainer" type="HBoxContainer" parent="UI/BattleUI"]
+layout_mode = 1
+anchors_preset = 5
+anchor_left = 0.5
+anchor_right = 0.5
+offset_left = -420.0
+offset_top = 112.0
+offset_right = 420.0
+offset_bottom = 340.0
+grow_horizontal = 2
+mouse_filter = 2
+alignment = 1
+theme_override_constants/separation = 80
+
+[node name="CentralBox" type="NinePatchRect" parent="UI/BattleUI"]
+layout_mode = 1
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -672.0
+offset_top = -180.0
+offset_right = 672.0
+offset_bottom = 180.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+texture = ExtResource("6_central")
+patch_margin_left = 8
+patch_margin_top = 8
+patch_margin_right = 8
+patch_margin_bottom = 10
+
+[node name="MessageLabel" type="Label" parent="UI/BattleUI/CentralBox"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 48.0
+offset_top = 32.0
+offset_right = -48.0
+offset_bottom = -32.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+theme_override_font_sizes/font_size = 28
+horizontal_alignment = 1
+vertical_alignment = 1
+autowrap_mode = 2
+
+[node name="CommandBar" type="NinePatchRect" parent="UI/BattleUI"]
+layout_mode = 1
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -480.0
+offset_top = 196.0
+offset_right = 480.0
+offset_bottom = 284.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+texture = ExtResource("7_command")
+patch_margin_left = 6
+patch_margin_top = 6
+patch_margin_right = 6
+patch_margin_bottom = 6
+
+[node name="CommandCells" type="HBoxContainer" parent="UI/BattleUI/CommandBar"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 24.0
+offset_top = 16.0
+offset_right = -24.0
+offset_bottom = -16.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+alignment = 1
+theme_override_constants/separation = 8
+
+[node name="PartyPanel" type="NinePatchRect" parent="UI/BattleUI"]
+layout_mode = 1
+anchors_preset = 2
+anchor_top = 1.0
+anchor_bottom = 1.0
+offset_left = 24.0
+offset_top = -304.0
+offset_right = 360.0
+offset_bottom = -24.0
+grow_vertical = 0
+mouse_filter = 2
+texture = ExtResource("8_strip")
+patch_margin_left = 6
+patch_margin_top = 6
+patch_margin_right = 6
+patch_margin_bottom = 6
+
+[node name="PartyContainer" type="VBoxContainer" parent="UI/BattleUI/PartyPanel"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 16.0
+offset_top = 16.0
+offset_right = -16.0
+offset_bottom = -16.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+theme_override_constants/separation = 12
+
+[node name="ReticleLayer" type="Control" parent="UI/BattleUI"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+
+[node name="TurnLabel" type="Label" parent="UI/BattleUI"]
+layout_mode = 1
+anchors_preset = 5
+anchor_left = 0.5
+anchor_right = 0.5
+offset_left = -300.0
+offset_top = 78.0
+offset_right = 300.0
+offset_bottom = 110.0
+grow_horizontal = 2
+mouse_filter = 2
+theme_override_font_sizes/font_size = 22
+horizontal_alignment = 1

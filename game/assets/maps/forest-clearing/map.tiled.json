@@ -1,0 +1,1367 @@
+{
+  "compressionlevel": -1,
+  "height": 16,
+  "infinite": false,
+  "layers": [
+    {
+      "id": 1,
+      "name": "default layer",
+      "type": "tilelayer",
+      "data": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        39,
+        39,
+        39,
+        39,
+        30,
+        20,
+        17,
+        39,
+        39,
+        39,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        39,
+        39,
+        39,
+        39,
+        39,
+        18,
+        7,
+        28,
+        39,
+        39,
+        39,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        39,
+        39,
+        39,
+        39,
+        30,
+        20,
+        20,
+        22,
+        7,
+        19,
+        20,
+        20,
+        17,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        39,
+        39,
+        39,
+        39,
+        18,
+        7,
+        7,
+        7,
+        7,
+        7,
+        7,
+        7,
+        28,
+        39,
+        39,
+        39,
+        39,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        39,
+        39,
+        39,
+        39,
+        39,
+        25,
+        26,
+        26,
+        27,
+        7,
+        24,
+        26,
+        26,
+        32,
+        39,
+        39,
+        39,
+        39,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        39,
+        39,
+        39,
+        39,
+        39,
+        39,
+        39,
+        39,
+        18,
+        7,
+        28,
+        39,
+        39,
+        39,
+        39,
+        39,
+        39,
+        39,
+        39,
+        39,
+        0,
+        0,
+        0,
+        0,
+        30,
+        20,
+        20,
+        20,
+        20,
+        20,
+        20,
+        20,
+        22,
+        7,
+        19,
+        20,
+        20,
+        20,
+        20,
+        20,
+        20,
+        20,
+        17,
+        39,
+        0,
+        0,
+        0,
+        0,
+        18,
+        7,
+        7,
+        7,
+        7,
+        7,
+        7,
+        7,
+        7,
+        7,
+        7,
+        7,
+        7,
+        7,
+        7,
+        7,
+        7,
+        7,
+        28,
+        39,
+        0,
+        0,
+        0,
+        0,
+        25,
+        26,
+        26,
+        26,
+        26,
+        26,
+        26,
+        26,
+        27,
+        7,
+        24,
+        26,
+        26,
+        26,
+        26,
+        26,
+        26,
+        26,
+        32,
+        39,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        39,
+        39,
+        39,
+        39,
+        39,
+        39,
+        18,
+        7,
+        19,
+        20,
+        17,
+        39,
+        39,
+        39,
+        39,
+        39,
+        39,
+        39,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        39,
+        39,
+        39,
+        39,
+        39,
+        18,
+        7,
+        7,
+        7,
+        28,
+        39,
+        39,
+        39,
+        39,
+        39,
+        39,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        39,
+        39,
+        39,
+        18,
+        7,
+        24,
+        26,
+        39,
+        39,
+        39,
+        39,
+        39,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        39,
+        39,
+        18,
+        7,
+        28,
+        39,
+        39,
+        39,
+        39,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        25,
+        30,
+        32,
+        39,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "width": 24,
+      "height": 16,
+      "opacity": 1,
+      "visible": true,
+      "x": 0,
+      "y": 0,
+      "properties": [
+        {
+          "name": "meowa_layer_id",
+          "type": "string",
+          "value": "map-layer-1"
+        },
+        {
+          "name": "meowa_locked",
+          "type": "bool",
+          "value": false
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "name": "default layer Objects",
+      "type": "objectgroup",
+      "draworder": "topdown",
+      "objects": [
+        {
+          "id": 1,
+          "gid": 49,
+          "name": "藤蔓伞树",
+          "type": "meowa-object",
+          "x": 594,
+          "y": 595,
+          "width": 64,
+          "height": 64,
+          "rotation": 0,
+          "opacity": 1,
+          "visible": true,
+          "properties": [
+            {
+              "name": "meowa_object_id",
+              "type": "string",
+              "value": "history:pixel-history-25390-output:2:https://media.meowa.ai/public/pixel-gen/output/2026-06-08/07%3A43%3A20-1a055bee-f364-4dc2-910b-e5b500727704/sprite_02.png"
+            },
+            {
+              "name": "meowa_object_placement_id",
+              "type": "string",
+              "value": "map-object-1780908896108-kj4cloxbsvk"
+            },
+            {
+              "name": "meowa_layer_id",
+              "type": "string",
+              "value": "map-layer-1"
+            },
+            {
+              "name": "meowa_source",
+              "type": "string",
+              "value": "history"
+            }
+          ]
+        },
+        {
+          "id": 2,
+          "gid": 49,
+          "name": "藤蔓伞树",
+          "type": "meowa-object",
+          "x": 534,
+          "y": 565,
+          "width": 64,
+          "height": 64,
+          "rotation": 0,
+          "opacity": 1,
+          "visible": true,
+          "properties": [
+            {
+              "name": "meowa_object_id",
+              "type": "string",
+              "value": "history:pixel-history-25390-output:2:https://media.meowa.ai/public/pixel-gen/output/2026-06-08/07%3A43%3A20-1a055bee-f364-4dc2-910b-e5b500727704/sprite_02.png"
+            },
+            {
+              "name": "meowa_object_placement_id",
+              "type": "string",
+              "value": "map-object-1780908897289-t40hhk2zhze"
+            },
+            {
+              "name": "meowa_layer_id",
+              "type": "string",
+              "value": "map-layer-1"
+            },
+            {
+              "name": "meowa_source",
+              "type": "string",
+              "value": "history"
+            }
+          ]
+        },
+        {
+          "id": 3,
+          "gid": 49,
+          "name": "藤蔓伞树",
+          "type": "meowa-object",
+          "x": 446,
+          "y": 561,
+          "width": 64,
+          "height": 64,
+          "rotation": 0,
+          "opacity": 1,
+          "visible": true,
+          "properties": [
+            {
+              "name": "meowa_object_id",
+              "type": "string",
+              "value": "history:pixel-history-25390-output:2:https://media.meowa.ai/public/pixel-gen/output/2026-06-08/07%3A43%3A20-1a055bee-f364-4dc2-910b-e5b500727704/sprite_02.png"
+            },
+            {
+              "name": "meowa_object_placement_id",
+              "type": "string",
+              "value": "map-object-1780908897956-cvn8c9thush"
+            },
+            {
+              "name": "meowa_layer_id",
+              "type": "string",
+              "value": "map-layer-1"
+            },
+            {
+              "name": "meowa_source",
+              "type": "string",
+              "value": "history"
+            }
+          ]
+        },
+        {
+          "id": 4,
+          "gid": 49,
+          "name": "藤蔓伞树",
+          "type": "meowa-object",
+          "x": 340,
+          "y": 564,
+          "width": 64,
+          "height": 64,
+          "rotation": 0,
+          "opacity": 1,
+          "visible": true,
+          "properties": [
+            {
+              "name": "meowa_object_id",
+              "type": "string",
+              "value": "history:pixel-history-25390-output:2:https://media.meowa.ai/public/pixel-gen/output/2026-06-08/07%3A43%3A20-1a055bee-f364-4dc2-910b-e5b500727704/sprite_02.png"
+            },
+            {
+              "name": "meowa_object_placement_id",
+              "type": "string",
+              "value": "map-object-1780908898489-922floi1qh"
+            },
+            {
+              "name": "meowa_layer_id",
+              "type": "string",
+              "value": "map-layer-1"
+            },
+            {
+              "name": "meowa_source",
+              "type": "string",
+              "value": "history"
+            }
+          ]
+        },
+        {
+          "id": 5,
+          "gid": 49,
+          "name": "藤蔓伞树",
+          "type": "meowa-object",
+          "x": 795,
+          "y": 600,
+          "width": 64,
+          "height": 64,
+          "rotation": 0,
+          "opacity": 1,
+          "visible": true,
+          "properties": [
+            {
+              "name": "meowa_object_id",
+              "type": "string",
+              "value": "history:pixel-history-25390-output:2:https://media.meowa.ai/public/pixel-gen/output/2026-06-08/07%3A43%3A20-1a055bee-f364-4dc2-910b-e5b500727704/sprite_02.png"
+            },
+            {
+              "name": "meowa_object_placement_id",
+              "type": "string",
+              "value": "map-object-1780908899556-wob7rgvxn5l"
+            },
+            {
+              "name": "meowa_layer_id",
+              "type": "string",
+              "value": "map-layer-1"
+            },
+            {
+              "name": "meowa_source",
+              "type": "string",
+              "value": "history"
+            }
+          ]
+        },
+        {
+          "id": 6,
+          "gid": 49,
+          "name": "藤蔓伞树",
+          "type": "meowa-object",
+          "x": 896,
+          "y": 583,
+          "width": 64,
+          "height": 64,
+          "rotation": 0,
+          "opacity": 1,
+          "visible": true,
+          "properties": [
+            {
+              "name": "meowa_object_id",
+              "type": "string",
+              "value": "history:pixel-history-25390-output:2:https://media.meowa.ai/public/pixel-gen/output/2026-06-08/07%3A43%3A20-1a055bee-f364-4dc2-910b-e5b500727704/sprite_02.png"
+            },
+            {
+              "name": "meowa_object_placement_id",
+              "type": "string",
+              "value": "map-object-1780908899940-f82r8i7dqwr"
+            },
+            {
+              "name": "meowa_layer_id",
+              "type": "string",
+              "value": "map-layer-1"
+            },
+            {
+              "name": "meowa_source",
+              "type": "string",
+              "value": "history"
+            }
+          ]
+        },
+        {
+          "id": 7,
+          "gid": 49,
+          "name": "藤蔓伞树",
+          "type": "meowa-object",
+          "x": 983,
+          "y": 583,
+          "width": 64,
+          "height": 64,
+          "rotation": 0,
+          "opacity": 1,
+          "visible": true,
+          "properties": [
+            {
+              "name": "meowa_object_id",
+              "type": "string",
+              "value": "history:pixel-history-25390-output:2:https://media.meowa.ai/public/pixel-gen/output/2026-06-08/07%3A43%3A20-1a055bee-f364-4dc2-910b-e5b500727704/sprite_02.png"
+            },
+            {
+              "name": "meowa_object_placement_id",
+              "type": "string",
+              "value": "map-object-1780908900357-q63dgx5t1le"
+            },
+            {
+              "name": "meowa_layer_id",
+              "type": "string",
+              "value": "map-layer-1"
+            },
+            {
+              "name": "meowa_source",
+              "type": "string",
+              "value": "history"
+            }
+          ]
+        },
+        {
+          "id": 8,
+          "gid": 49,
+          "name": "藤蔓伞树",
+          "type": "meowa-object",
+          "x": 1047,
+          "y": 584,
+          "width": 64,
+          "height": 64,
+          "rotation": 0,
+          "opacity": 1,
+          "visible": true,
+          "properties": [
+            {
+              "name": "meowa_object_id",
+              "type": "string",
+              "value": "history:pixel-history-25390-output:2:https://media.meowa.ai/public/pixel-gen/output/2026-06-08/07%3A43%3A20-1a055bee-f364-4dc2-910b-e5b500727704/sprite_02.png"
+            },
+            {
+              "name": "meowa_object_placement_id",
+              "type": "string",
+              "value": "map-object-1780908901022-8j2zm8dha3p"
+            },
+            {
+              "name": "meowa_layer_id",
+              "type": "string",
+              "value": "map-layer-1"
+            },
+            {
+              "name": "meowa_source",
+              "type": "string",
+              "value": "history"
+            }
+          ]
+        },
+        {
+          "id": 9,
+          "gid": 49,
+          "name": "藤蔓伞树",
+          "type": "meowa-object",
+          "x": 1082,
+          "y": 441,
+          "width": 64,
+          "height": 64,
+          "rotation": 0,
+          "opacity": 1,
+          "visible": true,
+          "properties": [
+            {
+              "name": "meowa_object_id",
+              "type": "string",
+              "value": "history:pixel-history-25390-output:2:https://media.meowa.ai/public/pixel-gen/output/2026-06-08/07%3A43%3A20-1a055bee-f364-4dc2-910b-e5b500727704/sprite_02.png"
+            },
+            {
+              "name": "meowa_object_placement_id",
+              "type": "string",
+              "value": "map-object-1780908902074-h6me82wbbr5"
+            },
+            {
+              "name": "meowa_layer_id",
+              "type": "string",
+              "value": "map-layer-1"
+            },
+            {
+              "name": "meowa_source",
+              "type": "string",
+              "value": "history"
+            }
+          ]
+        },
+        {
+          "id": 10,
+          "gid": 49,
+          "name": "藤蔓伞树",
+          "type": "meowa-object",
+          "x": 996,
+          "y": 441,
+          "width": 64,
+          "height": 64,
+          "rotation": 0,
+          "opacity": 1,
+          "visible": true,
+          "properties": [
+            {
+              "name": "meowa_object_id",
+              "type": "string",
+              "value": "history:pixel-history-25390-output:2:https://media.meowa.ai/public/pixel-gen/output/2026-06-08/07%3A43%3A20-1a055bee-f364-4dc2-910b-e5b500727704/sprite_02.png"
+            },
+            {
+              "name": "meowa_object_placement_id",
+              "type": "string",
+              "value": "map-object-1780908902491-180rya6y6qh"
+            },
+            {
+              "name": "meowa_layer_id",
+              "type": "string",
+              "value": "map-layer-1"
+            },
+            {
+              "name": "meowa_source",
+              "type": "string",
+              "value": "history"
+            }
+          ]
+        },
+        {
+          "id": 11,
+          "gid": 49,
+          "name": "藤蔓伞树",
+          "type": "meowa-object",
+          "x": 926,
+          "y": 440,
+          "width": 64,
+          "height": 64,
+          "rotation": 0,
+          "opacity": 1,
+          "visible": true,
+          "properties": [
+            {
+              "name": "meowa_object_id",
+              "type": "string",
+              "value": "history:pixel-history-25390-output:2:https://media.meowa.ai/public/pixel-gen/output/2026-06-08/07%3A43%3A20-1a055bee-f364-4dc2-910b-e5b500727704/sprite_02.png"
+            },
+            {
+              "name": "meowa_object_placement_id",
+              "type": "string",
+              "value": "map-object-1780908902892-770jtwdqanl"
+            },
+            {
+              "name": "meowa_layer_id",
+              "type": "string",
+              "value": "map-layer-1"
+            },
+            {
+              "name": "meowa_source",
+              "type": "string",
+              "value": "history"
+            }
+          ]
+        },
+        {
+          "id": 12,
+          "gid": 49,
+          "name": "藤蔓伞树",
+          "type": "meowa-object",
+          "x": 859,
+          "y": 437,
+          "width": 64,
+          "height": 64,
+          "rotation": 0,
+          "opacity": 1,
+          "visible": true,
+          "properties": [
+            {
+              "name": "meowa_object_id",
+              "type": "string",
+              "value": "history:pixel-history-25390-output:2:https://media.meowa.ai/public/pixel-gen/output/2026-06-08/07%3A43%3A20-1a055bee-f364-4dc2-910b-e5b500727704/sprite_02.png"
+            },
+            {
+              "name": "meowa_object_placement_id",
+              "type": "string",
+              "value": "map-object-1780908903273-3b27xy9vcrs"
+            },
+            {
+              "name": "meowa_layer_id",
+              "type": "string",
+              "value": "map-layer-1"
+            },
+            {
+              "name": "meowa_source",
+              "type": "string",
+              "value": "history"
+            }
+          ]
+        },
+        {
+          "id": 13,
+          "gid": 49,
+          "name": "藤蔓伞树",
+          "type": "meowa-object",
+          "x": 788,
+          "y": 425,
+          "width": 64,
+          "height": 64,
+          "rotation": 0,
+          "opacity": 1,
+          "visible": true,
+          "properties": [
+            {
+              "name": "meowa_object_id",
+              "type": "string",
+              "value": "history:pixel-history-25390-output:2:https://media.meowa.ai/public/pixel-gen/output/2026-06-08/07%3A43%3A20-1a055bee-f364-4dc2-910b-e5b500727704/sprite_02.png"
+            },
+            {
+              "name": "meowa_object_placement_id",
+              "type": "string",
+              "value": "map-object-1780908903841-gd42g3y3y7v"
+            },
+            {
+              "name": "meowa_layer_id",
+              "type": "string",
+              "value": "map-layer-1"
+            },
+            {
+              "name": "meowa_source",
+              "type": "string",
+              "value": "history"
+            }
+          ]
+        },
+        {
+          "id": 14,
+          "gid": 49,
+          "name": "藤蔓伞树",
+          "type": "meowa-object",
+          "x": 860,
+          "y": 349,
+          "width": 64,
+          "height": 64,
+          "rotation": 0,
+          "opacity": 1,
+          "visible": true,
+          "properties": [
+            {
+              "name": "meowa_object_id",
+              "type": "string",
+              "value": "history:pixel-history-25390-output:2:https://media.meowa.ai/public/pixel-gen/output/2026-06-08/07%3A43%3A20-1a055bee-f364-4dc2-910b-e5b500727704/sprite_02.png"
+            },
+            {
+              "name": "meowa_object_placement_id",
+              "type": "string",
+              "value": "map-object-1780908904689-fm2fact1f6m"
+            },
+            {
+              "name": "meowa_layer_id",
+              "type": "string",
+              "value": "map-layer-1"
+            },
+            {
+              "name": "meowa_source",
+              "type": "string",
+              "value": "history"
+            }
+          ]
+        },
+        {
+          "id": 15,
+          "gid": 49,
+          "name": "藤蔓伞树",
+          "type": "meowa-object",
+          "x": 772,
+          "y": 332,
+          "width": 64,
+          "height": 64,
+          "rotation": 0,
+          "opacity": 1,
+          "visible": true,
+          "properties": [
+            {
+              "name": "meowa_object_id",
+              "type": "string",
+              "value": "history:pixel-history-25390-output:2:https://media.meowa.ai/public/pixel-gen/output/2026-06-08/07%3A43%3A20-1a055bee-f364-4dc2-910b-e5b500727704/sprite_02.png"
+            },
+            {
+              "name": "meowa_object_placement_id",
+              "type": "string",
+              "value": "map-object-1780908905272-w1h154nsp9d"
+            },
+            {
+              "name": "meowa_layer_id",
+              "type": "string",
+              "value": "map-layer-1"
+            },
+            {
+              "name": "meowa_source",
+              "type": "string",
+              "value": "history"
+            }
+          ]
+        },
+        {
+          "id": 16,
+          "gid": 49,
+          "name": "藤蔓伞树",
+          "type": "meowa-object",
+          "x": 622,
+          "y": 449,
+          "width": 64,
+          "height": 64,
+          "rotation": 0,
+          "opacity": 1,
+          "visible": true,
+          "properties": [
+            {
+              "name": "meowa_object_id",
+              "type": "string",
+              "value": "history:pixel-history-25390-output:2:https://media.meowa.ai/public/pixel-gen/output/2026-06-08/07%3A43%3A20-1a055bee-f364-4dc2-910b-e5b500727704/sprite_02.png"
+            },
+            {
+              "name": "meowa_object_placement_id",
+              "type": "string",
+              "value": "map-object-1780908906024-onl04cl7ef"
+            },
+            {
+              "name": "meowa_layer_id",
+              "type": "string",
+              "value": "map-layer-1"
+            },
+            {
+              "name": "meowa_source",
+              "type": "string",
+              "value": "history"
+            }
+          ]
+        },
+        {
+          "id": 17,
+          "gid": 49,
+          "name": "藤蔓伞树",
+          "type": "meowa-object",
+          "x": 621,
+          "y": 369,
+          "width": 64,
+          "height": 64,
+          "rotation": 0,
+          "opacity": 1,
+          "visible": true,
+          "properties": [
+            {
+              "name": "meowa_object_id",
+              "type": "string",
+              "value": "history:pixel-history-25390-output:2:https://media.meowa.ai/public/pixel-gen/output/2026-06-08/07%3A43%3A20-1a055bee-f364-4dc2-910b-e5b500727704/sprite_02.png"
+            },
+            {
+              "name": "meowa_object_placement_id",
+              "type": "string",
+              "value": "map-object-1780908906457-a2x1941hkhh"
+            },
+            {
+              "name": "meowa_layer_id",
+              "type": "string",
+              "value": "map-layer-1"
+            },
+            {
+              "name": "meowa_source",
+              "type": "string",
+              "value": "history"
+            }
+          ]
+        },
+        {
+          "id": 18,
+          "gid": 49,
+          "name": "藤蔓伞树",
+          "type": "meowa-object",
+          "x": 611,
+          "y": 324,
+          "width": 64,
+          "height": 64,
+          "rotation": 0,
+          "opacity": 1,
+          "visible": true,
+          "properties": [
+            {
+              "name": "meowa_object_id",
+              "type": "string",
+              "value": "history:pixel-history-25390-output:2:https://media.meowa.ai/public/pixel-gen/output/2026-06-08/07%3A43%3A20-1a055bee-f364-4dc2-910b-e5b500727704/sprite_02.png"
+            },
+            {
+              "name": "meowa_object_placement_id",
+              "type": "string",
+              "value": "map-object-1780908907906-l9jbmgyuz2"
+            },
+            {
+              "name": "meowa_layer_id",
+              "type": "string",
+              "value": "map-layer-1"
+            },
+            {
+              "name": "meowa_source",
+              "type": "string",
+              "value": "history"
+            }
+          ]
+        },
+        {
+          "id": 19,
+          "gid": 49,
+          "name": "藤蔓伞树",
+          "type": "meowa-object",
+          "x": 571,
+          "y": 418,
+          "width": 64,
+          "height": 64,
+          "rotation": 0,
+          "opacity": 1,
+          "visible": true,
+          "properties": [
+            {
+              "name": "meowa_object_id",
+              "type": "string",
+              "value": "history:pixel-history-25390-output:2:https://media.meowa.ai/public/pixel-gen/output/2026-06-08/07%3A43%3A20-1a055bee-f364-4dc2-910b-e5b500727704/sprite_02.png"
+            },
+            {
+              "name": "meowa_object_placement_id",
+              "type": "string",
+              "value": "map-object-1780908908622-ft7ltscgdqn"
+            },
+            {
+              "name": "meowa_layer_id",
+              "type": "string",
+              "value": "map-layer-1"
+            },
+            {
+              "name": "meowa_source",
+              "type": "string",
+              "value": "history"
+            }
+          ]
+        },
+        {
+          "id": 20,
+          "gid": 49,
+          "name": "藤蔓伞树",
+          "type": "meowa-object",
+          "x": 497,
+          "y": 437,
+          "width": 64,
+          "height": 64,
+          "rotation": 0,
+          "opacity": 1,
+          "visible": true,
+          "properties": [
+            {
+              "name": "meowa_object_id",
+              "type": "string",
+              "value": "history:pixel-history-25390-output:2:https://media.meowa.ai/public/pixel-gen/output/2026-06-08/07%3A43%3A20-1a055bee-f364-4dc2-910b-e5b500727704/sprite_02.png"
+            },
+            {
+              "name": "meowa_object_placement_id",
+              "type": "string",
+              "value": "map-object-1780908909275-akmrpv5fywf"
+            },
+            {
+              "name": "meowa_layer_id",
+              "type": "string",
+              "value": "map-layer-1"
+            },
+            {
+              "name": "meowa_source",
+              "type": "string",
+              "value": "history"
+            }
+          ]
+        },
+        {
+          "id": 21,
+          "gid": 49,
+          "name": "藤蔓伞树",
+          "type": "meowa-object",
+          "x": 367,
+          "y": 439,
+          "width": 64,
+          "height": 64,
+          "rotation": 0,
+          "opacity": 1,
+          "visible": true,
+          "properties": [
+            {
+              "name": "meowa_object_id",
+              "type": "string",
+              "value": "history:pixel-history-25390-output:2:https://media.meowa.ai/public/pixel-gen/output/2026-06-08/07%3A43%3A20-1a055bee-f364-4dc2-910b-e5b500727704/sprite_02.png"
+            },
+            {
+              "name": "meowa_object_placement_id",
+              "type": "string",
+              "value": "map-object-1780908909724-u4tr6e9ema"
+            },
+            {
+              "name": "meowa_layer_id",
+              "type": "string",
+              "value": "map-layer-1"
+            },
+            {
+              "name": "meowa_source",
+              "type": "string",
+              "value": "history"
+            }
+          ]
+        },
+        {
+          "id": 22,
+          "gid": 49,
+          "name": "藤蔓伞树",
+          "type": "meowa-object",
+          "x": 294,
+          "y": 439,
+          "width": 64,
+          "height": 64,
+          "rotation": 0,
+          "opacity": 1,
+          "visible": true,
+          "properties": [
+            {
+              "name": "meowa_object_id",
+              "type": "string",
+              "value": "history:pixel-history-25390-output:2:https://media.meowa.ai/public/pixel-gen/output/2026-06-08/07%3A43%3A20-1a055bee-f364-4dc2-910b-e5b500727704/sprite_02.png"
+            },
+            {
+              "name": "meowa_object_placement_id",
+              "type": "string",
+              "value": "map-object-1780908910191-liej715r7if"
+            },
+            {
+              "name": "meowa_layer_id",
+              "type": "string",
+              "value": "map-layer-1"
+            },
+            {
+              "name": "meowa_source",
+              "type": "string",
+              "value": "history"
+            }
+          ]
+        },
+        {
+          "id": 23,
+          "gid": 49,
+          "name": "藤蔓伞树",
+          "type": "meowa-object",
+          "x": 494,
+          "y": 371,
+          "width": 64,
+          "height": 64,
+          "rotation": 0,
+          "opacity": 1,
+          "visible": true,
+          "properties": [
+            {
+              "name": "meowa_object_id",
+              "type": "string",
+              "value": "history:pixel-history-25390-output:2:https://media.meowa.ai/public/pixel-gen/output/2026-06-08/07%3A43%3A20-1a055bee-f364-4dc2-910b-e5b500727704/sprite_02.png"
+            },
+            {
+              "name": "meowa_object_placement_id",
+              "type": "string",
+              "value": "map-object-1780908911939-liu62lqhblo"
+            },
+            {
+              "name": "meowa_layer_id",
+              "type": "string",
+              "value": "map-layer-1"
+            },
+            {
+              "name": "meowa_source",
+              "type": "string",
+              "value": "history"
+            }
+          ]
+        }
+      ],
+      "opacity": 1,
+      "visible": true,
+      "x": 0,
+      "y": 0,
+      "width": 0,
+      "height": 0,
+      "properties": [
+        {
+          "name": "meowa_layer_id",
+          "type": "string",
+          "value": "map-layer-1"
+        }
+      ]
+    }
+  ],
+  "nextlayerid": 3,
+  "nextobjectid": 24,
+  "orientation": "orthogonal",
+  "renderorder": "right-down",
+  "tiledversion": "1.12.1",
+  "tileheight": 64,
+  "tilesets": [
+    {
+      "firstgid": 1,
+      "name": "生成地图，边缘模糊易过渡 Tileset",
+      "image": "tilesets/library-tileset-generated-25404-tileset_path.png",
+      "imagewidth": 256,
+      "imageheight": 256,
+      "margin": 0,
+      "spacing": 0,
+      "tilewidth": 64,
+      "tileheight": 64,
+      "tilecount": 16,
+      "columns": 4,
+      "properties": [
+        {
+          "name": "meowa_tileset_id",
+          "type": "string",
+          "value": "library-tileset:generated-25404-tileset_path"
+        },
+        {
+          "name": "meowa_tileset_type",
+          "type": "string",
+          "value": "dual-grid-15"
+        }
+      ]
+    },
+    {
+      "firstgid": 17,
+      "name": "生成地块，边缘需要磨损寝室，过渡自然，表现出森林质感的RPG风格美术 Tileset",
+      "image": "tilesets/library-tileset-generated-25386-tileset_path.png",
+      "imagewidth": 256,
+      "imageheight": 256,
+      "margin": 0,
+      "spacing": 0,
+      "tilewidth": 64,
+      "tileheight": 64,
+      "tilecount": 16,
+      "columns": 4,
+      "properties": [
+        {
+          "name": "meowa_tileset_id",
+          "type": "string",
+          "value": "library-tileset:generated-25386-tileset_path"
+        },
+        {
+          "name": "meowa_tileset_type",
+          "type": "string",
+          "value": "dual-grid-15"
+        }
+      ]
+    },
+    {
+      "firstgid": 33,
+      "name": "生成纹理 Tileset",
+      "image": "tilesets/library-tileset-generated-25413-tileset_path.png",
+      "imagewidth": 256,
+      "imageheight": 256,
+      "margin": 0,
+      "spacing": 0,
+      "tilewidth": 64,
+      "tileheight": 64,
+      "tilecount": 16,
+      "columns": 4,
+      "properties": [
+        {
+          "name": "meowa_tileset_id",
+          "type": "string",
+          "value": "library-tileset:generated-25413-tileset_path"
+        },
+        {
+          "name": "meowa_tileset_type",
+          "type": "string",
+          "value": "dual-grid-15"
+        }
+      ]
+    },
+    {
+      "firstgid": 49,
+      "name": "藤蔓伞树",
+      "image": "objects/history-pixel-history-25390-output-2-https-media-meowa-ai-public-pixel-gen-output-2026-06-08-07-3a43-3a20-1a055bee-f364-4dc2-910b-e5b500727704-sprite_02-png.png",
+      "imagewidth": 64,
+      "imageheight": 64,
+      "margin": 0,
+      "spacing": 0,
+      "tilewidth": 64,
+      "tileheight": 64,
+      "tilecount": 1,
+      "columns": 1,
+      "properties": [
+        {
+          "name": "meowa_object_id",
+          "type": "string",
+          "value": "history:pixel-history-25390-output:2:https://media.meowa.ai/public/pixel-gen/output/2026-06-08/07%3A43%3A20-1a055bee-f364-4dc2-910b-e5b500727704/sprite_02.png"
+        },
+        {
+          "name": "meowa_asset_source",
+          "type": "string",
+          "value": "history"
+        }
+      ]
+    }
+  ],
+  "tilewidth": 64,
+  "type": "map",
+  "version": "1.10",
+  "width": 24,
+  "backgroundcolor": "#909090",
+  "properties": [
+    {
+      "name": "meowa_export_version",
+      "type": "int",
+      "value": 1
+    },
+    {
+      "name": "meowa_map_type",
+      "type": "string",
+      "value": "topdown"
+    }
+  ]
+}

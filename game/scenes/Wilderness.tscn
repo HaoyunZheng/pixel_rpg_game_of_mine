@@ -1,0 +1,312 @@
+[gd_scene load_steps=12 format=3]
+
+[ext_resource type="Script" path="res://scripts/Wilderness.gd" id="1_wilderness"]
+[ext_resource type="Script" path="res://scripts/characters/PlayerController.gd" id="2_player"]
+[ext_resource type="Script" path="res://scripts/characters/EnemyPatrol.gd" id="3_patrol"]
+[ext_resource type="SpriteFrames" path="res://assets/sprites/hooded_player/hooded_player_frames.tres" id="4_player_frames"]
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_player"]
+size = Vector2(40, 40)
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_trigger"]
+size = Vector2(44, 44)
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_tree1"]
+size = Vector2(60, 140)
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_tree2"]
+size = Vector2(40, 100)
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_tree3"]
+size = Vector2(60, 170)
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_tree4"]
+size = Vector2(40, 80)
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_enemy"]
+size = Vector2(40, 40)
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_exit"]
+size = Vector2(80, 120)
+
+[node name="Wilderness" type="Node2D"]
+script = ExtResource("1_wilderness")
+
+[node name="Background" type="ColorRect" parent="."]
+offset_right = 1920.0
+offset_bottom = 1080.0
+color = Color(0.04, 0.055, 0.035, 1)
+
+[node name="Ground" type="ColorRect" parent="."]
+offset_left = 0.0
+offset_top = 600.0
+offset_right = 1920.0
+offset_bottom = 1080.0
+color = Color(0.07, 0.09, 0.05, 1)
+
+[node name="Obstacles" type="Node2D" parent="."]
+
+[node name="Tree1" type="StaticBody2D" parent="Obstacles"]
+position = Vector2(220, 420)
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Obstacles/Tree1"]
+shape = SubResource("RectangleShape2D_tree1")
+
+[node name="Visual" type="ColorRect" parent="Obstacles/Tree1"]
+offset_left = -30.0
+offset_top = -70.0
+offset_right = 30.0
+offset_bottom = 70.0
+color = Color(0.06, 0.08, 0.045, 1)
+
+[node name="Tree2" type="StaticBody2D" parent="Obstacles"]
+position = Vector2(500, 420)
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Obstacles/Tree2"]
+shape = SubResource("RectangleShape2D_tree2")
+
+[node name="Visual" type="ColorRect" parent="Obstacles/Tree2"]
+offset_left = -20.0
+offset_top = -50.0
+offset_right = 20.0
+offset_bottom = 50.0
+color = Color(0.055, 0.075, 0.04, 1)
+
+[node name="Tree3" type="StaticBody2D" parent="Obstacles"]
+position = Vector2(1400, 490)
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Obstacles/Tree3"]
+shape = SubResource("RectangleShape2D_tree3")
+
+[node name="Visual" type="ColorRect" parent="Obstacles/Tree3"]
+offset_left = -30.0
+offset_top = -85.0
+offset_right = 30.0
+offset_bottom = 85.0
+color = Color(0.06, 0.08, 0.045, 1)
+
+[node name="Tree4" type="StaticBody2D" parent="Obstacles"]
+position = Vector2(1690, 510)
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Obstacles/Tree4"]
+shape = SubResource("RectangleShape2D_tree4")
+
+[node name="Visual" type="ColorRect" parent="Obstacles/Tree4"]
+offset_left = -20.0
+offset_top = -40.0
+offset_right = 20.0
+offset_bottom = 40.0
+color = Color(0.055, 0.075, 0.04, 1)
+
+[node name="Player" type="CharacterBody2D" parent="."]
+position = Vector2(930, 570)
+script = ExtResource("2_player")
+sprite_frames = ExtResource("4_player_frames")
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Player"]
+shape = SubResource("RectangleShape2D_player")
+
+[node name="Visual" type="ColorRect" parent="Player"]
+offset_left = -20.0
+offset_top = -20.0
+offset_right = 20.0
+offset_bottom = 20.0
+color = Color(0.22, 0.52, 0.82, 1)
+
+[node name="BattleTrigger" type="Area2D" parent="Player"]
+collision_mask = 6
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Player/BattleTrigger"]
+shape = SubResource("RectangleShape2D_trigger")
+
+[node name="Companion" type="ColorRect" parent="."]
+offset_left = 990.0
+offset_top = 540.0
+offset_right = 1030.0
+offset_bottom = 580.0
+color = Color(0.2, 0.82, 0.52, 1)
+
+[node name="Enemies" type="Node2D" parent="."]
+
+[node name="Enemy1" type="CharacterBody2D" parent="Enemies"]
+position = Vector2(1380, 570)
+script = ExtResource("3_patrol")
+encounter_key = "Enemy1"
+patrol_points = [Vector2(-180, 0), Vector2(180, 0)]
+move_speed = 60.0
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Enemies/Enemy1"]
+shape = SubResource("RectangleShape2D_enemy")
+
+[node name="Visual" type="ColorRect" parent="Enemies/Enemy1"]
+offset_left = -20.0
+offset_top = -20.0
+offset_right = 20.0
+offset_bottom = 20.0
+color = Color(0.82, 0.22, 0.22, 1)
+
+[node name="Label" type="Label" parent="Enemies/Enemy1"]
+offset_left = -20.0
+offset_top = -20.0
+offset_right = 20.0
+offset_bottom = 20.0
+theme_override_colors/font_color = Color(1, 0.85, 0.85, 1)
+theme_override_colors/font_shadow_color = Color(0.3, 0.05, 0.05, 0.8)
+theme_override_constants/shadow_offset_x = 1
+theme_override_constants/shadow_offset_y = 1
+theme_override_font_sizes/font_size = 10
+horizontal_alignment = 1
+vertical_alignment = 1
+text = "猎手"
+
+[node name="BattleTrigger" type="Area2D" parent="Enemies/Enemy1"]
+collision_layer = 2
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Enemies/Enemy1/BattleTrigger"]
+shape = SubResource("RectangleShape2D_enemy")
+
+[node name="Enemy2" type="CharacterBody2D" parent="Enemies"]
+position = Vector2(630, 540)
+script = ExtResource("3_patrol")
+encounter_key = "Enemy2"
+patrol_points = [Vector2(0, -80), Vector2(0, 80)]
+move_speed = 50.0
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Enemies/Enemy2"]
+shape = SubResource("RectangleShape2D_enemy")
+
+[node name="Visual" type="ColorRect" parent="Enemies/Enemy2"]
+offset_left = -20.0
+offset_top = -20.0
+offset_right = 20.0
+offset_bottom = 20.0
+color = Color(0.82, 0.32, 0.22, 1)
+
+[node name="Label" type="Label" parent="Enemies/Enemy2"]
+offset_left = -20.0
+offset_top = -20.0
+offset_right = 20.0
+offset_bottom = 20.0
+theme_override_colors/font_color = Color(1, 0.85, 0.85, 1)
+theme_override_colors/font_shadow_color = Color(0.3, 0.05, 0.05, 0.8)
+theme_override_constants/shadow_offset_x = 1
+theme_override_constants/shadow_offset_y = 1
+theme_override_font_sizes/font_size = 10
+horizontal_alignment = 1
+vertical_alignment = 1
+text = "变异兽"
+
+[node name="BattleTrigger" type="Area2D" parent="Enemies/Enemy2"]
+collision_layer = 2
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Enemies/Enemy2/BattleTrigger"]
+shape = SubResource("RectangleShape2D_enemy")
+
+[node name="ExitTrigger" type="Area2D" parent="."]
+collision_layer = 4
+position = Vector2(90, 540)
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="ExitTrigger"]
+shape = SubResource("RectangleShape2D_exit")
+
+[node name="Visual" type="ColorRect" parent="ExitTrigger"]
+offset_left = -40.0
+offset_top = -60.0
+offset_right = 40.0
+offset_bottom = 60.0
+color = Color(0.15, 0.45, 0.65, 0.4)
+
+[node name="Label" type="Label" parent="ExitTrigger"]
+offset_left = -40.0
+offset_top = -60.0
+offset_right = 40.0
+offset_bottom = 60.0
+theme_override_colors/font_color = Color(0.75, 0.88, 1.0, 1)
+theme_override_colors/font_shadow_color = Color(0.05, 0.15, 0.25, 0.7)
+theme_override_constants/shadow_offset_x = 1
+theme_override_constants/shadow_offset_y = 1
+theme_override_font_sizes/font_size = 12
+horizontal_alignment = 1
+vertical_alignment = 1
+text = "返回\n安全区"
+
+[node name="UI" type="CanvasLayer" parent="."]
+
+[node name="TitlePanel" type="ColorRect" parent="UI"]
+anchors_preset = 5
+anchor_left = 0.5
+anchor_right = 0.5
+offset_left = -220.0
+offset_top = 20.0
+offset_right = 220.0
+offset_bottom = 100.0
+grow_horizontal = 2
+color = Color(0.02, 0.02, 0.02, 0.65)
+
+[node name="Title" type="Label" parent="UI"]
+anchors_preset = 5
+anchor_left = 0.5
+anchor_right = 0.5
+offset_left = -200.0
+offset_top = 28.0
+offset_right = 200.0
+offset_bottom = 62.0
+grow_horizontal = 2
+theme_override_colors/font_color = Color(0.75, 0.72, 0.65, 1)
+theme_override_colors/font_shadow_color = Color(0.05, 0.05, 0.05, 0.8)
+theme_override_constants/shadow_offset_x = 2
+theme_override_constants/shadow_offset_y = 2
+theme_override_font_sizes/font_size = 24
+horizontal_alignment = 1
+text = "野外 — 梦召道"
+
+[node name="Subtitle" type="Label" parent="UI"]
+anchors_preset = 5
+anchor_left = 0.5
+anchor_right = 0.5
+offset_left = -280.0
+offset_top = 64.0
+offset_right = 280.0
+offset_bottom = 92.0
+grow_horizontal = 2
+theme_override_colors/font_color = Color(0.5, 0.52, 0.45, 1)
+theme_override_colors/font_shadow_color = Color(0.05, 0.05, 0.05, 0.6)
+theme_override_constants/shadow_offset_x = 1
+theme_override_constants/shadow_offset_y = 1
+theme_override_font_sizes/font_size = 13
+horizontal_alignment = 1
+text = "WASD 移动，Shift 跑步。触碰敌人进入战斗，走到左侧出口返回林间空地。"
+
+[node name="HintPanel" type="ColorRect" parent="UI"]
+anchors_preset = 7
+anchor_left = 0.5
+anchor_top = 1.0
+anchor_right = 0.5
+anchor_bottom = 1.0
+offset_left = -260.0
+offset_top = -56.0
+offset_right = 260.0
+offset_bottom = -16.0
+grow_horizontal = 2
+grow_vertical = 0
+color = Color(0.02, 0.02, 0.02, 0.55)
+
+[node name="Hint" type="Label" parent="UI"]
+anchors_preset = 7
+anchor_left = 0.5
+anchor_top = 1.0
+anchor_right = 0.5
+anchor_bottom = 1.0
+offset_left = -250.0
+offset_top = -50.0
+offset_right = 250.0
+offset_bottom = -22.0
+grow_horizontal = 2
+grow_vertical = 0
+theme_override_colors/font_color = Color(0.6, 0.63, 0.55, 1)
+theme_override_colors/font_shadow_color = Color(0.05, 0.05, 0.05, 0.6)
+theme_override_constants/shadow_offset_x = 1
+theme_override_constants/shadow_offset_y = 1
+theme_override_font_sizes/font_size = 13
+horizontal_alignment = 1
+text = "躲避红色敌人，或使用左侧出口返回林间空地"

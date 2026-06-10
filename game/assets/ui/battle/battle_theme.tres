@@ -1,0 +1,7 @@
+[gd_resource type="Theme" format=3]
+
+[resource]
+default_font_size = 18
+Label/colors/font_color = Color(0.847, 0.812, 0.753, 1)
+Label/colors/font_outline_color = Color(0.086, 0.078, 0.102, 0.9)
+Label/constants/outline_size = 2

@@ -1,0 +1,1 @@
+../.ccgs/.claude/statusline.sh

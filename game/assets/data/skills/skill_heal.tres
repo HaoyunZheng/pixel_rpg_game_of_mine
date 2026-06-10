@@ -1,0 +1,14 @@
+[gd_resource type="Resource" script_class="SkillData" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/resources/SkillData.gd" id="1_skill"]
+
+[resource]
+script = ExtResource("1_skill")
+id = "skill_heal"
+display_name = "治愈之光"
+description = "恢复单个同伴的 HP。"
+skill_type = 1
+damage_type = 0
+power = 25
+mp_cost = 10
+target_type = "single_ally"
