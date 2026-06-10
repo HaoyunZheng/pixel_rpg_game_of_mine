@@ -25,6 +25,7 @@ extends Control
 # ── 既有常量（沿用，勿改键位/指令字符串）──
 const COMMAND_ATTACK: String = "attack"
 const COMMAND_SKILL: String = "skill"
+const COMMAND_ITEM: String = "item"
 const COMMAND_FLEE: String = "flee"
 const TARGET_GROUP_ENEMY: String = "enemy"
 const TARGET_GROUP_PARTY: String = "party"
@@ -33,13 +34,14 @@ const CONFIRM_KEY: Key = KEY_Z
 const CANCEL_KEY: Key = KEY_X
 const MENU_MODE_COMMAND: String = "command"
 const MENU_MODE_SKILL: String = "skill"
+const MENU_MODE_ITEM: String = "item"
 
 # ── 攻击力度转盘（纯代码自绘，攻击流中实例化叠加在中央框上）──
 const ATTACK_WHEEL_SCENE: PackedScene = preload("res://scenes/battle/AttackPowerWheel.tscn")
 
 # 视觉常量（切片路径 / 配色 / 像素缩放）已抽到 BattleWidgets，本控制器仅引用所需配色。
 
-# 固定四格命令（行动 / 技能 / 物品 / 逃跑）。"物品" 逻辑未实现 → UI 占位置灰。
+# 固定四格命令（行动 / 技能 / 物品 / 逃跑）。"物品" 无可用物品时置灰。
 const CMD_LABELS: Array[String] = ["行动", "技能", "物品", "逃跑"]
 const CMD_ITEM_INDEX: int = 2
 
@@ -148,8 +150,8 @@ func _build_command_cells() -> void:
 		cell.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 		cell.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		cell.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		if i == CMD_ITEM_INDEX:
-			cell.modulate = BattleWidgets.COL_DIM  # 物品：逻辑未实现，置灰
+		if i == CMD_ITEM_INDEX and not _has_battle_usable_items():
+			cell.modulate = BattleWidgets.COL_DIM  # 物品：背包无可用物品时置灰
 		_command_cells.add_child(cell)
 
 ## 命令模式：把四格命令接入既有 _menu_buttons 高亮/激活机制。
@@ -162,13 +164,13 @@ func _build_command_menu() -> void:
 	var actions: Array = [
 		func(): _on_cmd_pressed("攻击"),   # 行动 → 攻击（Demo：行动一级即进攻击目标选择）
 		func(): _on_cmd_pressed("技能"),
-		func(): pass,                        # 物品：占位
+		func(): _on_cmd_pressed("物品"),
 		func(): _on_cmd_pressed("逃跑"),
 	]
 	for i in range(cells.size()):
 		_menu_buttons.append(cells[i])
 		_menu_actions.append(actions[i])
-		_menu_disabled.append(i == CMD_ITEM_INDEX)
+		_menu_disabled.append(i == CMD_ITEM_INDEX and not _has_battle_usable_items())
 		_menu_labels.append(CMD_LABELS[i])
 	_select_menu_index(0)
 
@@ -182,6 +184,8 @@ func _on_cmd_pressed(cmd: String) -> void:
 			_start_target_select(TARGET_GROUP_ENEMY, func(t): _turn_state_machine.select_command(COMMAND_ATTACK); _show_attack_wheel(t))
 		"技能":
 			_show_skill_menu()
+		"物品":
+			_show_item_menu()
 		"逃跑":
 			_turn_state_machine.select_command(COMMAND_FLEE)
 
@@ -224,6 +228,30 @@ func _create_skill_action(skill) -> Callable:
 	return func() -> void:
 		var target_type := TARGET_GROUP_ENEMY if skill.skill_type == SKILL_TYPE_ATTACK else TARGET_GROUP_PARTY
 		_start_target_select(target_type, func(t): _turn_state_machine.select_command(COMMAND_SKILL, skill); _turn_state_machine.select_target(t))
+
+## 物品二级选项：同技能，渲染在中央框内。缓解物按 §4.5 战斗内置灰。
+func _show_item_menu() -> void:
+	_menu_mode = MENU_MODE_ITEM
+	_clear_menu_highlight()
+	_render_central_options_header("✦ 选择物品（Z确认 / X返回）")
+	for slot in GameData.inventory:
+		var item: ItemData = slot.item
+		var label := "%s ×%d" % [item.display_name, slot.count]
+		var disabled: bool = slot.count <= 0 or item.item_type == ItemData.ItemType.PALLIATIVE
+		_add_central_option(label, _create_item_action(item), disabled)
+	_add_central_option("返回", _build_command_menu, false)
+	_select_menu_index(0)
+
+func _create_item_action(item: ItemData) -> Callable:
+	return func() -> void:
+		var target_type := TARGET_GROUP_ENEMY if item.effect_type == ItemData.EffectType.DAMAGE else TARGET_GROUP_PARTY
+		_start_target_select(target_type, func(t): _turn_state_machine.select_command(COMMAND_ITEM, item); _turn_state_machine.select_target(t))
+
+func _has_battle_usable_items() -> bool:
+	for slot in GameData.inventory:
+		if slot.count > 0 and slot.item.item_type != ItemData.ItemType.PALLIATIVE:
+			return true
+	return false
 
 # ───────────────────────────────────────────── ③ 中央框二级选项渲染
 
@@ -374,6 +402,8 @@ func _cancel_target_select() -> void:
 	_clear_reticles()
 	if _menu_mode == MENU_MODE_SKILL:
 		_show_skill_menu()
+	elif _menu_mode == MENU_MODE_ITEM:
+		_show_item_menu()
 	else:
 		_build_command_menu()
 		_message_label.text = "✦ %s 行动了——请选择指令。" % _current_actor.display_name
@@ -439,7 +469,7 @@ func _handle_menu_input(keycode: Key) -> void:
 			_activate_selected_menu_item()
 			accept_event()
 		CANCEL_KEY:
-			if _menu_mode == MENU_MODE_SKILL:
+			if _menu_mode == MENU_MODE_SKILL or _menu_mode == MENU_MODE_ITEM:
 				_build_command_menu()
 				_message_label.text = "✦ %s 行动了——请选择指令。" % _current_actor.display_name
 				accept_event()
