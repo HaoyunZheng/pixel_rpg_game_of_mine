@@ -16,7 +16,7 @@ extends Control
 @onready var _enemy_container: HBoxContainer = $EnemyContainer        # ② 上方敌方区域
 @onready var _central_box: NinePatchRect = $CentralBox               # ③ 中央 Undertale 框
 @onready var _message_label: Label = $CentralBox/MessageLabel        # ③ 框内单条战况文字
-@onready var _command_bar: NinePatchRect = $CommandBar               # ④ 命令栏底板
+@onready var _command_bar: Control = $CommandBar                     # ④ 命令栏（四格各自带框，不再用整条底板）
 @onready var _command_cells: HBoxContainer = $CommandBar/CommandCells # ④ 四格固定命令
 @onready var _party_container: VBoxContainer = $PartyPanel/PartyContainer # ⑤ 左下我方状态列
 @onready var _reticle_layer: Control = $ReticleLayer                 # ⑥ 准星 / 锁敌层
@@ -146,9 +146,12 @@ func _build_command_cells() -> void:
 		var cell := Label.new()
 		cell.text = CMD_LABELS[i]
 		cell.add_theme_font_size_override("font_size", 30)
+		# 每格独立切片底框：文字经框的 content margin 在格内水平/垂直居中
+		cell.add_theme_stylebox_override("normal", BattleWidgets.make_cmd_cell_style())
 		cell.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		cell.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 		cell.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		cell.size_flags_vertical = Control.SIZE_EXPAND_FILL
 		cell.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		if i == CMD_ITEM_INDEX and not _has_battle_usable_items():
 			cell.modulate = BattleWidgets.COL_DIM  # 物品：背包无可用物品时置灰
