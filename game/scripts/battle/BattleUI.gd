@@ -239,6 +239,8 @@ func _show_item_menu() -> void:
 	_render_central_options_header("✦ 选择物品（Z确认 / X返回）")
 	for slot in GameData.inventory:
 		var item: ItemData = slot.item
+		if item.category != ItemData.ItemCategory.CONSUMABLE:
+			continue
 		var label := "%s ×%d" % [item.display_name, slot.count]
 		var disabled: bool = slot.count <= 0 or item.item_type == ItemData.ItemType.PALLIATIVE
 		_add_central_option(label, _create_item_action(item), disabled)
@@ -252,7 +254,7 @@ func _create_item_action(item: ItemData) -> Callable:
 
 func _has_battle_usable_items() -> bool:
 	for slot in GameData.inventory:
-		if slot.count > 0 and slot.item.item_type != ItemData.ItemType.PALLIATIVE:
+		if slot.count > 0 and slot.item.item_type != ItemData.ItemType.PALLIATIVE and slot.item.category == ItemData.ItemCategory.CONSUMABLE:
 			return true
 	return false
 
