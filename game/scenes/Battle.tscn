@@ -1,13 +1,13 @@
-[gd_scene load_steps=15 format=3]
+[gd_scene load_steps=10 format=3]
 
 [ext_resource type="Script" path="res://scripts/Battle.gd" id="1_battle"]
 [ext_resource type="Script" path="res://scripts/battle/BattleStateMachine.gd" id="2_bsm"]
 [ext_resource type="Script" path="res://scripts/battle/TurnStateMachine.gd" id="3_tsm"]
 [ext_resource type="Script" path="res://scripts/battle/BattleUI.gd" id="4_bui"]
 [ext_resource type="Theme" path="res://assets/ui/battle/battle_theme.tres" id="5_theme"]
-[ext_resource type="Texture2D" uid="uid://cqts0tbcxl1lm" path="res://assets/ui/battle/panel_central_9p.png" id="6_central"]
-[ext_resource type="Texture2D" uid="uid://bvclctvmsldsh" path="res://assets/ui/battle/bar_command_9p.png" id="7_command"]
+[ext_resource type="Texture2D" path="res://assets/ui/battle/panel_central_9p.png" id="6_central"]
 [ext_resource type="Texture2D" path="res://assets/ui/battle/panel_party_strip_9p.png" id="8_strip"]
+[ext_resource type="Texture2D" path="res://assets/ui/battle/bg_battle_forest.png" id="9_bg"]
 
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_enemy"]
 size = Vector2(60, 60)
@@ -15,12 +15,34 @@ size = Vector2(60, 60)
 [node name="Battle" type="Node2D"]
 script = ExtResource("1_battle")
 
-[node name="Background" type="ColorRect" parent="."]
-offset_right = 1920.0
-offset_bottom = 1080.0
+[node name="BackdropLayer" type="CanvasLayer" parent="."]
+layer = -1
+
+[node name="Background" type="ColorRect" parent="BackdropLayer"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
 color = Color(0.04, 0.03, 0.045, 1)
 
+[node name="BattleBackdrop" type="TextureRect" parent="BackdropLayer"]
+modulate = Color(1, 1, 1, 0.5)
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+texture = ExtResource("9_bg")
+expand_mode = 1
+stretch_mode = 6
+
 [node name="Ground" type="ColorRect" parent="."]
+visible = false
 offset_left = 0.0
 offset_top = 650.0
 offset_right = 1920.0
@@ -74,14 +96,14 @@ layout_mode = 1
 anchors_preset = 5
 anchor_left = 0.5
 anchor_right = 0.5
-offset_left = -300.0
+offset_left = -480.0
 offset_top = 24.0
-offset_right = 300.0
-offset_bottom = 72.0
+offset_right = 480.0
+offset_bottom = 124.0
 grow_horizontal = 2
 mouse_filter = 2
 alignment = 1
-theme_override_constants/separation = 16
+theme_override_constants/separation = 24
 
 [node name="EnemyContainer" type="HBoxContainer" parent="UI/BattleUI"]
 layout_mode = 1
@@ -89,9 +111,9 @@ anchors_preset = 5
 anchor_left = 0.5
 anchor_right = 0.5
 offset_left = -420.0
-offset_top = 112.0
+offset_top = 190.0
 offset_right = 420.0
-offset_bottom = 340.0
+offset_bottom = 410.0
 grow_horizontal = 2
 mouse_filter = 2
 alignment = 1
@@ -99,33 +121,33 @@ theme_override_constants/separation = 80
 
 [node name="CentralBox" type="NinePatchRect" parent="UI/BattleUI"]
 layout_mode = 1
-anchors_preset = 8
+anchors_preset = 7
 anchor_left = 0.5
-anchor_top = 0.5
+anchor_top = 1.0
 anchor_right = 0.5
-anchor_bottom = 0.5
-offset_left = -672.0
-offset_top = -180.0
-offset_right = 672.0
-offset_bottom = 180.0
+anchor_bottom = 1.0
+offset_left = -576.0
+offset_top = -436.0
+offset_right = 576.0
+offset_bottom = -156.0
 grow_horizontal = 2
-grow_vertical = 2
+grow_vertical = 0
 mouse_filter = 2
 texture = ExtResource("6_central")
-patch_margin_left = 8
-patch_margin_top = 8
-patch_margin_right = 8
-patch_margin_bottom = 10
+patch_margin_left = 14
+patch_margin_top = 14
+patch_margin_right = 14
+patch_margin_bottom = 14
 
 [node name="MessageLabel" type="Label" parent="UI/BattleUI/CentralBox"]
 layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
-offset_left = 48.0
-offset_top = 32.0
-offset_right = -48.0
-offset_bottom = -32.0
+offset_left = 40.0
+offset_top = 24.0
+offset_right = -40.0
+offset_bottom = -24.0
 grow_horizontal = 2
 grow_vertical = 2
 mouse_filter = 2
@@ -134,40 +156,31 @@ horizontal_alignment = 1
 vertical_alignment = 1
 autowrap_mode = 2
 
-[node name="CommandBar" type="NinePatchRect" parent="UI/BattleUI"]
+[node name="CommandBar" type="Control" parent="UI/BattleUI"]
 layout_mode = 1
-anchors_preset = 8
+anchors_preset = 7
 anchor_left = 0.5
-anchor_top = 0.5
+anchor_top = 1.0
 anchor_right = 0.5
-anchor_bottom = 0.5
+anchor_bottom = 1.0
 offset_left = -480.0
-offset_top = 196.0
+offset_top = -132.0
 offset_right = 480.0
-offset_bottom = 284.0
+offset_bottom = -44.0
 grow_horizontal = 2
-grow_vertical = 2
+grow_vertical = 0
 mouse_filter = 2
-texture = ExtResource("7_command")
-patch_margin_left = 6
-patch_margin_top = 6
-patch_margin_right = 6
-patch_margin_bottom = 6
 
 [node name="CommandCells" type="HBoxContainer" parent="UI/BattleUI/CommandBar"]
 layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
-offset_left = 24.0
-offset_top = 16.0
-offset_right = -24.0
-offset_bottom = -16.0
 grow_horizontal = 2
 grow_vertical = 2
 mouse_filter = 2
 alignment = 1
-theme_override_constants/separation = 8
+theme_override_constants/separation = 24
 
 [node name="PartyPanel" type="NinePatchRect" parent="UI/BattleUI"]
 layout_mode = 1
@@ -181,20 +194,20 @@ offset_bottom = -24.0
 grow_vertical = 0
 mouse_filter = 2
 texture = ExtResource("8_strip")
-patch_margin_left = 6
-patch_margin_top = 6
-patch_margin_right = 6
-patch_margin_bottom = 6
+patch_margin_left = 12
+patch_margin_top = 12
+patch_margin_right = 12
+patch_margin_bottom = 12
 
 [node name="PartyContainer" type="VBoxContainer" parent="UI/BattleUI/PartyPanel"]
 layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
-offset_left = 16.0
-offset_top = 16.0
-offset_right = -16.0
-offset_bottom = -16.0
+offset_left = 20.0
+offset_top = 20.0
+offset_right = -20.0
+offset_bottom = -20.0
 grow_horizontal = 2
 grow_vertical = 2
 mouse_filter = 2
@@ -215,9 +228,9 @@ anchors_preset = 5
 anchor_left = 0.5
 anchor_right = 0.5
 offset_left = -300.0
-offset_top = 78.0
+offset_top = 132.0
 offset_right = 300.0
-offset_bottom = 110.0
+offset_bottom = 168.0
 grow_horizontal = 2
 mouse_filter = 2
 theme_override_font_sizes/font_size = 22
