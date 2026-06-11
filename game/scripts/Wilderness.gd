@@ -8,7 +8,7 @@ const DATA_KEY_SCENE_NAME: String = "scene_name"
 const DATA_KEY_FROM: String = "from"
 const DATA_KEY_ENEMY_KEY: String = "enemy_key"
 const FALLBACK_ENEMY_KEY: String = "Enemy1"
-const MAP_RECT := Rect2(0, 0, 1920, 1080)  # 野外世界尺寸（相机边界）
+const MAP_RECT := Rect2(512, 320, 1024, 576)  # 可走区域外接矩形（相机边界，对齐 WildernessMap）
 
 @onready var _player: CharacterBody2D = $Player
 @onready var _battle_trigger: Area2D = $Player/BattleTrigger

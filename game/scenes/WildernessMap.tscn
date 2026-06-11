@@ -1,0 +1,774 @@
+[gd_scene format=4]
+
+[ext_resource type="TileSet" path="res://assets/maps/wilderness/wilderness_tileset.tres" id="1_yj5rl"]
+[ext_resource type="Texture2D" path="res://assets/maps/wilderness/tree_pine.png" id="2_78lck"]
+[ext_resource type="Texture2D" path="res://assets/maps/wilderness/rock_pile.png" id="3_dvh8o"]
+[ext_resource type="Texture2D" path="res://assets/maps/wilderness/rock_boulder.png" id="4_x4fxg"]
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_0cv0s"]
+size = Vector2(26, 12)
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_v4wlo"]
+size = Vector2(44, 20)
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_8svgf"]
+size = Vector2(40, 18)
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_oyvcd"]
+size = Vector2(64, 64)
+
+[node name="WildernessMap" type="Node2D" unique_id=2146632086]
+
+[node name="Background" type="ColorRect" parent="." unique_id=1125039839]
+offset_left = -512.0
+offset_top = -512.0
+offset_right = 2048.0
+offset_bottom = 1536.0
+color = Color(0.5647059, 0.5647059, 0.5647059, 1)
+
+[node name="Ground" type="TileMapLayer" parent="." unique_id=768184119]
+position = Vector2(-32, -32)
+tile_map_data = PackedByteArray("AAALAAUAAAABAAMAAAAMAAUAAAADAAAAAAANAAUAAAAAAAAAAAAPAAUAAAABAAMAAAAQAAUAAAADAAAAAAARAAUAAAADAAAAAAASAAUAAAADAAAAAAATAAUAAAADAAAAAAAUAAUAAAADAAAAAAAVAAUAAAAAAAAAAAAKAAYAAAABAAMAAAALAAYAAAABAAEAAAAMAAYAAAACAAEAAAANAAYAAAACAAAAAAAOAAYAAAAAAAAAAAAPAAYAAAABAAAAAAAQAAYAAAACAAEAAAARAAYAAAACAAEAAAASAAYAAAACAAEAAAATAAYAAAACAAEAAAAUAAYAAAADAAEAAAAVAAYAAAADAAMAAAAWAAYAAAABAAMAAAAXAAYAAAAAAAAAAAAKAAcAAAABAAAAAAALAAcAAAACAAEAAAAMAAcAAAACAAEAAAANAAcAAAACAAEAAAAOAAcAAAADAAIAAAAPAAcAAAABAAAAAAAQAAcAAAACAAEAAAARAAcAAAACAAEAAAASAAcAAAACAAEAAAATAAcAAAACAAEAAAAUAAcAAAACAAAAAAAVAAcAAAADAAAAAAAWAAcAAAACAAMAAAAXAAcAAAAAAAEAAAAYAAcAAAAAAAAAAAAKAAgAAAABAAAAAAALAAgAAAACAAEAAAAMAAgAAAACAAEAAAANAAgAAAACAAEAAAAOAAgAAAADAAIAAAAPAAgAAAABAAAAAAAQAAgAAAADAAEAAAARAAgAAAACAAIAAAASAAgAAAACAAEAAAATAAgAAAACAAEAAAAUAAgAAAACAAEAAAAVAAgAAAACAAEAAAAWAAgAAAADAAIAAAAXAAgAAAABAAAAAAAYAAgAAAADAAIAAAAJAAkAAAABAAMAAAAKAAkAAAABAAEAAAALAAkAAAACAAEAAAAMAAkAAAACAAEAAAANAAkAAAACAAEAAAAOAAkAAAADAAIAAAAPAAkAAAABAAAAAAAQAAkAAAACAAAAAAARAAkAAAABAAEAAAASAAkAAAACAAEAAAATAAkAAAACAAEAAAAUAAkAAAACAAEAAAAVAAkAAAACAAEAAAAWAAkAAAADAAIAAAAXAAkAAAABAAAAAAAYAAkAAAADAAIAAAAJAAoAAAAAAAIAAAAKAAoAAAABAAIAAAALAAoAAAABAAIAAAAMAAoAAAABAAIAAAANAAoAAAABAAIAAAAOAAoAAAADAAMAAAAPAAoAAAAAAAIAAAAQAAoAAAABAAIAAAARAAoAAAACAAIAAAASAAoAAAADAAEAAAATAAoAAAABAAIAAAAUAAoAAAABAAIAAAAVAAoAAAABAAIAAAAWAAoAAAADAAMAAAAXAAoAAAAAAAIAAAAYAAoAAAADAAMAAAAIAAsAAAABAAMAAAAJAAsAAAADAAAAAAAKAAsAAAADAAAAAAALAAsAAAADAAAAAAAMAAsAAAADAAAAAAANAAsAAAADAAAAAAAOAAsAAAADAAAAAAAPAAsAAAADAAAAAAAQAAsAAAADAAAAAAARAAsAAAABAAEAAAASAAsAAAACAAAAAAATAAsAAAADAAAAAAAUAAsAAAADAAAAAAAVAAsAAAADAAAAAAAWAAsAAAAAAAAAAAAIAAwAAAABAAAAAAAJAAwAAAACAAEAAAAKAAwAAAACAAEAAAALAAwAAAACAAEAAAAMAAwAAAACAAEAAAANAAwAAAACAAEAAAAOAAwAAAACAAEAAAAPAAwAAAACAAEAAAAQAAwAAAACAAEAAAARAAwAAAACAAEAAAASAAwAAAACAAEAAAATAAwAAAACAAEAAAAUAAwAAAACAAEAAAAVAAwAAAACAAEAAAAWAAwAAAADAAIAAAAIAA0AAAABAAAAAAAJAA0AAAACAAEAAAAKAA0AAAACAAEAAAALAA0AAAACAAEAAAAMAA0AAAACAAEAAAANAA0AAAACAAEAAAAOAA0AAAACAAEAAAAPAA0AAAACAAEAAAAQAA0AAAACAAEAAAARAA0AAAACAAEAAAASAA0AAAACAAEAAAATAA0AAAACAAEAAAAUAA0AAAACAAEAAAAVAA0AAAACAAEAAAAWAA0AAAADAAIAAAAIAA4AAAAAAAIAAAAJAA4AAAABAAIAAAAKAA4AAAABAAIAAAALAA4AAAABAAIAAAAMAA4AAAABAAIAAAANAA4AAAABAAIAAAAOAA4AAAABAAIAAAAPAA4AAAABAAIAAAAQAA4AAAABAAIAAAARAA4AAAABAAIAAAASAA4AAAABAAIAAAATAA4AAAABAAIAAAAUAA4AAAABAAIAAAAVAA4AAAABAAIAAAAWAA4AAAADAAMAAAA=")
+tile_set = ExtResource("1_yj5rl")
+
+[node name="Objects" type="Node2D" parent="." unique_id=1494323533]
+
+[node name="Tree_1" type="StaticBody2D" parent="Objects" unique_id=1296188834]
+position = Vector2(577, 648)
+
+[node name="Sprite" type="Sprite2D" parent="Objects/Tree_1" unique_id=1539822535]
+position = Vector2(0, -22)
+texture = ExtResource("2_78lck")
+
+[node name="Foot" type="CollisionShape2D" parent="Objects/Tree_1" unique_id=514803733]
+shape = SubResource("RectangleShape2D_0cv0s")
+
+[node name="Tree_2" type="StaticBody2D" parent="Objects" unique_id=1384194160]
+position = Vector2(574, 600)
+
+[node name="Sprite" type="Sprite2D" parent="Objects/Tree_2" unique_id=1861529548]
+position = Vector2(0, -22)
+texture = ExtResource("2_78lck")
+
+[node name="Foot" type="CollisionShape2D" parent="Objects/Tree_2" unique_id=1381631332]
+shape = SubResource("RectangleShape2D_0cv0s")
+
+[node name="Tree_3" type="StaticBody2D" parent="Objects" unique_id=1558864]
+position = Vector2(615, 629)
+
+[node name="Sprite" type="Sprite2D" parent="Objects/Tree_3" unique_id=504938993]
+position = Vector2(0, -22)
+texture = ExtResource("2_78lck")
+
+[node name="Foot" type="CollisionShape2D" parent="Objects/Tree_3" unique_id=1217628313]
+shape = SubResource("RectangleShape2D_0cv0s")
+
+[node name="Tree_4" type="StaticBody2D" parent="Objects" unique_id=1820604376]
+position = Vector2(613, 588)
+
+[node name="Sprite" type="Sprite2D" parent="Objects/Tree_4" unique_id=553472491]
+position = Vector2(0, -22)
+texture = ExtResource("2_78lck")
+
+[node name="Foot" type="CollisionShape2D" parent="Objects/Tree_4" unique_id=150159307]
+shape = SubResource("RectangleShape2D_0cv0s")
+
+[node name="Tree_5" type="StaticBody2D" parent="Objects" unique_id=1555464663]
+position = Vector2(640, 551)
+
+[node name="Sprite" type="Sprite2D" parent="Objects/Tree_5" unique_id=1164463886]
+position = Vector2(0, -22)
+texture = ExtResource("2_78lck")
+
+[node name="Foot" type="CollisionShape2D" parent="Objects/Tree_5" unique_id=532014090]
+shape = SubResource("RectangleShape2D_0cv0s")
+
+[node name="Tree_6" type="StaticBody2D" parent="Objects" unique_id=1388669614]
+position = Vector2(596, 545)
+
+[node name="Sprite" type="Sprite2D" parent="Objects/Tree_6" unique_id=68648331]
+position = Vector2(0, -22)
+texture = ExtResource("2_78lck")
+
+[node name="Foot" type="CollisionShape2D" parent="Objects/Tree_6" unique_id=1049860397]
+shape = SubResource("RectangleShape2D_0cv0s")
+
+[node name="Tree_7" type="StaticBody2D" parent="Objects" unique_id=928041914]
+position = Vector2(616, 507)
+
+[node name="Sprite" type="Sprite2D" parent="Objects/Tree_7" unique_id=1855195962]
+position = Vector2(0, -22)
+texture = ExtResource("2_78lck")
+
+[node name="Foot" type="CollisionShape2D" parent="Objects/Tree_7" unique_id=448509154]
+shape = SubResource("RectangleShape2D_0cv0s")
+
+[node name="Tree_8" type="StaticBody2D" parent="Objects" unique_id=867310867]
+position = Vector2(905, 654)
+
+[node name="Sprite" type="Sprite2D" parent="Objects/Tree_8" unique_id=342695178]
+position = Vector2(0, -22)
+texture = ExtResource("2_78lck")
+
+[node name="Foot" type="CollisionShape2D" parent="Objects/Tree_8" unique_id=2031064292]
+shape = SubResource("RectangleShape2D_0cv0s")
+
+[node name="Tree_9" type="StaticBody2D" parent="Objects" unique_id=1963032959]
+position = Vector2(944, 658)
+
+[node name="Sprite" type="Sprite2D" parent="Objects/Tree_9" unique_id=1456021433]
+position = Vector2(0, -22)
+texture = ExtResource("2_78lck")
+
+[node name="Foot" type="CollisionShape2D" parent="Objects/Tree_9" unique_id=1600592499]
+shape = SubResource("RectangleShape2D_0cv0s")
+
+[node name="Tree_10" type="StaticBody2D" parent="Objects" unique_id=568414429]
+position = Vector2(923, 387)
+
+[node name="Sprite" type="Sprite2D" parent="Objects/Tree_10" unique_id=1614244773]
+position = Vector2(0, -22)
+texture = ExtResource("2_78lck")
+
+[node name="Foot" type="CollisionShape2D" parent="Objects/Tree_10" unique_id=1291197226]
+shape = SubResource("RectangleShape2D_0cv0s")
+
+[node name="Tree_11" type="StaticBody2D" parent="Objects" unique_id=1188026008]
+position = Vector2(910, 424)
+
+[node name="Sprite" type="Sprite2D" parent="Objects/Tree_11" unique_id=1203691685]
+position = Vector2(0, -22)
+texture = ExtResource("2_78lck")
+
+[node name="Foot" type="CollisionShape2D" parent="Objects/Tree_11" unique_id=1106699475]
+shape = SubResource("RectangleShape2D_0cv0s")
+
+[node name="Tree_12" type="StaticBody2D" parent="Objects" unique_id=1196426110]
+position = Vector2(946, 424)
+
+[node name="Sprite" type="Sprite2D" parent="Objects/Tree_12" unique_id=1869722947]
+position = Vector2(0, -22)
+texture = ExtResource("2_78lck")
+
+[node name="Foot" type="CollisionShape2D" parent="Objects/Tree_12" unique_id=104107467]
+shape = SubResource("RectangleShape2D_0cv0s")
+
+[node name="Tree_13" type="StaticBody2D" parent="Objects" unique_id=1803038648]
+position = Vector2(925, 460)
+
+[node name="Sprite" type="Sprite2D" parent="Objects/Tree_13" unique_id=1228840577]
+position = Vector2(0, -22)
+texture = ExtResource("2_78lck")
+
+[node name="Foot" type="CollisionShape2D" parent="Objects/Tree_13" unique_id=735261141]
+shape = SubResource("RectangleShape2D_0cv0s")
+
+[node name="Tree_14" type="StaticBody2D" parent="Objects" unique_id=795956518]
+position = Vector2(970, 478)
+
+[node name="Sprite" type="Sprite2D" parent="Objects/Tree_14" unique_id=1435283000]
+position = Vector2(0, -22)
+texture = ExtResource("2_78lck")
+
+[node name="Foot" type="CollisionShape2D" parent="Objects/Tree_14" unique_id=1886111467]
+shape = SubResource("RectangleShape2D_0cv0s")
+
+[node name="Tree_15" type="StaticBody2D" parent="Objects" unique_id=635990580]
+position = Vector2(884, 481)
+
+[node name="Sprite" type="Sprite2D" parent="Objects/Tree_15" unique_id=1425963717]
+position = Vector2(0, -22)
+texture = ExtResource("2_78lck")
+
+[node name="Foot" type="CollisionShape2D" parent="Objects/Tree_15" unique_id=1834560835]
+shape = SubResource("RectangleShape2D_0cv0s")
+
+[node name="Tree_16" type="StaticBody2D" parent="Objects" unique_id=1826222598]
+position = Vector2(920, 512)
+
+[node name="Sprite" type="Sprite2D" parent="Objects/Tree_16" unique_id=887497448]
+position = Vector2(0, -22)
+texture = ExtResource("2_78lck")
+
+[node name="Foot" type="CollisionShape2D" parent="Objects/Tree_16" unique_id=223206802]
+shape = SubResource("RectangleShape2D_0cv0s")
+
+[node name="Tree_17" type="StaticBody2D" parent="Objects" unique_id=474363888]
+position = Vector2(960, 532)
+
+[node name="Sprite" type="Sprite2D" parent="Objects/Tree_17" unique_id=987800011]
+position = Vector2(0, -22)
+texture = ExtResource("2_78lck")
+
+[node name="Foot" type="CollisionShape2D" parent="Objects/Tree_17" unique_id=1463627659]
+shape = SubResource("RectangleShape2D_0cv0s")
+
+[node name="Tree_18" type="StaticBody2D" parent="Objects" unique_id=1043094734]
+position = Vector2(891, 549)
+
+[node name="Sprite" type="Sprite2D" parent="Objects/Tree_18" unique_id=394570715]
+position = Vector2(0, -22)
+texture = ExtResource("2_78lck")
+
+[node name="Foot" type="CollisionShape2D" parent="Objects/Tree_18" unique_id=110728273]
+shape = SubResource("RectangleShape2D_0cv0s")
+
+[node name="Tree_19" type="StaticBody2D" parent="Objects" unique_id=642429474]
+position = Vector2(928, 566)
+
+[node name="Sprite" type="Sprite2D" parent="Objects/Tree_19" unique_id=388064282]
+position = Vector2(0, -22)
+texture = ExtResource("2_78lck")
+
+[node name="Foot" type="CollisionShape2D" parent="Objects/Tree_19" unique_id=1937783400]
+shape = SubResource("RectangleShape2D_0cv0s")
+
+[node name="Tree_20" type="StaticBody2D" parent="Objects" unique_id=1221401149]
+position = Vector2(964, 584)
+
+[node name="Sprite" type="Sprite2D" parent="Objects/Tree_20" unique_id=1267446596]
+position = Vector2(0, -22)
+texture = ExtResource("2_78lck")
+
+[node name="Foot" type="CollisionShape2D" parent="Objects/Tree_20" unique_id=1854882168]
+shape = SubResource("RectangleShape2D_0cv0s")
+
+[node name="Tree_21" type="StaticBody2D" parent="Objects" unique_id=1738518770]
+position = Vector2(894, 597)
+
+[node name="Sprite" type="Sprite2D" parent="Objects/Tree_21" unique_id=226543548]
+position = Vector2(0, -22)
+texture = ExtResource("2_78lck")
+
+[node name="Foot" type="CollisionShape2D" parent="Objects/Tree_21" unique_id=116572057]
+shape = SubResource("RectangleShape2D_0cv0s")
+
+[node name="Tree_22" type="StaticBody2D" parent="Objects" unique_id=1400330336]
+position = Vector2(929, 613)
+
+[node name="Sprite" type="Sprite2D" parent="Objects/Tree_22" unique_id=2119382488]
+position = Vector2(0, -22)
+texture = ExtResource("2_78lck")
+
+[node name="Foot" type="CollisionShape2D" parent="Objects/Tree_22" unique_id=136412278]
+shape = SubResource("RectangleShape2D_0cv0s")
+
+[node name="Tree_23" type="StaticBody2D" parent="Objects" unique_id=1442235485]
+position = Vector2(977, 632)
+
+[node name="Sprite" type="Sprite2D" parent="Objects/Tree_23" unique_id=2074051132]
+position = Vector2(0, -22)
+texture = ExtResource("2_78lck")
+
+[node name="Foot" type="CollisionShape2D" parent="Objects/Tree_23" unique_id=137337208]
+shape = SubResource("RectangleShape2D_0cv0s")
+
+[node name="Tree_24" type="StaticBody2D" parent="Objects" unique_id=1686931008]
+position = Vector2(1293, 412)
+
+[node name="Sprite" type="Sprite2D" parent="Objects/Tree_24" unique_id=166240093]
+position = Vector2(0, -22)
+texture = ExtResource("2_78lck")
+
+[node name="Foot" type="CollisionShape2D" parent="Objects/Tree_24" unique_id=1571466858]
+shape = SubResource("RectangleShape2D_0cv0s")
+
+[node name="Tree_25" type="StaticBody2D" parent="Objects" unique_id=1419610831]
+position = Vector2(1300, 448)
+
+[node name="Sprite" type="Sprite2D" parent="Objects/Tree_25" unique_id=2045555453]
+position = Vector2(0, -22)
+texture = ExtResource("2_78lck")
+
+[node name="Foot" type="CollisionShape2D" parent="Objects/Tree_25" unique_id=957216562]
+shape = SubResource("RectangleShape2D_0cv0s")
+
+[node name="Tree_26" type="StaticBody2D" parent="Objects" unique_id=321595115]
+position = Vector2(1343, 447)
+
+[node name="Sprite" type="Sprite2D" parent="Objects/Tree_26" unique_id=149272221]
+position = Vector2(0, -22)
+texture = ExtResource("2_78lck")
+
+[node name="Foot" type="CollisionShape2D" parent="Objects/Tree_26" unique_id=673983375]
+shape = SubResource("RectangleShape2D_0cv0s")
+
+[node name="Tree_27" type="StaticBody2D" parent="Objects" unique_id=1882988035]
+position = Vector2(1326, 407)
+
+[node name="Sprite" type="Sprite2D" parent="Objects/Tree_27" unique_id=2091319038]
+position = Vector2(0, -22)
+texture = ExtResource("2_78lck")
+
+[node name="Foot" type="CollisionShape2D" parent="Objects/Tree_27" unique_id=1602135677]
+shape = SubResource("RectangleShape2D_0cv0s")
+
+[node name="Tree_28" type="StaticBody2D" parent="Objects" unique_id=225673234]
+position = Vector2(1368, 405)
+
+[node name="Sprite" type="Sprite2D" parent="Objects/Tree_28" unique_id=1516204703]
+position = Vector2(0, -22)
+texture = ExtResource("2_78lck")
+
+[node name="Foot" type="CollisionShape2D" parent="Objects/Tree_28" unique_id=1219713507]
+shape = SubResource("RectangleShape2D_0cv0s")
+
+[node name="Tree_29" type="StaticBody2D" parent="Objects" unique_id=1724250543]
+position = Vector2(1381, 450)
+
+[node name="Sprite" type="Sprite2D" parent="Objects/Tree_29" unique_id=1545876133]
+position = Vector2(0, -22)
+texture = ExtResource("2_78lck")
+
+[node name="Foot" type="CollisionShape2D" parent="Objects/Tree_29" unique_id=1232317271]
+shape = SubResource("RectangleShape2D_0cv0s")
+
+[node name="Tree_30" type="StaticBody2D" parent="Objects" unique_id=475320372]
+position = Vector2(1422, 449)
+
+[node name="Sprite" type="Sprite2D" parent="Objects/Tree_30" unique_id=1602273551]
+position = Vector2(0, -22)
+texture = ExtResource("2_78lck")
+
+[node name="Foot" type="CollisionShape2D" parent="Objects/Tree_30" unique_id=335291508]
+shape = SubResource("RectangleShape2D_0cv0s")
+
+[node name="Tree_31" type="StaticBody2D" parent="Objects" unique_id=1112004911]
+position = Vector2(1163, 736)
+
+[node name="Sprite" type="Sprite2D" parent="Objects/Tree_31" unique_id=816149342]
+position = Vector2(0, -22)
+texture = ExtResource("2_78lck")
+
+[node name="Foot" type="CollisionShape2D" parent="Objects/Tree_31" unique_id=1108760518]
+shape = SubResource("RectangleShape2D_0cv0s")
+
+[node name="Tree_32" type="StaticBody2D" parent="Objects" unique_id=2034204482]
+position = Vector2(1200, 726)
+
+[node name="Sprite" type="Sprite2D" parent="Objects/Tree_32" unique_id=658486246]
+position = Vector2(0, -22)
+texture = ExtResource("2_78lck")
+
+[node name="Foot" type="CollisionShape2D" parent="Objects/Tree_32" unique_id=524664096]
+shape = SubResource("RectangleShape2D_0cv0s")
+
+[node name="Tree_33" type="StaticBody2D" parent="Objects" unique_id=897018491]
+position = Vector2(1176, 694)
+
+[node name="Sprite" type="Sprite2D" parent="Objects/Tree_33" unique_id=385306270]
+position = Vector2(0, -22)
+texture = ExtResource("2_78lck")
+
+[node name="Foot" type="CollisionShape2D" parent="Objects/Tree_33" unique_id=649734221]
+shape = SubResource("RectangleShape2D_0cv0s")
+
+[node name="Tree_34" type="StaticBody2D" parent="Objects" unique_id=1169068065]
+position = Vector2(1237, 723)
+
+[node name="Sprite" type="Sprite2D" parent="Objects/Tree_34" unique_id=1170110479]
+position = Vector2(0, -22)
+texture = ExtResource("2_78lck")
+
+[node name="Foot" type="CollisionShape2D" parent="Objects/Tree_34" unique_id=1355079179]
+shape = SubResource("RectangleShape2D_0cv0s")
+
+[node name="Tree_35" type="StaticBody2D" parent="Objects" unique_id=1139154811]
+position = Vector2(1215, 689)
+
+[node name="Sprite" type="Sprite2D" parent="Objects/Tree_35" unique_id=1934687721]
+position = Vector2(0, -22)
+texture = ExtResource("2_78lck")
+
+[node name="Foot" type="CollisionShape2D" parent="Objects/Tree_35" unique_id=1522383596]
+shape = SubResource("RectangleShape2D_0cv0s")
+
+[node name="Tree_36" type="StaticBody2D" parent="Objects" unique_id=940464007]
+position = Vector2(1289, 737)
+
+[node name="Sprite" type="Sprite2D" parent="Objects/Tree_36" unique_id=610643455]
+position = Vector2(0, -22)
+texture = ExtResource("2_78lck")
+
+[node name="Foot" type="CollisionShape2D" parent="Objects/Tree_36" unique_id=2065508118]
+shape = SubResource("RectangleShape2D_0cv0s")
+
+[node name="Tree_37" type="StaticBody2D" parent="Objects" unique_id=1559520205]
+position = Vector2(1273, 698)
+
+[node name="Sprite" type="Sprite2D" parent="Objects/Tree_37" unique_id=1222997625]
+position = Vector2(0, -22)
+texture = ExtResource("2_78lck")
+
+[node name="Foot" type="CollisionShape2D" parent="Objects/Tree_37" unique_id=883817785]
+shape = SubResource("RectangleShape2D_0cv0s")
+
+[node name="Tree_38" type="StaticBody2D" parent="Objects" unique_id=723191554]
+position = Vector2(1330, 693)
+
+[node name="Sprite" type="Sprite2D" parent="Objects/Tree_38" unique_id=42518980]
+position = Vector2(0, -22)
+texture = ExtResource("2_78lck")
+
+[node name="Foot" type="CollisionShape2D" parent="Objects/Tree_38" unique_id=1261694907]
+shape = SubResource("RectangleShape2D_0cv0s")
+
+[node name="Tree_39" type="StaticBody2D" parent="Objects" unique_id=1875746977]
+position = Vector2(1324, 741)
+
+[node name="Sprite" type="Sprite2D" parent="Objects/Tree_39" unique_id=724278085]
+position = Vector2(0, -22)
+texture = ExtResource("2_78lck")
+
+[node name="Foot" type="CollisionShape2D" parent="Objects/Tree_39" unique_id=1679479067]
+shape = SubResource("RectangleShape2D_0cv0s")
+
+[node name="Tree_40" type="StaticBody2D" parent="Objects" unique_id=1401026006]
+position = Vector2(1370, 708)
+
+[node name="Sprite" type="Sprite2D" parent="Objects/Tree_40" unique_id=1355611281]
+position = Vector2(0, -22)
+texture = ExtResource("2_78lck")
+
+[node name="Foot" type="CollisionShape2D" parent="Objects/Tree_40" unique_id=1683772111]
+shape = SubResource("RectangleShape2D_0cv0s")
+
+[node name="Tree_41" type="StaticBody2D" parent="Objects" unique_id=559063351]
+position = Vector2(1358, 741)
+
+[node name="Sprite" type="Sprite2D" parent="Objects/Tree_41" unique_id=564946995]
+position = Vector2(0, -22)
+texture = ExtResource("2_78lck")
+
+[node name="Foot" type="CollisionShape2D" parent="Objects/Tree_41" unique_id=303153135]
+shape = SubResource("RectangleShape2D_0cv0s")
+
+[node name="Tree_42" type="StaticBody2D" parent="Objects" unique_id=1138179658]
+position = Vector2(1412, 654)
+
+[node name="Sprite" type="Sprite2D" parent="Objects/Tree_42" unique_id=706530976]
+position = Vector2(0, -22)
+texture = ExtResource("2_78lck")
+
+[node name="Foot" type="CollisionShape2D" parent="Objects/Tree_42" unique_id=646172931]
+shape = SubResource("RectangleShape2D_0cv0s")
+
+[node name="Tree_43" type="StaticBody2D" parent="Objects" unique_id=794396869]
+position = Vector2(1410, 697)
+
+[node name="Sprite" type="Sprite2D" parent="Objects/Tree_43" unique_id=1936617682]
+position = Vector2(0, -22)
+texture = ExtResource("2_78lck")
+
+[node name="Foot" type="CollisionShape2D" parent="Objects/Tree_43" unique_id=752078756]
+shape = SubResource("RectangleShape2D_0cv0s")
+
+[node name="Tree_44" type="StaticBody2D" parent="Objects" unique_id=1016028688]
+position = Vector2(1403, 744)
+
+[node name="Sprite" type="Sprite2D" parent="Objects/Tree_44" unique_id=2134498437]
+position = Vector2(0, -22)
+texture = ExtResource("2_78lck")
+
+[node name="Foot" type="CollisionShape2D" parent="Objects/Tree_44" unique_id=1512794180]
+shape = SubResource("RectangleShape2D_0cv0s")
+
+[node name="RockPile_45" type="StaticBody2D" parent="Objects" unique_id=1939359560]
+position = Vector2(1057, 549)
+
+[node name="Sprite" type="Sprite2D" parent="Objects/RockPile_45" unique_id=1157585050]
+position = Vector2(0, -16)
+texture = ExtResource("3_dvh8o")
+
+[node name="Foot" type="CollisionShape2D" parent="Objects/RockPile_45" unique_id=252056274]
+shape = SubResource("RectangleShape2D_v4wlo")
+
+[node name="RockPile_46" type="StaticBody2D" parent="Objects" unique_id=1379153953]
+position = Vector2(1024, 568)
+
+[node name="Sprite" type="Sprite2D" parent="Objects/RockPile_46" unique_id=1521027059]
+position = Vector2(0, -16)
+texture = ExtResource("3_dvh8o")
+
+[node name="Foot" type="CollisionShape2D" parent="Objects/RockPile_46" unique_id=487998797]
+shape = SubResource("RectangleShape2D_v4wlo")
+
+[node name="Boulder_47" type="StaticBody2D" parent="Objects" unique_id=377235568]
+position = Vector2(1066, 582)
+
+[node name="Sprite" type="Sprite2D" parent="Objects/Boulder_47" unique_id=1475425627]
+position = Vector2(0, -16)
+texture = ExtResource("4_x4fxg")
+
+[node name="Foot" type="CollisionShape2D" parent="Objects/Boulder_47" unique_id=1431158613]
+shape = SubResource("RectangleShape2D_8svgf")
+
+[node name="Boulder_48" type="StaticBody2D" parent="Objects" unique_id=812370800]
+position = Vector2(981, 669)
+
+[node name="Sprite" type="Sprite2D" parent="Objects/Boulder_48" unique_id=1223049969]
+position = Vector2(0, -16)
+texture = ExtResource("4_x4fxg")
+
+[node name="Foot" type="CollisionShape2D" parent="Objects/Boulder_48" unique_id=32658902]
+shape = SubResource("RectangleShape2D_8svgf")
+
+[node name="Boulder_49" type="StaticBody2D" parent="Objects" unique_id=1240956206]
+position = Vector2(877, 383)
+
+[node name="Sprite" type="Sprite2D" parent="Objects/Boulder_49" unique_id=2104469357]
+position = Vector2(0, -16)
+texture = ExtResource("4_x4fxg")
+
+[node name="Foot" type="CollisionShape2D" parent="Objects/Boulder_49" unique_id=1281347998]
+shape = SubResource("RectangleShape2D_8svgf")
+
+[node name="Bounds" type="StaticBody2D" parent="." unique_id=1466869522]
+
+[node name="@CollisionShape2D@2" type="CollisionShape2D" parent="Bounds" unique_id=1378681716]
+position = Vector2(736, 288)
+shape = SubResource("RectangleShape2D_oyvcd")
+
+[node name="@CollisionShape2D@3" type="CollisionShape2D" parent="Bounds" unique_id=203994831]
+position = Vector2(800, 288)
+shape = SubResource("RectangleShape2D_oyvcd")
+
+[node name="@CollisionShape2D@4" type="CollisionShape2D" parent="Bounds" unique_id=772487990]
+position = Vector2(992, 288)
+shape = SubResource("RectangleShape2D_oyvcd")
+
+[node name="@CollisionShape2D@5" type="CollisionShape2D" parent="Bounds" unique_id=1968294393]
+position = Vector2(1056, 288)
+shape = SubResource("RectangleShape2D_oyvcd")
+
+[node name="@CollisionShape2D@6" type="CollisionShape2D" parent="Bounds" unique_id=67065640]
+position = Vector2(1120, 288)
+shape = SubResource("RectangleShape2D_oyvcd")
+
+[node name="@CollisionShape2D@7" type="CollisionShape2D" parent="Bounds" unique_id=222430123]
+position = Vector2(1184, 288)
+shape = SubResource("RectangleShape2D_oyvcd")
+
+[node name="@CollisionShape2D@8" type="CollisionShape2D" parent="Bounds" unique_id=759070094]
+position = Vector2(1248, 288)
+shape = SubResource("RectangleShape2D_oyvcd")
+
+[node name="@CollisionShape2D@9" type="CollisionShape2D" parent="Bounds" unique_id=889281197]
+position = Vector2(1312, 288)
+shape = SubResource("RectangleShape2D_oyvcd")
+
+[node name="@CollisionShape2D@10" type="CollisionShape2D" parent="Bounds" unique_id=654733062]
+position = Vector2(672, 352)
+shape = SubResource("RectangleShape2D_oyvcd")
+
+[node name="@CollisionShape2D@11" type="CollisionShape2D" parent="Bounds" unique_id=961869302]
+position = Vector2(864, 352)
+shape = SubResource("RectangleShape2D_oyvcd")
+
+[node name="@CollisionShape2D@12" type="CollisionShape2D" parent="Bounds" unique_id=1973286408]
+position = Vector2(928, 352)
+shape = SubResource("RectangleShape2D_oyvcd")
+
+[node name="@CollisionShape2D@13" type="CollisionShape2D" parent="Bounds" unique_id=1772529176]
+position = Vector2(1376, 352)
+shape = SubResource("RectangleShape2D_oyvcd")
+
+[node name="@CollisionShape2D@14" type="CollisionShape2D" parent="Bounds" unique_id=500222573]
+position = Vector2(1440, 352)
+shape = SubResource("RectangleShape2D_oyvcd")
+
+[node name="@CollisionShape2D@15" type="CollisionShape2D" parent="Bounds" unique_id=1322751298]
+position = Vector2(608, 416)
+shape = SubResource("RectangleShape2D_oyvcd")
+
+[node name="@CollisionShape2D@16" type="CollisionShape2D" parent="Bounds" unique_id=1216663384]
+position = Vector2(928, 416)
+shape = SubResource("RectangleShape2D_oyvcd")
+
+[node name="@CollisionShape2D@17" type="CollisionShape2D" parent="Bounds" unique_id=1048139607]
+position = Vector2(1312, 416)
+shape = SubResource("RectangleShape2D_oyvcd")
+
+[node name="@CollisionShape2D@18" type="CollisionShape2D" parent="Bounds" unique_id=740862443]
+position = Vector2(1376, 416)
+shape = SubResource("RectangleShape2D_oyvcd")
+
+[node name="@CollisionShape2D@19" type="CollisionShape2D" parent="Bounds" unique_id=1228485385]
+position = Vector2(1504, 416)
+shape = SubResource("RectangleShape2D_oyvcd")
+
+[node name="@CollisionShape2D@20" type="CollisionShape2D" parent="Bounds" unique_id=1438283301]
+position = Vector2(608, 480)
+shape = SubResource("RectangleShape2D_oyvcd")
+
+[node name="@CollisionShape2D@21" type="CollisionShape2D" parent="Bounds" unique_id=923187136]
+position = Vector2(928, 480)
+shape = SubResource("RectangleShape2D_oyvcd")
+
+[node name="@CollisionShape2D@22" type="CollisionShape2D" parent="Bounds" unique_id=365614795]
+position = Vector2(1440, 480)
+shape = SubResource("RectangleShape2D_oyvcd")
+
+[node name="@CollisionShape2D@23" type="CollisionShape2D" parent="Bounds" unique_id=1689714735]
+position = Vector2(608, 544)
+shape = SubResource("RectangleShape2D_oyvcd")
+
+[node name="@CollisionShape2D@24" type="CollisionShape2D" parent="Bounds" unique_id=1675409831]
+position = Vector2(928, 544)
+shape = SubResource("RectangleShape2D_oyvcd")
+
+[node name="@CollisionShape2D@25" type="CollisionShape2D" parent="Bounds" unique_id=1831054890]
+position = Vector2(1056, 544)
+shape = SubResource("RectangleShape2D_oyvcd")
+
+[node name="@CollisionShape2D@26" type="CollisionShape2D" parent="Bounds" unique_id=547002058]
+position = Vector2(1440, 544)
+shape = SubResource("RectangleShape2D_oyvcd")
+
+[node name="@CollisionShape2D@27" type="CollisionShape2D" parent="Bounds" unique_id=1079264097]
+position = Vector2(544, 608)
+shape = SubResource("RectangleShape2D_oyvcd")
+
+[node name="@CollisionShape2D@28" type="CollisionShape2D" parent="Bounds" unique_id=1040529240]
+position = Vector2(928, 608)
+shape = SubResource("RectangleShape2D_oyvcd")
+
+[node name="@CollisionShape2D@29" type="CollisionShape2D" parent="Bounds" unique_id=778449511]
+position = Vector2(1440, 608)
+shape = SubResource("RectangleShape2D_oyvcd")
+
+[node name="@CollisionShape2D@30" type="CollisionShape2D" parent="Bounds" unique_id=142026118]
+position = Vector2(544, 672)
+shape = SubResource("RectangleShape2D_oyvcd")
+
+[node name="@CollisionShape2D@31" type="CollisionShape2D" parent="Bounds" unique_id=1541976551]
+position = Vector2(608, 672)
+shape = SubResource("RectangleShape2D_oyvcd")
+
+[node name="@CollisionShape2D@32" type="CollisionShape2D" parent="Bounds" unique_id=330377551]
+position = Vector2(672, 672)
+shape = SubResource("RectangleShape2D_oyvcd")
+
+[node name="@CollisionShape2D@33" type="CollisionShape2D" parent="Bounds" unique_id=1289150601]
+position = Vector2(736, 672)
+shape = SubResource("RectangleShape2D_oyvcd")
+
+[node name="@CollisionShape2D@34" type="CollisionShape2D" parent="Bounds" unique_id=881737886]
+position = Vector2(800, 672)
+shape = SubResource("RectangleShape2D_oyvcd")
+
+[node name="@CollisionShape2D@35" type="CollisionShape2D" parent="Bounds" unique_id=1128179737]
+position = Vector2(864, 672)
+shape = SubResource("RectangleShape2D_oyvcd")
+
+[node name="@CollisionShape2D@36" type="CollisionShape2D" parent="Bounds" unique_id=874820050]
+position = Vector2(928, 672)
+shape = SubResource("RectangleShape2D_oyvcd")
+
+[node name="@CollisionShape2D@37" type="CollisionShape2D" parent="Bounds" unique_id=768613930]
+position = Vector2(992, 672)
+shape = SubResource("RectangleShape2D_oyvcd")
+
+[node name="@CollisionShape2D@38" type="CollisionShape2D" parent="Bounds" unique_id=1514761329]
+position = Vector2(1056, 672)
+shape = SubResource("RectangleShape2D_oyvcd")
+
+[node name="@CollisionShape2D@39" type="CollisionShape2D" parent="Bounds" unique_id=1944401814]
+position = Vector2(1184, 672)
+shape = SubResource("RectangleShape2D_oyvcd")
+
+[node name="@CollisionShape2D@40" type="CollisionShape2D" parent="Bounds" unique_id=1570164866]
+position = Vector2(1248, 672)
+shape = SubResource("RectangleShape2D_oyvcd")
+
+[node name="@CollisionShape2D@41" type="CollisionShape2D" parent="Bounds" unique_id=234109838]
+position = Vector2(1312, 672)
+shape = SubResource("RectangleShape2D_oyvcd")
+
+[node name="@CollisionShape2D@42" type="CollisionShape2D" parent="Bounds" unique_id=736775435]
+position = Vector2(1376, 672)
+shape = SubResource("RectangleShape2D_oyvcd")
+
+[node name="@CollisionShape2D@43" type="CollisionShape2D" parent="Bounds" unique_id=2135264750]
+position = Vector2(1504, 672)
+shape = SubResource("RectangleShape2D_oyvcd")
+
+[node name="@CollisionShape2D@44" type="CollisionShape2D" parent="Bounds" unique_id=946548970]
+position = Vector2(480, 736)
+shape = SubResource("RectangleShape2D_oyvcd")
+
+[node name="@CollisionShape2D@45" type="CollisionShape2D" parent="Bounds" unique_id=690501728]
+position = Vector2(1440, 736)
+shape = SubResource("RectangleShape2D_oyvcd")
+
+[node name="@CollisionShape2D@46" type="CollisionShape2D" parent="Bounds" unique_id=473999343]
+position = Vector2(480, 800)
+shape = SubResource("RectangleShape2D_oyvcd")
+
+[node name="@CollisionShape2D@47" type="CollisionShape2D" parent="Bounds" unique_id=206297830]
+position = Vector2(1440, 800)
+shape = SubResource("RectangleShape2D_oyvcd")
+
+[node name="@CollisionShape2D@48" type="CollisionShape2D" parent="Bounds" unique_id=2034171533]
+position = Vector2(480, 864)
+shape = SubResource("RectangleShape2D_oyvcd")
+
+[node name="@CollisionShape2D@49" type="CollisionShape2D" parent="Bounds" unique_id=1976888181]
+position = Vector2(1440, 864)
+shape = SubResource("RectangleShape2D_oyvcd")
+
+[node name="@CollisionShape2D@50" type="CollisionShape2D" parent="Bounds" unique_id=129146983]
+position = Vector2(544, 928)
+shape = SubResource("RectangleShape2D_oyvcd")
+
+[node name="@CollisionShape2D@51" type="CollisionShape2D" parent="Bounds" unique_id=1267098887]
+position = Vector2(608, 928)
+shape = SubResource("RectangleShape2D_oyvcd")
+
+[node name="@CollisionShape2D@52" type="CollisionShape2D" parent="Bounds" unique_id=2087899916]
+position = Vector2(672, 928)
+shape = SubResource("RectangleShape2D_oyvcd")
+
+[node name="@CollisionShape2D@53" type="CollisionShape2D" parent="Bounds" unique_id=904672729]
+position = Vector2(736, 928)
+shape = SubResource("RectangleShape2D_oyvcd")
+
+[node name="@CollisionShape2D@54" type="CollisionShape2D" parent="Bounds" unique_id=1069901390]
+position = Vector2(800, 928)
+shape = SubResource("RectangleShape2D_oyvcd")
+
+[node name="@CollisionShape2D@55" type="CollisionShape2D" parent="Bounds" unique_id=1506847803]
+position = Vector2(864, 928)
+shape = SubResource("RectangleShape2D_oyvcd")
+
+[node name="@CollisionShape2D@56" type="CollisionShape2D" parent="Bounds" unique_id=1098915344]
+position = Vector2(928, 928)
+shape = SubResource("RectangleShape2D_oyvcd")
+
+[node name="@CollisionShape2D@57" type="CollisionShape2D" parent="Bounds" unique_id=652720590]
+position = Vector2(992, 928)
+shape = SubResource("RectangleShape2D_oyvcd")
+
+[node name="@CollisionShape2D@58" type="CollisionShape2D" parent="Bounds" unique_id=1714380795]
+position = Vector2(1056, 928)
+shape = SubResource("RectangleShape2D_oyvcd")
+
+[node name="@CollisionShape2D@59" type="CollisionShape2D" parent="Bounds" unique_id=1243035109]
+position = Vector2(1120, 928)
+shape = SubResource("RectangleShape2D_oyvcd")
+
+[node name="@CollisionShape2D@60" type="CollisionShape2D" parent="Bounds" unique_id=437776549]
+position = Vector2(1184, 928)
+shape = SubResource("RectangleShape2D_oyvcd")
+
+[node name="@CollisionShape2D@61" type="CollisionShape2D" parent="Bounds" unique_id=435152673]
+position = Vector2(1248, 928)
+shape = SubResource("RectangleShape2D_oyvcd")
+
+[node name="@CollisionShape2D@62" type="CollisionShape2D" parent="Bounds" unique_id=1488883219]
+position = Vector2(1312, 928)
+shape = SubResource("RectangleShape2D_oyvcd")
+
+[node name="@CollisionShape2D@63" type="CollisionShape2D" parent="Bounds" unique_id=1344796219]
+position = Vector2(1376, 928)
+shape = SubResource("RectangleShape2D_oyvcd")
