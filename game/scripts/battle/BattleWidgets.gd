@@ -15,6 +15,7 @@ const TEX_BAR_HP: String = ASSET_DIR + "bar_hp_9p.png"
 const TEX_BAR_MP: String = ASSET_DIR + "bar_mp_9p.png"
 const TEX_BAR_TRACK: String = ASSET_DIR + "bar_track_9p.png"
 const TEX_AVATAR_FRAME: String = ASSET_DIR + "avatar_frame_9p.png"
+const TEX_CMD_CELL: String = ASSET_DIR + "cmd_cell_9p.png"
 
 # ── 配色（Brief §1.1，骨白/血红/法力蓝/金/余烬橙）──
 const COL_BONE: Color = Color(0.847, 0.812, 0.753)       # 骨白
@@ -24,7 +25,7 @@ const COL_ALLY: Color = Color(0.22, 0.52, 0.82)          # 友蓝占位
 const COL_ENEMY: Color = Color(0.82, 0.22, 0.22)         # 敌红占位
 const COL_HP: Color = Color(0.70, 0.27, 0.27)            # HP 暗红
 const COL_MP: Color = Color(0.31, 0.52, 0.66)            # MP 法力蓝
-const PIXEL_SCALE: int = 4                                # 480×270 基准 ×4 → 1080p
+const PIXEL_SCALE: int = 4                                # 480×270 基准 ×4 → 1080p（准星/锁定标记等小件仍按此放大；面板/条/pip 切片已按屏幕尺寸烘焙、1:1 绘制）
 
 # ───────────────────────────────────────────── 切片加载（缺失回退 null）
 
@@ -37,18 +38,21 @@ static func load_tex(path: String) -> Texture2D:
 # ───────────────────────────────────────────── ① 行动顺序 pip
 
 static func make_pip(active: bool) -> Control:
+	# pip 切片已按屏幕尺寸烘焙（56/72px），1:1 绘制；非当前 pip 在条内垂直居中。
 	var tex: Texture2D = load_tex(TEX_PIP_ACTIVE if active else TEX_PIP)
 	if tex != null:
 		var rect := TextureRect.new()
 		rect.texture = tex
 		rect.stretch_mode = TextureRect.STRETCH_KEEP
-		rect.custom_minimum_size = tex.get_size() * PIXEL_SCALE
+		rect.custom_minimum_size = tex.get_size()
+		rect.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 		rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		return rect
 	# 回退：金/暗骨白纯色圆点
 	var dot := ColorRect.new()
-	var px: int = (12 if active else 9) * PIXEL_SCALE
+	var px: int = 72 if active else 56
 	dot.custom_minimum_size = Vector2(px, px)
+	dot.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	dot.color = COL_GOLD if active else COL_BONE.darkened(0.4)
 	dot.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	return dot
@@ -91,27 +95,28 @@ static func make_unit_card(unit, is_party: bool) -> Control:
 	return row
 
 static func make_avatar(unit, is_party: bool) -> Control:
-	var size_px: int = 20 * PIXEL_SCALE  # 80px
+	# 头像框切片 88×88 已按屏幕尺寸烘焙（8px 黑框 + 2px 骨白 + 2px 暗缝），1:1 绘制；
+	# 内域恰为 64×64，正面帧无重采样。
+	var size_px: int = 88
+	var border_px: int = 12  # 黑框 8 + 骨白 2 + 暗缝 2
 	var holder := Control.new()
 	holder.custom_minimum_size = Vector2(size_px, size_px)
 	holder.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	holder.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 	holder.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	var border_px: int = 4 * PIXEL_SCALE  # 头像框描边宽度（源 4px ×scale）
 	# 头像框 9-patch 先铺底
 	var frame_tex: Texture2D = load_tex(TEX_AVATAR_FRAME)
 	if frame_tex != null:
 		var frame := NinePatchRect.new()
 		frame.texture = frame_tex
-		frame.patch_margin_left = 4
-		frame.patch_margin_top = 4
-		frame.patch_margin_right = 4
-		frame.patch_margin_bottom = 4
+		frame.patch_margin_left = border_px
+		frame.patch_margin_top = border_px
+		frame.patch_margin_right = border_px
+		frame.patch_margin_bottom = border_px
 		frame.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 		frame.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		holder.add_child(frame)
 	# 单位带 sprite 外观：叠 idle_down 正面帧（框内灰烬底透出 sprite 透明区作为背景）。
-	# 内缩 2 源px 只避开外侧描边 → 框内 64px 恰好 1:1 显示 64×64 帧，无重采样。
 	var portrait: Texture2D = get_unit_portrait(unit)
 	if portrait != null:
 		var rect := TextureRect.new()
@@ -119,11 +124,10 @@ static func make_avatar(unit, is_party: bool) -> Control:
 		rect.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 		rect.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 		rect.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-		var inset_px: int = 2 * PIXEL_SCALE
-		rect.offset_left = inset_px
-		rect.offset_top = inset_px
-		rect.offset_right = -inset_px
-		rect.offset_bottom = -inset_px
+		rect.offset_left = border_px
+		rect.offset_top = border_px
+		rect.offset_right = -border_px
+		rect.offset_bottom = -border_px
 		rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		holder.add_child(rect)
 		return holder
@@ -149,8 +153,10 @@ static func get_unit_portrait(unit) -> Texture2D:
 	return null
 
 static func make_stat_bar(cur: int, maxv: int, fill_tex_path: String, fallback_col: Color) -> Control:
+	# 条切片 160×24 已按屏幕尺寸烘焙（4px 黑框），1:1 绘制零重采样；
+	# nine_patch_stretch 令黑框端帽随进度收缩，半血时填充条仍是完整带框胶囊。
 	var bar := TextureProgressBar.new()
-	bar.custom_minimum_size = Vector2(40 * PIXEL_SCALE, 18)
+	bar.custom_minimum_size = Vector2(160, 24)
 	bar.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	bar.min_value = 0
 	bar.max_value = maxi(1, maxv)
@@ -158,8 +164,10 @@ static func make_stat_bar(cur: int, maxv: int, fill_tex_path: String, fallback_c
 	bar.step = 0.0
 	bar.fill_mode = TextureProgressBar.FILL_LEFT_TO_RIGHT
 	bar.nine_patch_stretch = true
-	bar.stretch_margin_left = 2
-	bar.stretch_margin_right = 2
+	bar.stretch_margin_left = 4
+	bar.stretch_margin_right = 4
+	bar.stretch_margin_top = 4
+	bar.stretch_margin_bottom = 4
 	bar.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	var track: Texture2D = load_tex(TEX_BAR_TRACK)
 	var fill: Texture2D = load_tex(fill_tex_path)
@@ -189,13 +197,40 @@ static func make_stat_bar_fallback(cur: int, maxv: int, col: Color) -> Control:
 	pb.add_theme_stylebox_override("fill", fg)
 	return pb
 
+# ───────────────────────────────────────────── ④ 命令格底框
+## 单个命令格的 StyleBox（cmd_cell_9p 切片：8px 黑框 + 2px 骨白 + 2px 暗缝）。
+## 每格独立带框，格与格之间由 HBox separation 拉开，文字经 content margin 居中于框内。
+static func make_cmd_cell_style() -> StyleBox:
+	var tex: Texture2D = load_tex(TEX_CMD_CELL)
+	if tex != null:
+		var sb := StyleBoxTexture.new()
+		sb.texture = tex
+		sb.texture_margin_left = 12
+		sb.texture_margin_top = 12
+		sb.texture_margin_right = 12
+		sb.texture_margin_bottom = 12
+		sb.content_margin_left = 20
+		sb.content_margin_top = 14
+		sb.content_margin_right = 20
+		sb.content_margin_bottom = 14
+		return sb
+	# 回退：纯色平框（黑粗边 + 暗紫内部）
+	var flat := StyleBoxFlat.new()
+	flat.bg_color = Color(0.24, 0.22, 0.27)
+	flat.border_color = Color(0.04, 0.03, 0.055)
+	flat.set_border_width_all(8)
+	flat.set_content_margin_all(16)
+	return flat
+
 # ───────────────────────────────────────────── ⑥ 准星 / 锁敌叠加标记
 
 static func make_overlay_marker(tex: Texture2D, base_px: int, fallback_col: Color) -> Control:
 	if tex != null:
 		var rect := TextureRect.new()
 		rect.texture = tex
-		rect.stretch_mode = TextureRect.STRETCH_KEEP
+		# 必须真把纹理放大到 ×4 盒子：STRETCH_KEEP 只按原生 16px 画在盒子左上角（又小又偏位）
+		rect.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+		rect.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 		rect.custom_minimum_size = tex.get_size() * PIXEL_SCALE
 		rect.size = rect.custom_minimum_size
 		rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
