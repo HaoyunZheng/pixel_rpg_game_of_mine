@@ -9,11 +9,13 @@ const DATA_KEY_FROM: String = "from"
 const DATA_KEY_ENEMY_KEY: String = "enemy_key"
 const FALLBACK_ENEMY_KEY: String = "Enemy1"
 const MAP_RECT := Rect2(512, 320, 1024, 576)  # 可走区域外接矩形（相机边界，对齐 WildernessMap）
+const INVENTORY_UI_SCENE: String = "res://scenes/ui/InventoryUI.tscn"
 
 @onready var _player: CharacterBody2D = $Player
 @onready var _battle_trigger: Area2D = $Player/BattleTrigger
 
 var _is_transitioning: bool = false
+var _inventory_ui: InventoryUI = null
 
 func _ready() -> void:
 	Log.info("Wilderness", "野外区场景已加载")
@@ -24,6 +26,21 @@ func on_scene_enter(data: Dictionary) -> void:
 	Log.info("Wilderness", "进入野外区，数据: %s" % data)
 	_is_transitioning = false
 	GameCamera.set_map(_player, MAP_RECT)
+
+func _unhandled_input(event: InputEvent) -> void:
+	if event.is_action_pressed(&"open_inventory"):
+		_open_inventory()
+		get_viewport().set_input_as_handled()
+
+## 背包界面：懒加载实例化；打开/关闭与暂停由 InventoryUI 自身管理
+func _open_inventory() -> void:
+	if _is_transitioning:
+		return
+	if _inventory_ui == null:
+		_inventory_ui = load(INVENTORY_UI_SCENE).instantiate()
+		add_child(_inventory_ui)
+	if not _inventory_ui.is_open():
+		_inventory_ui.open()
 
 func _on_battle_trigger_area_entered(area: Area2D) -> void:
 	if _is_transitioning:
