@@ -43,6 +43,9 @@ const INITIAL_ITEMS: Dictionary = {
 	"res://assets/data/items/item_red_pouch.tres": 1,
 }
 
+# ── 已击败的明雷敌人（按 encounter_key 记录，胜利写入；野外场景加载时据此移除实例）──
+var defeated_enemies: Dictionary = {}
+
 # ── 周目识别（前向兼容预留）──
 var cycle_count: int = 1
 
@@ -79,6 +82,12 @@ func has_meowa_api_key() -> bool:
 
 func get_meowa_api_key() -> String:
 	return meowa_api_key
+
+func mark_enemy_defeated(enemy_key: String) -> void:
+	defeated_enemies[enemy_key] = true
+
+func is_enemy_defeated(enemy_key: String) -> bool:
+	return defeated_enemies.get(enemy_key, false)
 
 func set_curse(character_id: String, value: int) -> void:
 	curse_values[character_id] = clampi(value, 0, 100)

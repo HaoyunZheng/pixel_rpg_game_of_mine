@@ -21,6 +21,17 @@ func _ready() -> void:
 	Log.info("Wilderness", "野外区场景已加载")
 	_battle_trigger.area_entered.connect(_on_battle_trigger_area_entered)
 	GameCamera.set_map(_player, MAP_RECT)
+	_remove_defeated_enemies()
+
+## 移除已被击败的明雷敌人实例（胜利后由 GameData.defeated_enemies 记录）
+func _remove_defeated_enemies() -> void:
+	var enemies_root: Node = get_node_or_null("Enemies")
+	if enemies_root == null:
+		return
+	for enemy in enemies_root.get_children():
+		if GameData.is_enemy_defeated(_get_enemy_key(enemy)):
+			Log.info("Wilderness", "敌人 %s 已被击败，移除实例" % enemy.name)
+			enemy.queue_free()
 
 func on_scene_enter(data: Dictionary) -> void:
 	Log.info("Wilderness", "进入野外区，数据: %s" % data)
