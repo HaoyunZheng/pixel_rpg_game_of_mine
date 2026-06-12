@@ -476,7 +476,25 @@
 
 ## Events Fired
 
-[To be designed]
+本项目无分析系统，事件 = 游戏内信号（供 BattleManager / GameData / 演出层解耦用）。
+
+| 玩家操作 | 触发事件 | Payload / 数据 |
+|---|---|---|
+| 切换命令 / 焦点移动 / 翻页 / 收起菜单 | 无事件（纯 UI 状态） | — |
+| 选定姿态（防御/闪避） | `stance_selected` | `actor_id`, `stance`——写战斗副本内的 `pending_stance`，不持久化 |
+| 转盘定格 | `wheel_resolved`（**已有信号**，AttackPowerWheel） | `multiplier`, `tier_name` |
+| 攻击/技能执行完毕 | `action_executed` | `actor_id`, `action_type`, `target_id`, 结果数值（伤害/治疗量）——演出层与镜头（BattleStage）订阅此事件 |
+| 战斗内使用物品 | `item_used`（**GameData 已有**） | `item_id`——⚠️ 写背包（战斗副本，胜利才写回） |
+| 逃跑 | `escape_attempted` | `success: bool` |
+| 我方角色倒地 | `unit_downed` | `unit_id`——顺序条移除头像球、状态卡切倒地态均订阅此事件 |
+| 战斗结束 | `battle_ended`（**已有**，Battle.gd） | `victory`——⚠️ 胜利：写回 HP/MP/物品 + `mark_enemy_defeated`；失败：触发死亡惩罚链 |
+| （失败自动）死亡惩罚 | `death_penalty_applied` | `lost_gold`, `lost_exp_progress`, `scene`, `position`——⚠️ 写 GameData 持久化遗落记录 |
+| （野外）遗落回收 | `death_cache_recovered` | `gold`, `exp_progress`——⚠️ 写回 GameData，清空遗落记录 |
+
+⚠️ **架构关注点**：
+1. 所有持久化写入仍走"BattleManager 战斗副本 + 胜利单点写回"的既有契约（《通用文档》§B.2），事件只做通知不直接改数据。
+2. `death_penalty_applied` / `death_cache_recovered` 依赖金钱、经验、存档点三个未实现系统，事件名先约定、字段后补。
+3. 演出与镜头一律经 BattleStage 订阅事件触发，不在战斗逻辑里直接调镜头。
 
 ---
 
