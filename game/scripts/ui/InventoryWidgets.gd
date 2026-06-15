@@ -12,6 +12,22 @@ const TEX_CMD_CELL: String = ASSET_DIR_BATTLE + "cmd_cell_9p.png"
 const TEX_AVATAR_FRAME: String = ASSET_DIR_BATTLE + "avatar_frame_9p.png"
 const TEX_CHIP: String = ASSET_DIR_BATTLE + "chip_status.png"
 
+# ── 背包专属手绘资产（账簿底图 + 离线生成的版式数据层）──
+const ASSET_DIR_INV: String = "res://assets/ui/inventory/"
+const TEX_BG_CLEAN: String = ASSET_DIR_INV + "bg_inventory_field_ledger_clean.png"  # clean-plate（铲掉画死的静态标签）
+const LAYOUT_PATH: String = ASSET_DIR_INV + "layout.json"                            # tools/ui_layout_extract.py 产出
+const STAGE_W: float = 1664.0   # 背景图原生宽（Stage 锁定坐标系，控件与底图同坐标）
+const STAGE_H: float = 936.0
+const TAB_DIR: String = ASSET_DIR_INV + "tabs/"
+# 分类标签 banner 前缀（按手绘色序 赭/灰/棕/紫/橄榄，与 CATEGORY_ORDER 一一对应；_selected/_unselected 两态）
+const TAB_TEX_PREFIX: Array[String] = [
+	"category_tab_01_ochre",
+	"category_tab_02_gray",
+	"category_tab_03_brown",
+	"category_tab_04_purple",
+	"category_tab_05_olive",
+]
+
 # ── 战斗 UI 基线配色（复用，§0）──
 const COL_BONE: Color = Color(0.847, 0.812, 0.753)
 const COL_GOLD: Color = Color(0.902, 0.753, 0.290)
@@ -36,8 +52,8 @@ const GRID_COLUMNS: int = 5
 const PANEL_WIDTH: int = 1600
 const PANEL_HEIGHT: int = 880
 const PARCHMENT_WIDTH: int = 528
-const TAB_HEIGHT_NORMAL: int = 56
-const TAB_HEIGHT_SELECTED: int = 64
+const TAB_HEIGHT_NORMAL: int = 96
+const TAB_HEIGHT_SELECTED: int = 112
 
 # ── 物品分类显示名（CategoryTab / CategoryChip 共用）──
 const CATEGORY_NAMES: Dictionary = {
@@ -97,29 +113,47 @@ static func load_tex(path: String) -> Texture2D:
 	var res = load(path)
 	return res as Texture2D
 
+## 分类标签 banner 贴图：category_index 0~4 + 选中态 → 对应 PNG（缺失回退 null）。
+static func load_tab_texture(category_index: int, selected: bool) -> Texture2D:
+	if category_index < 0 or category_index >= TAB_TEX_PREFIX.size():
+		return null
+	var suffix: String = "_selected.png" if selected else "_unselected.png"
+	return load_tex(TAB_DIR + TAB_TEX_PREFIX[category_index] + suffix)
+
+## 版式数据层：读 layout.json（井格/标签锚点/页矩形/页内分区，背景图原生像素坐标）。
+## 由 tools/ui_layout_extract.py 离线生成；缺失返回空字典（调用方应回退或报错）。
+static func load_layout() -> Dictionary:
+	if not FileAccess.file_exists(LAYOUT_PATH):
+		return {}
+	var f := FileAccess.open(LAYOUT_PATH, FileAccess.READ)
+	if f == null:
+		return {}
+	var parsed = JSON.parse_string(f.get_as_text())
+	return parsed if parsed is Dictionary else {}
+
 # ───────────────────────────────────────────── ① 整体外框 / 遮罩
 
-## 1600×880 主面板外框：复用 panel_central_9p（8px 黑框 + 2px 骨白 + 2px 暗缝 = 12px）。
+## 主面板外框：暖色皮革书封（深棕 + 黑边 + 圆角），承载顶部书签栏与左右双栏。
 static func make_panel_style() -> StyleBox:
-	var tex: Texture2D = load_tex(TEX_PANEL_CENTRAL)
-	if tex != null:
-		var sb := StyleBoxTexture.new()
-		sb.texture = tex
-		sb.texture_margin_left = 12
-		sb.texture_margin_top = 12
-		sb.texture_margin_right = 12
-		sb.texture_margin_bottom = 12
-		sb.content_margin_left = 12
-		sb.content_margin_top = 12
-		sb.content_margin_right = 12
-		sb.content_margin_bottom = 12
-		return sb
-	var flat := StyleBoxFlat.new()
-	flat.bg_color = Color(0.16, 0.145, 0.18)
-	flat.border_color = Color(0.04, 0.03, 0.055)
-	flat.set_border_width_all(8)
-	flat.set_content_margin_all(12)
-	return flat
+	var sb := StyleBoxFlat.new()
+	sb.bg_color = Color(0.137, 0.105, 0.086)        # 深棕皮革
+	sb.border_color = Color(0.043, 0.031, 0.024)    # 近黑书脊边
+	sb.set_border_width_all(6)
+	sb.set_corner_radius_all(10)
+	sb.shadow_color = Color(0, 0, 0, 0.5)
+	sb.shadow_size = 10
+	sb.set_content_margin_all(24)
+	return sb
+
+## 左侧网格底板：比书封更深的内陷皮革（让物品格在其上分明）。
+static func make_grid_panel_style() -> StyleBox:
+	var sb := StyleBoxFlat.new()
+	sb.bg_color = Color(0.082, 0.063, 0.055)
+	sb.border_color = Color(0.043, 0.031, 0.024)
+	sb.set_border_width_all(3)
+	sb.set_corner_radius_all(6)
+	sb.set_content_margin_all(14)
+	return sb
 
 # ───────────────────────────────────────────── ② CategoryTab（书签标签，§2）
 
@@ -302,22 +336,7 @@ static func make_item_icon(item: ItemData, size_px: int = ITEM_ICON_SIZE) -> Con
 	return rect
 
 # ───────────────────────────────────────────── ⑤ 羊皮纸侧页（§5）
-
-## 羊皮纸背景 StyleBox：暖米黄 + 深棕边框 + 阴影（§5.1，纯 StyleBoxFlat 程序化）。
-static func make_parchment_style() -> StyleBoxFlat:
-	var sb := StyleBoxFlat.new()
-	sb.bg_color = COL_PARCHMENT_BG
-	sb.border_color = COL_PARCHMENT_BORDER
-	sb.set_border_width_all(4)
-	sb.corner_radius_top_left = 0
-	sb.corner_radius_top_right = 0
-	sb.corner_radius_bottom_left = 0
-	sb.corner_radius_bottom_right = 0
-	sb.shadow_color = Color(0.04, 0.03, 0.055, 0.4)
-	sb.shadow_size = 6
-	sb.shadow_offset = Vector2(4, 4)
-	sb.set_content_margin_all(16)
-	return sb
+# 注：混合方案下羊皮纸页背景由手绘账簿底图提供，不再程序化生成（make_parchment_style 已移除）。
 
 ## ItemIconLarge 外框：复用 avatar_frame_9p（88×88，64px 内容区，§5.2）。
 static func make_avatar_frame_style() -> StyleBox:
