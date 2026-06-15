@@ -53,6 +53,13 @@
 | 自动跳过态（无操作推进） | 反馈 | 输入封锁、中央框播报、停留后自动推进（眩晕跳过/失败结算停留） | 战斗画面 | Draft |
 | HP/MP 状态条 | 游戏专属 | 颜色+数值双编码的紧凑资源条 | 战斗画面、（后续 HUD） | Draft |
 | 命令栏单行槽位 | 游戏专属 | 固定 N 格横排、左右切换、置灰保留位置 | 战斗画面 | Draft |
+| 书签标签（CategoryTab） | 通用控件 | 顶部分类标签，选中态"拉出/凸起"+金色高亮 | 背包 | Stable |
+| 命令格物品格（ItemSlot） | 通用控件 | 可聚焦物件格 + 焦点（细骨白边）/选中（粗金边）双态描边 | 背包 | Stable |
+| 空槽占位（EmptySlotGhost） | 通用控件 | 35% 透明格 + "··" 占位（已定义未用） | — | Draft |
+| 物品数值条目（StatBlock） | 通用控件 | 浅底"标签墨棕 + 数值赭红"两段着色数值行 | 背包 | Stable |
+| 装备状态徽章（EquipStatusBadge） | 反馈 | "● 未装备 / ◆ 已装备" 符号+颜色双通道 | 背包 | Stable |
+| 侧页内嵌操作菜单（ActionMenu） | 通用控件 | 详情页内就地展开的动态选项列表 | 背包 | Stable |
+| 丢弃二次确认（DiscardConfirmDialog） | 反馈 | 居中模态小弹窗，Z/X 确认，主面板变暗冻结 | 背包 | Stable |
 | 标准控件全集（Button/Toggle/Slider/…） | 输入 | **待补**——菜单/设置屏幕设计时引入 | — | 待补 |
 
 ---
@@ -215,6 +222,60 @@
 
 ---
 
+## 背包屏幕模式（Inventory）
+
+> 来源：背包界面实现落地（`design/ux/inventory.md` + `design/art/inventory-visual-spec.md`）。
+> **实现演进说明**：背包最终采用"手绘账簿底图 + layout.json 数据层 + Stage 锁定"混合架构，控件叠在画好的槽位上（见 `game/scripts/ui/InventoryUI.gd`、`InventoryWidgets.gd`、`game/tools/ui_layout_extract.py`）。下列模式的**行为/视觉语义**有效；个别"实现"指向的旧程序化工厂（如 `make_tab_style`/`make_parchment_style`）已被贴图/9-patch/分区定位取代。
+
+#### 书签标签（CategoryTab）
+**类别**：通用控件 · **Status**：Stable
+**适用**：横向分类导航（背包分类、未来图鉴/设置页签）。
+**规格**：选中态"拉出/凸起"+金色高亮，未选中下沉降饱和。最终用手绘 banner 贴图（`_selected`/`_unselected` 两态）叠在标签锚点（`layout.json tabs.centers`），选中略放大上移；角标"名称+数量"居中叠于 banner（骨白描边，选中金字）。
+**实现**：`InventoryUI._build_tabs()`、`_update_tab_styles()`（贴图来自 `InventoryWidgets.load_tab_texture()`）
+
+#### 命令格物品格（ItemSlot）
+**类别**：通用控件 · **Status**：Stable
+**适用**：网格化可聚焦物件（背包格、未来商店/仓库格）。
+**规格**：三态描边 overlay——默认无边 / 焦点骨白 2px / 选中金 4px；图标居中（Nearest 下禁非整数缩放）；数量角标右下仅消耗品类；`usable=false` 仅图标 `modulate.a=0.5`（边框与文字不降）。最终格底由手绘井提供，控件仅叠图标+角标+描边，位置取自 `layout.json wells`。
+**实现**：`InventoryWidgets.make_item_slot_focus_overlay()` / `InventoryUI._build_item_slot()`、`_update_slot_styles()`
+
+#### 空槽占位（EmptySlotGhost）⚠️ 已定义未使用
+**类别**：通用控件 · **Status**：Draft
+**适用**：需要"固定容量"感的网格空位。当前背包用手绘井（固定 5×4），空井由底图呈现，未用此工厂。
+**实现**：`InventoryWidgets.make_empty_slot_ghost()`（工厂已备，无调用方；见 Open Questions）
+
+#### 物品数值条目（StatBlock）
+**类别**：通用控件 · **Status**：Stable
+**适用**：浅色背景上的"标签+数值"信息行。
+**规格**：标签 `COL_INK` / 数值 `COL_PARCHMENT_ACCENT`（赭红——金色在米黄背景对比度不足，浅色面板强调色一律赭红）；按最后一个空格拆分两段着色。
+**实现**：`InventoryWidgets.get_stat_lines()` / `InventoryUI._make_stat_line()`
+
+#### 装备状态徽章（EquipStatusBadge）
+**类别**：反馈 · **Status**：Stable
+**适用**：二元状态展示（已装备/未装备，未来可扩展已学会/未学会等）。
+**规格**：符号+文字双通道（不依赖颜色）——"● 未装备" `COL_PARCHMENT_DIM` / "◆ 已装备" `COL_PARCHMENT_ACCENT`，文字部分恒 `COL_INK`。
+**实现**：`InventoryUI._make_equip_status_badge()`
+
+#### 侧页内嵌操作菜单（ActionMenu）
+**类别**：通用控件 · **Status**：Stable
+**适用**：在详情面板内就地展开的上下文操作（背包物品操作，未来商店买卖确认）。
+**规格**：半透明米色"便签"底；选项按数据标志动态生成；选中 `▸ ` 前缀+赭红、未选中墨水棕、禁用 `COL_PARCHMENT_DIM`；展开 Tween ~100ms（`clip_contents`+`custom_minimum_size:y`）；暂停下 Tween 需 `TWEEN_PAUSE_PROCESS`。最终展开于详情页 `footer` 分区。
+**实现**：`InventoryWidgets.make_action_menu_style()` / `InventoryUI._build_action_menu()`、`_update_menu_selection()`
+
+#### 丢弃二次确认（DiscardConfirmDialog）
+**类别**：反馈 · **Status**：Stable
+**适用**：不可逆操作的模态确认（丢弃，未来覆盖存档/放弃任务）。
+**规格**：居中小弹窗；深色体系文案（标题骨白/对象金/按键提示骨白描边）；弹出 scale 0.8→1.0+淡入 ~120ms；弹出期间主层 `modulate(0.6,0.6,0.65)` 示意输入冻结；仅 `Z` 确认/`X` 取消。
+**实现**：`InventoryUI._open_discard_dialog()`、`_confirm_discard()`、`_cancel_discard()`
+
+---
+
 ## 动画与音效标准（占位）
 
-> 动画时长在各模式内就地标注（滚动 0.25s / 准星入场 0.2s / 扩张 0.3s 等）。统一的 Animation Standards 表与 Sound Standards 表待音效系统（《通用文档》§7.1）启动时补入。本作不提供 Reduced Motion 选项。
+> 动画时长在各模式内就地标注（滚动 0.25s / 准星入场 0.2s / 扩张 0.3s / 背包菜单展开 0.1s 等）。统一的 Animation Standards 表与 Sound Standards 表待音效系统（《通用文档》§7.1）启动时补入。本作不提供 Reduced Motion 选项。
+
+---
+
+## Open Questions
+
+- EmptySlotGhost 是否在"固定容量背包"演进时启用，或移除工厂函数（避免死代码）。

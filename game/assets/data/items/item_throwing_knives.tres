@@ -1,0 +1,18 @@
+[gd_resource type="Resource" script_class="ItemData" load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://scripts/resources/ItemData.gd" id="1_item"]
+[ext_resource type="Texture2D" path="res://assets/ui/items/item_throwing_knives.png" id="2_icon"]
+
+[resource]
+script = ExtResource("1_item")
+id = "item_throwing_knives"
+display_name = "投掷匕首"
+description = "废弃哨站搜出的制式匕首，掷出时仍能嗅到旧主人的恨意。"
+item_type = 2
+effect_type = 0
+effect_value = 0
+category = 0
+icon = ExtResource("2_icon")
+attack_bonus = 4
+usable = false
+discardable = true

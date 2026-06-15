@@ -1,0 +1,17 @@
+[gd_resource type="Resource" script_class="ItemData" load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://scripts/resources/ItemData.gd" id="1_item"]
+[ext_resource type="Texture2D" path="res://assets/ui/items/item_red_pouch.png" id="2_icon"]
+
+[resource]
+script = ExtResource("1_item")
+id = "item_red_pouch"
+display_name = "赤囊·聚落信物"
+description = "聚落长老交托的信物，需亲手送达才算数——但若不慎，也只能丢弃重来。"
+item_type = 2
+effect_type = 0
+effect_value = 0
+category = 4
+icon = ExtResource("2_icon")
+usable = false
+discardable = true

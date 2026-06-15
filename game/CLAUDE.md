@@ -16,7 +16,8 @@
 ## 1. 红线（未经我明确同意，绝对不做）
 
 - 不修改 / 删除 `assets/` 下的任何文件 —— 那是**资产层**的地盘，由 `../sprite-pipeline` 流水线产出和管理。
-  - **例外（经开发者批准）**：`assets/ui/` 为**手绘 UI 资产例外区**，不由 sprite-pipeline 管理，承载战斗/界面用的 Theme 切片素材（9-patch 面板、命令栏底板、准星、状态 chip、HP/MP 条等）。该子目录可由 UI 工作流读写；其余 `assets/` 子目录红线不变。
+  - **例外（经开发者批准）**：`assets/ui/` 为**手绘 UI 资产例外区**，不由 sprite-pipeline 管理，承载战斗/界面用的 Theme 切片素材（9-patch 面板、命令栏底板、准星、状态 chip、HP/MP 条等）。该子目录可由 UI 工作流读写。
+  - **例外（经开发者批准，2026-06-11）**：`assets/data/` 为**手工维护数据资源例外区**，存放 ItemData/SkillData/CharacterData/EnemyData 等 `.tres` 数据资源（P3 起手工创建，sprite-pipeline 不读写该目录）。该子目录可由游戏开发工作流读写；其余 `assets/` 子目录红线不变。
 - 不重构工程目录结构、不重命名既有场景/脚本。
 - 不运行破坏性命令：`git reset --hard`、`git push --force`、`rm -rf`、删除 `.git`。
 - 不改 `project.godot` 的渲染/物理等全局设置（尤其 `default_texture_filter=0` 必须保持 Nearest）。

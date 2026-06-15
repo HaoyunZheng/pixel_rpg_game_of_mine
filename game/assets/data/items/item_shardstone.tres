@@ -1,6 +1,7 @@
-[gd_resource type="Resource" script_class="ItemData" load_steps=2 format=3]
+[gd_resource type="Resource" script_class="ItemData" load_steps=3 format=3]
 
 [ext_resource type="Script" path="res://scripts/resources/ItemData.gd" id="1_item"]
+[ext_resource type="Texture2D" path="res://assets/ui/items/item_shardstone.png" id="2_icon"]
 
 [resource]
 script = ExtResource("1_item")
@@ -10,3 +11,7 @@ description = "帝国时代遗留的爆裂石，掷向敌人造成伤害。"
 item_type = 1
 effect_type = 2
 effect_value = 25
+category = 3
+icon = ExtResource("2_icon")
+usable = false
+discardable = true
