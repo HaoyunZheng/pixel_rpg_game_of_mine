@@ -9,6 +9,7 @@ const DEFAULT_ENEMY_KEY: String = "Enemy1"
 const DATA_KEY_SCENE_NAME: String = "scene_name"
 const DATA_KEY_FROM: String = "from"
 const DATA_KEY_ENEMY_KEY: String = "enemy_key"
+const DATA_KEY_ENEMY_KEYS: String = "enemy_keys"  # 多敌：进场数据可传敌人 key 列表
 const LEGACY_DATA_KEY_ENEMY: String = "enemy"
 
 const ENEMY_RESOURCE_PATHS: Dictionary = {
@@ -25,7 +26,8 @@ var _enemy_units: Array = []
 var _turn_order: Array = []
 var _turn_index: int = 0
 var _current_actor = null
-var _enemy_key: String = DEFAULT_ENEMY_KEY
+var _enemy_key: String = DEFAULT_ENEMY_KEY   # 遭遇标识（用于胜利后标记野外敌人已击败）
+var _enemy_keys: Array[String] = []          # 本场敌方阵容 key 列表（1~N 体）
 var _battle_started: bool = false
 # §B.2 战斗数据隔离：开战时快照背包，失败时回滚物品消耗
 var _inventory_snapshot: Array[Dictionary] = []
@@ -52,6 +54,7 @@ func on_scene_enter(data: Dictionary) -> void:
 	_battle_started = true
 	Log.info("Battle", "进入战斗，数据: %s" % data)
 	_enemy_key = data.get(DATA_KEY_ENEMY_KEY, data.get(LEGACY_DATA_KEY_ENEMY, DEFAULT_ENEMY_KEY))
+	_enemy_keys = _resolve_enemy_keys(data)
 	_init_battle()
 	_macro_sm.start_battle()
 
@@ -64,15 +67,29 @@ func _init_battle() -> void:
 		_party_units.append(BATTLE_UNIT_SCRIPT.from_party_member(member))
 
 	_enemy_units.clear()
-	var enemy_stats = _lookup_enemy_stats(_enemy_key)
-	if enemy_stats:
-		_enemy_units.append(BATTLE_UNIT_SCRIPT.from_enemy_stats(enemy_stats))
+	for key in _enemy_keys:
+		var enemy_stats = _lookup_enemy_stats(key)
+		if enemy_stats:
+			_enemy_units.append(BATTLE_UNIT_SCRIPT.from_enemy_stats(enemy_stats))
 
 	_battle_ui.setup(_party_units, _enemy_units, self, _micro_sm)
 	_macro_sm.setup(self)
 	_micro_sm.battle_controller = self
 	_micro_sm.damage_calculator = load(DAMAGE_CALCULATOR_PATH).new()
 	Log.info("Battle", "战斗初始化: %d 我方 vs %d 敌方" % [_party_units.size(), _enemy_units.size()])
+
+## 解析进场数据中的敌方阵容：优先多敌列表 enemy_keys，回退单敌 enemy_key / 旧版 enemy。
+## 让 Wilderness（或未来的遭遇配置）以低耦合方式传入 1~N 体敌人，战斗主循环无需感知数量。
+func _resolve_enemy_keys(data: Dictionary) -> Array[String]:
+	var keys: Array[String] = []
+	var raw = data.get(DATA_KEY_ENEMY_KEYS, null)
+	if raw is Array:
+		for k in raw:
+			if k is String and not (k as String).is_empty():
+				keys.append(k)
+	if keys.is_empty():
+		keys.append(_enemy_key)
+	return keys
 
 func _lookup_enemy_stats(enemy_key: String):
 	var enemy_resource_path: String = ENEMY_RESOURCE_PATHS.get(enemy_key, ENEMY_RESOURCE_PATHS[DEFAULT_ENEMY_KEY])
