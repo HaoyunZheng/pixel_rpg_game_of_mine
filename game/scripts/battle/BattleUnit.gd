@@ -12,9 +12,8 @@ var max_mp: int = 0
 var atk: int = 0
 var def: int = 0
 var spd: int = 0
-const AI_TYPE_MUTANT: int = 2
 
-var ai_type: int = AI_TYPE_MUTANT
+var ai_type: int = EnemyStats.AIType.MUTANT
 var status_effects: Array[StatusEffect] = []
 var stats_res: Resource = null
 ## 本次攻击的力度倍率（攻击转盘写入，DamageCalculator.calc_physical 末乘，结算后复位 1.0）。

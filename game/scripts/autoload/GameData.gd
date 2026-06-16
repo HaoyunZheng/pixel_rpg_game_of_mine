@@ -133,6 +133,9 @@ func use_item(item_id: String) -> bool:
 	var item: ItemData = get_item_by_id(item_id)
 	if item == null:
 		return false
+	if party_members.is_empty():
+		Log.warn("GameData", "use_item: 队伍为空，无法对成员生效")
+		return false
 	var member: Dictionary = party_members[0]
 	match item.effect_type:
 		ItemData.EffectType.HEAL_HP:

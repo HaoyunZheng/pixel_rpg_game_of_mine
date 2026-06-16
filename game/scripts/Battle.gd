@@ -3,7 +3,6 @@ extends Node2D
 
 const WILDERNESS_SCENE_PATH: String = "res://scenes/Wilderness.tscn"
 const FOREST_SCENE_PATH: String = "res://scenes/ForestClearing.tscn"
-const DAMAGE_CALCULATOR_PATH: String = "res://scripts/battle/DamageCalculator.gd"
 const BATTLE_UNIT_SCRIPT := preload("res://scripts/battle/BattleUnit.gd")
 const DEFAULT_ENEMY_KEY: String = "Enemy1"
 const DATA_KEY_SCENE_NAME: String = "scene_name"
@@ -25,7 +24,7 @@ var _party_units: Array = []
 var _enemy_units: Array = []
 var _turn_order: Array = []
 var _turn_index: int = 0
-var _current_actor = null
+var _current_actor: BattleUnit = null
 var _enemy_key: String = DEFAULT_ENEMY_KEY   # 遭遇标识（用于胜利后标记野外敌人已击败）
 var _enemy_keys: Array[String] = []          # 本场敌方阵容 key 列表（1~N 体）
 var _battle_started: bool = false
@@ -75,7 +74,7 @@ func _init_battle() -> void:
 	_battle_ui.setup(_party_units, _enemy_units, self, _micro_sm)
 	_macro_sm.setup(self)
 	_micro_sm.battle_controller = self
-	_micro_sm.damage_calculator = load(DAMAGE_CALCULATOR_PATH).new()
+	_micro_sm.damage_calculator = DamageCalculator.new()
 	Log.info("Battle", "战斗初始化: %d 我方 vs %d 敌方" % [_party_units.size(), _enemy_units.size()])
 
 ## 解析进场数据中的敌方阵容：优先多敌列表 enemy_keys，回退单敌 enemy_key / 旧版 enemy。
@@ -125,7 +124,7 @@ func _start_turn_loop() -> void:
 			return
 	_macro_sm.request_next_turn()
 
-func _process_turn(actor) -> void:
+func _process_turn(actor: BattleUnit) -> void:
 	Log.info("Battle", "轮到: %s" % actor.display_name)
 	_battle_ui.show_actor_turn(actor)
 	if not _micro_sm.turn_finished.is_connected(_on_turn_finished):

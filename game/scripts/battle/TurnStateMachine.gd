@@ -6,12 +6,6 @@ extends Node
 enum MicroState { IDLE, COMMAND_SELECT, TARGET_SELECT, ACTION_EXECUTE, ACTION_RESOLVE }
 
 const ENEMY_AI_SCRIPT := preload("res://scripts/battle/EnemyAI.gd")
-const COMMAND_ATTACK: String = "attack"
-const COMMAND_SKILL: String = "skill"
-const COMMAND_FLEE: String = "flee"
-const COMMAND_ITEM: String = "item"
-const SKILL_TYPE_ATTACK: int = 0
-const SKILL_TYPE_HEAL: int = 1
 
 signal state_changed(new_state: MicroState)
 signal command_selected(command: String, skill)
@@ -22,14 +16,14 @@ signal turn_finished
 
 var current_state: MicroState = MicroState.IDLE
 var battle_controller: Node = null
-var damage_calculator = null
-var _current_actor = null
+var damage_calculator: DamageCalculator = null
+var _current_actor: BattleUnit = null
 var _pending_command: String = ""
-var _pending_skill = null
-var _pending_item = null
-var _pending_target = null
+var _pending_skill: SkillData = null
+var _pending_item: ItemData = null
+var _pending_target: BattleUnit = null
 
-func start_turn(actor) -> void:
+func start_turn(actor: BattleUnit) -> void:
 	_current_actor = actor
 	_pending_command = ""
 	_pending_skill = null
@@ -65,10 +59,10 @@ func select_command(command: String, payload = null) -> void:
 	if current_state != MicroState.COMMAND_SELECT:
 		return
 	_pending_command = command
-	_pending_skill = payload if command == COMMAND_SKILL else null
-	_pending_item = payload if command == COMMAND_ITEM else null
+	_pending_skill = payload if command == BattleCommands.SKILL else null
+	_pending_item = payload if command == BattleCommands.ITEM else null
 	command_selected.emit(command, payload)
-	if command == COMMAND_FLEE:
+	if command == BattleCommands.FLEE:
 		_transition_to(MicroState.ACTION_EXECUTE)
 	else:
 		_transition_to(MicroState.TARGET_SELECT)
@@ -81,7 +75,7 @@ func cancel_command() -> void:
 func _on_target_select() -> void:
 	Log.info("TurnState", "%s 等待目标选择" % _current_actor.display_name)
 
-func select_target(target) -> void:
+func select_target(target: BattleUnit) -> void:
 	if current_state != MicroState.TARGET_SELECT:
 		return
 	_pending_target = target
@@ -106,24 +100,24 @@ func _execute_action() -> Dictionary:
 		"item": null,
 	}
 	match _pending_command:
-		COMMAND_ATTACK:
+		BattleCommands.ATTACK:
 			if _pending_target and not _pending_target.is_dead() and damage_calculator != null:
 				result.damage = damage_calculator.calc_physical(_current_actor, _pending_target)
 				_pending_target.take_damage(result.damage)
 			_current_actor.power_multiplier = 1.0   # 攻击结算后复位，防泄漏到该单位下次行动
-		COMMAND_SKILL:
+		BattleCommands.SKILL:
 			if _pending_skill and _pending_target and not _pending_target.is_dead() and damage_calculator != null:
 				result.mp_cost = _pending_skill.mp_cost
 				_current_actor.consume_mp(result.mp_cost)
-				if _pending_skill.skill_type == SKILL_TYPE_ATTACK:
+				if _pending_skill.skill_type == SkillData.SkillType.ATTACK:
 					result.damage = damage_calculator.calc_skill(_current_actor, _pending_target, _pending_skill)
 					_pending_target.take_damage(result.damage)
-				elif _pending_skill.skill_type == SKILL_TYPE_HEAL:
+				elif _pending_skill.skill_type == SkillData.SkillType.HEAL:
 					result.heal = _pending_skill.power
 					_pending_target.heal(result.heal)
-		COMMAND_FLEE:
+		BattleCommands.FLEE:
 			result.fled = _try_flee()
-		COMMAND_ITEM:
+		BattleCommands.ITEM:
 			if _pending_item != null and _pending_target and not _pending_target.is_dead():
 				if GameData.remove_item(_pending_item.id, 1):
 					result.item = _pending_item
@@ -172,7 +166,7 @@ func _run_enemy_ai() -> void:
 	_pending_target = ai_result.target
 	_transition_to(MicroState.ACTION_EXECUTE)
 
-func _resolve_stun(actor) -> void:
+func _resolve_stun(actor: BattleUnit) -> void:
 	for effect in actor.status_effects:
 		if effect.type == StatusEffect.Type.STUN:
 			actor.status_effects.erase(effect)
