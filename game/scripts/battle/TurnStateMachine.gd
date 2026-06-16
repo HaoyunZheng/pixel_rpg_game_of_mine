@@ -16,7 +16,7 @@ signal turn_finished
 
 var current_state: MicroState = MicroState.IDLE
 var battle_controller: Node = null
-var damage_calculator = null
+var damage_calculator: DamageCalculator = null
 var _current_actor = null
 var _pending_command: String = ""
 var _pending_skill = null

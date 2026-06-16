@@ -3,7 +3,6 @@ extends Node2D
 
 const WILDERNESS_SCENE_PATH: String = "res://scenes/Wilderness.tscn"
 const FOREST_SCENE_PATH: String = "res://scenes/ForestClearing.tscn"
-const DAMAGE_CALCULATOR_PATH: String = "res://scripts/battle/DamageCalculator.gd"
 const BATTLE_UNIT_SCRIPT := preload("res://scripts/battle/BattleUnit.gd")
 const DEFAULT_ENEMY_KEY: String = "Enemy1"
 const DATA_KEY_SCENE_NAME: String = "scene_name"
@@ -75,7 +74,7 @@ func _init_battle() -> void:
 	_battle_ui.setup(_party_units, _enemy_units, self, _micro_sm)
 	_macro_sm.setup(self)
 	_micro_sm.battle_controller = self
-	_micro_sm.damage_calculator = load(DAMAGE_CALCULATOR_PATH).new()
+	_micro_sm.damage_calculator = DamageCalculator.new()
 	Log.info("Battle", "战斗初始化: %d 我方 vs %d 敌方" % [_party_units.size(), _enemy_units.size()])
 
 ## 解析进场数据中的敌方阵容：优先多敌列表 enemy_keys，回退单敌 enemy_key / 旧版 enemy。

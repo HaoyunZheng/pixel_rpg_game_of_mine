@@ -1,3 +1,4 @@
+class_name DamageCalculator
 extends RefCounted
 ## 伤害计算器 — 确定性公式
 
