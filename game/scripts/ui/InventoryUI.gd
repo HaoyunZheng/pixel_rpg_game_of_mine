@@ -18,7 +18,11 @@ const CANCEL_KEY: Key = KEY_X
 const FADE_DURATION: float = 0.15
 const MENU_EXPAND_DURATION: float = 0.1
 const DIALOG_POPUP_DURATION: float = 0.12
-const ACTION_MENU_ROW_HEIGHT: int = 30
+const ACTION_MENU_COLUMNS: int = 2          # 操作菜单按 2 列网格排布，最多 2×2 四项
+const ACTION_MENU_CELL_HEIGHT: int = 34     # 单格高（19px 字 + 上下留白）
+const ACTION_MENU_H_SEPARATION: int = 10    # 列间距
+const ACTION_MENU_V_SEPARATION: int = 6     # 行间距
+const ACTION_MENU_PADDING: int = 16         # 便签内边距合计（make_action_menu_style content_margin 8×2）
 
 enum UIState { PREVIEW, ACTION_MENU, DISCARD_CONFIRM }
 
@@ -445,10 +449,12 @@ func _build_detail_footer(item: ItemData) -> void:
 	if item == null or not InventoryWidgets.is_equipment_category(item.category):
 		return
 	var box := VBoxContainer.new()
-	box.alignment = BoxContainer.ALIGNMENT_END
+	box.alignment = BoxContainer.ALIGNMENT_CENTER
 	box.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_place_in_zone(box, "footer")
-	box.add_child(_make_equip_status_badge(item))
+	var badge := _make_equip_status_badge(item)
+	badge.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	box.add_child(badge)
 	_detail_layer.add_child(box)
 
 
@@ -528,32 +534,44 @@ func _build_action_menu(item: ItemData, count: int) -> void:
 	var menu_panel := PanelContainer.new()
 	menu_panel.add_theme_stylebox_override("panel", InventoryWidgets.make_action_menu_style())
 	menu_panel.clip_contents = true
-	var inner := VBoxContainer.new()
-	inner.add_theme_constant_override("separation", 4)
+
+	var grid := GridContainer.new()
+	grid.columns = ACTION_MENU_COLUMNS
+	grid.add_theme_constant_override("h_separation", ACTION_MENU_H_SEPARATION)
+	grid.add_theme_constant_override("v_separation", ACTION_MENU_V_SEPARATION)
+	grid.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	for opt in _menu_options:
-		inner.add_child(_make_menu_option_label(opt))
-	menu_panel.add_child(inner)
-	_place_in_zone(menu_panel, "footer")
+		grid.add_child(_make_menu_option_label(opt))
+	menu_panel.add_child(grid)
+
+	# 置于 footer 框：满框宽 2 列网格，按内容高在底框内整体垂直居中（底框较高，居中更工整）。
+	var zone: Rect2 = _zone("footer")
+	var rows: int = int(ceil(float(_menu_options.size()) / float(ACTION_MENU_COLUMNS)))
+	var content_h: float = rows * ACTION_MENU_CELL_HEIGHT + maxi(rows - 1, 0) * ACTION_MENU_V_SEPARATION + ACTION_MENU_PADDING
+	menu_panel.size = Vector2(zone.size.x, content_h)
+	menu_panel.position = Vector2(zone.position.x, zone.position.y + (zone.size.y - content_h) * 0.5)
 	_detail_layer.add_child(menu_panel)
 	_action_menu_box = menu_panel
 	_update_menu_selection()
 
-	var target_h: float = float(_menu_options.size() * ACTION_MENU_ROW_HEIGHT + 16)
-	var zone_w: float = _zone("footer").size.x
-	menu_panel.custom_minimum_size = Vector2(zone_w, 0)
+	# 展开动画：以框内中心为锚点纵向 0→1 拉开（保持居中）。
+	menu_panel.pivot_offset = Vector2(zone.size.x * 0.5, content_h * 0.5)
+	menu_panel.scale = Vector2(1.0, 0.0)
 	var tween := create_tween()
 	tween.set_pause_mode(Tween.TWEEN_PAUSE_PROCESS)
 	tween.set_ease(Tween.EASE_OUT)
 	tween.set_trans(Tween.TRANS_QUAD)
-	tween.tween_property(menu_panel, "custom_minimum_size:y", target_h, MENU_EXPAND_DURATION)
+	tween.tween_property(menu_panel, "scale", Vector2.ONE, MENU_EXPAND_DURATION)
 
 
 func _make_menu_option_label(opt: Dictionary) -> Label:
 	var label := Label.new()
 	label.text = opt.label
 	label.add_theme_font_size_override("font_size", 19)
-	label.custom_minimum_size = Vector2(0, ACTION_MENU_ROW_HEIGHT)
+	label.custom_minimum_size = Vector2(0, ACTION_MENU_CELL_HEIGHT)
+	label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	label.size_flags_horizontal = Control.SIZE_EXPAND_FILL  # 两列等分 footer 宽
 	label.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	return label
 
@@ -561,7 +579,7 @@ func _make_menu_option_label(opt: Dictionary) -> Label:
 func _update_menu_selection() -> void:
 	if _action_menu_box == null:
 		return
-	var inner: VBoxContainer = _action_menu_box.get_child(0)
+	var inner: Container = _action_menu_box.get_child(0)
 	for i in range(inner.get_child_count()):
 		var label: Label = inner.get_child(i)
 		var opt: Dictionary = _menu_options[i]
@@ -804,10 +822,16 @@ func _switch_category(direction: int) -> void:
 func _handle_action_menu_input(keycode: Key) -> void:
 	match keycode:
 		KEY_UP, KEY_W:
-			_move_menu_selection(-1)
+			_move_menu_focus(0, -1)
 			get_viewport().set_input_as_handled()
 		KEY_DOWN, KEY_S:
-			_move_menu_selection(1)
+			_move_menu_focus(0, 1)
+			get_viewport().set_input_as_handled()
+		KEY_LEFT, KEY_A:
+			_move_menu_focus(-1, 0)
+			get_viewport().set_input_as_handled()
+		KEY_RIGHT, KEY_D:
+			_move_menu_focus(1, 0)
 			get_viewport().set_input_as_handled()
 		CONFIRM_KEY:
 			_activate_menu_option()
@@ -817,17 +841,27 @@ func _handle_action_menu_input(keycode: Key) -> void:
 			get_viewport().set_input_as_handled()
 
 
-func _move_menu_selection(step: int) -> void:
+## 2 列网格导航：←→ 同行换列，↑↓ 同列换行；越界或落到禁用/空格则不动。
+func _move_menu_focus(dx: int, dy: int) -> void:
 	if _menu_options.is_empty():
 		return
+	var cols: int = ACTION_MENU_COLUMNS
 	var n: int = _menu_options.size()
-	var idx: int = _menu_index
-	for _i in range(n):
-		idx = posmod(idx + step, n)
-		if not _menu_options[idx].disabled:
-			_menu_index = idx
-			_update_menu_selection()
-			return
+	var col: int = _menu_index % cols
+	var row: int = _menu_index / cols
+	var target: int = _menu_index
+	if dx != 0:
+		var new_col: int = col + dx
+		var idx: int = row * cols + new_col
+		if new_col >= 0 and new_col < cols and idx < n:
+			target = idx
+	if dy != 0:
+		var idx: int = (row + dy) * cols + col
+		if row + dy >= 0 and idx >= 0 and idx < n:
+			target = idx
+	if target != _menu_index and not _menu_options[target].disabled:
+		_menu_index = target
+		_update_menu_selection()
 
 
 func _activate_menu_option() -> void:
