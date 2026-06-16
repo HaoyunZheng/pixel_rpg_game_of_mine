@@ -146,6 +146,8 @@ func _sync_party_to_gamedata() -> void:
 func _on_battle_ended(victory: bool) -> void:
 	Log.info("Battle", "战斗结束，胜利: %s" % victory)
 	_battle_ui.show_battle_result(victory)
+	if victory:
+		GameData.mark_enemy_defeated(_enemy_key)
 	if not victory:
 		_reset_party_hp_mp()
 		GameData.restore_inventory(_inventory_snapshot)

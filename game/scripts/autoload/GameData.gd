@@ -2,6 +2,11 @@ extends Node
 ## GameData — 全局状态单例
 ## 管理队伍、背包、剧情标志位、诅咒值/羁绊值等持久化数据。
 
+signal item_used(item_id: String)
+signal item_equipped(item_id: String, slot: String)
+signal item_unequipped(item_id: String, slot: String)
+signal item_discarded(item_id: String, count: int)
+
 const MEOWA_API_KEY_ENV: String = "MEOWA_API_KEY"
 const MEOWA_LOCAL_CONFIG_PATH: String = "res://secrets/meowa.cfg"
 const MEOWA_CONFIG_SECTION: String = "meowa"
@@ -24,12 +29,22 @@ var bond_values: Dictionary = {}
 # 槽位结构：{ "item": ItemData, "count": int }
 var inventory: Array[Dictionary] = []
 
+# 装备槽位（值 = item_id，空串 = 未装备）
+var equipment: Dictionary = {"weapon": "", "armor": "", "accessory": ""}
+
 # Demo 初始物品（id → 数量）。正式获取途径（拾取/掉落）接入后可清空。
 const INITIAL_ITEMS: Dictionary = {
 	"res://assets/data/items/item_ash_salve.tres": 2,
 	"res://assets/data/items/item_glimmer_water.tres": 1,
 	"res://assets/data/items/item_shardstone.tres": 1,
+	"res://assets/data/items/item_throwing_knives.tres": 1,
+	"res://assets/data/items/item_bandage_kit.tres": 1,
+	"res://assets/data/items/item_black_sack.tres": 1,
+	"res://assets/data/items/item_red_pouch.tres": 1,
 }
+
+# ── 已击败的明雷敌人（按 encounter_key 记录，胜利写入；野外场景加载时据此移除实例）──
+var defeated_enemies: Dictionary = {}
 
 # ── 周目识别（前向兼容预留）──
 var cycle_count: int = 1
@@ -67,6 +82,12 @@ func has_meowa_api_key() -> bool:
 
 func get_meowa_api_key() -> String:
 	return meowa_api_key
+
+func mark_enemy_defeated(enemy_key: String) -> void:
+	defeated_enemies[enemy_key] = true
+
+func is_enemy_defeated(enemy_key: String) -> bool:
+	return defeated_enemies.get(enemy_key, false)
 
 func set_curse(character_id: String, value: int) -> void:
 	curse_values[character_id] = clampi(value, 0, 100)
@@ -106,6 +127,79 @@ func get_item_count(item_id: String) -> int:
 		if slot.item.id == item_id:
 			return slot.count
 	return 0
+
+## 使用消耗品：仅处理 HEAL_HP/HEAL_MP，对队伍首位成员生效。
+func use_item(item_id: String) -> bool:
+	var item: ItemData = get_item_by_id(item_id)
+	if item == null:
+		return false
+	var member: Dictionary = party_members[0]
+	match item.effect_type:
+		ItemData.EffectType.HEAL_HP:
+			member.hp = clampi(member.hp + item.effect_value, 0, member.max_hp)
+		ItemData.EffectType.HEAL_MP:
+			member.mp = clampi(member.mp + item.effect_value, 0, member.max_mp)
+		_:
+			Log.warn("GameData", "use_item: 不支持的 effect_type: %s" % item.effect_type)
+			return false
+	if not remove_item(item_id, 1):
+		return false
+	item_used.emit(item_id)
+	return true
+
+## 装备物品：按 category 映射槽位，槽位已占用先卸下旧物品。
+func equip_item(item_id: String) -> bool:
+	var item: ItemData = get_item_by_id(item_id)
+	if item == null:
+		return false
+	var slot: String
+	match item.category:
+		ItemData.ItemCategory.WEAPON:
+			slot = "weapon"
+		ItemData.ItemCategory.ARMOR:
+			slot = "armor"
+		ItemData.ItemCategory.ACCESSORY:
+			slot = "accessory"
+		_:
+			return false
+	if not equipment[slot].is_empty():
+		unequip_item(slot)
+	equipment[slot] = item_id
+	item_equipped.emit(item_id, slot)
+	return true
+
+## 卸下指定槽位的装备。
+func unequip_item(slot: String) -> bool:
+	var old_id: String = equipment.get(slot, "")
+	if old_id.is_empty():
+		return false
+	equipment[slot] = ""
+	item_unequipped.emit(old_id, slot)
+	return true
+
+## 丢弃物品：若该物品已装备，先自动卸下，避免悬空 id。
+func discard_item(item_id: String, count: int) -> bool:
+	for slot in equipment:
+		if equipment[slot] == item_id:
+			unequip_item(slot)
+	var result := remove_item(item_id, count)
+	if result:
+		item_discarded.emit(item_id, count)
+	return result
+
+## 按 id 查找背包中的物品资源，找不到返回 null。
+func get_item_by_id(item_id: String) -> ItemData:
+	for slot in inventory:
+		if slot.item.id == item_id:
+			return slot.item
+	return null
+
+## 该物品当前是否已装备。
+func is_item_equipped(item_id: String) -> bool:
+	for slot in equipment:
+		if equipment[slot] == item_id:
+			return true
+	return false
 
 ## 背包快照/回滚（§B.2 战斗数据隔离：失败丢弃物品消耗）
 func duplicate_inventory() -> Array[Dictionary]:
