@@ -14,6 +14,7 @@ func _ready() -> void:
 	zoom = CAM_ZOOM
 	position_smoothing_enabled = false  # 死区+lerp 自己来
 	enabled = false  # 初始无目标，先不接管视图
+	set_process(false)  # 无跟随目标时停跑每帧 lerp
 	Log.info("GameCamera", "全局相机已加载")
 
 ## 进入某张探索地图时调用：设跟随目标 + 地图边界，并立即对中。
@@ -24,6 +25,7 @@ func set_map(target: Node2D, world_rect: Rect2) -> void:
 	limit_right = int(world_rect.end.x)
 	limit_bottom = int(world_rect.end.y)
 	enabled = true
+	set_process(true)
 	make_current()
 	if is_instance_valid(_target):
 		global_position = _target.global_position
@@ -33,6 +35,7 @@ func set_map(target: Node2D, world_rect: Rect2) -> void:
 func deactivate() -> void:
 	_target = null
 	enabled = false
+	set_process(false)
 
 func _process(delta: float) -> void:
 	if not is_instance_valid(_target):
