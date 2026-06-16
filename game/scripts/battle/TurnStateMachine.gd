@@ -17,13 +17,13 @@ signal turn_finished
 var current_state: MicroState = MicroState.IDLE
 var battle_controller: Node = null
 var damage_calculator: DamageCalculator = null
-var _current_actor = null
+var _current_actor: BattleUnit = null
 var _pending_command: String = ""
-var _pending_skill = null
-var _pending_item = null
-var _pending_target = null
+var _pending_skill: SkillData = null
+var _pending_item: ItemData = null
+var _pending_target: BattleUnit = null
 
-func start_turn(actor) -> void:
+func start_turn(actor: BattleUnit) -> void:
 	_current_actor = actor
 	_pending_command = ""
 	_pending_skill = null
@@ -75,7 +75,7 @@ func cancel_command() -> void:
 func _on_target_select() -> void:
 	Log.info("TurnState", "%s 等待目标选择" % _current_actor.display_name)
 
-func select_target(target) -> void:
+func select_target(target: BattleUnit) -> void:
 	if current_state != MicroState.TARGET_SELECT:
 		return
 	_pending_target = target
@@ -166,7 +166,7 @@ func _run_enemy_ai() -> void:
 	_pending_target = ai_result.target
 	_transition_to(MicroState.ACTION_EXECUTE)
 
-func _resolve_stun(actor) -> void:
+func _resolve_stun(actor: BattleUnit) -> void:
 	for effect in actor.status_effects:
 		if effect.type == StatusEffect.Type.STUN:
 			actor.status_effects.erase(effect)

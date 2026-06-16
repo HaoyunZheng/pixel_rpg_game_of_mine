@@ -24,7 +24,7 @@ var _party_units: Array = []
 var _enemy_units: Array = []
 var _turn_order: Array = []
 var _turn_index: int = 0
-var _current_actor = null
+var _current_actor: BattleUnit = null
 var _enemy_key: String = DEFAULT_ENEMY_KEY   # 遭遇标识（用于胜利后标记野外敌人已击败）
 var _enemy_keys: Array[String] = []          # 本场敌方阵容 key 列表（1~N 体）
 var _battle_started: bool = false
@@ -124,7 +124,7 @@ func _start_turn_loop() -> void:
 			return
 	_macro_sm.request_next_turn()
 
-func _process_turn(actor) -> void:
+func _process_turn(actor: BattleUnit) -> void:
 	Log.info("Battle", "轮到: %s" % actor.display_name)
 	_battle_ui.show_actor_turn(actor)
 	if not _micro_sm.turn_finished.is_connected(_on_turn_finished):
