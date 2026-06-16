@@ -6,10 +6,6 @@ extends Node
 enum MicroState { IDLE, COMMAND_SELECT, TARGET_SELECT, ACTION_EXECUTE, ACTION_RESOLVE }
 
 const ENEMY_AI_SCRIPT := preload("res://scripts/battle/EnemyAI.gd")
-const COMMAND_ATTACK: String = "attack"
-const COMMAND_SKILL: String = "skill"
-const COMMAND_FLEE: String = "flee"
-const COMMAND_ITEM: String = "item"
 
 signal state_changed(new_state: MicroState)
 signal command_selected(command: String, skill)
@@ -63,10 +59,10 @@ func select_command(command: String, payload = null) -> void:
 	if current_state != MicroState.COMMAND_SELECT:
 		return
 	_pending_command = command
-	_pending_skill = payload if command == COMMAND_SKILL else null
-	_pending_item = payload if command == COMMAND_ITEM else null
+	_pending_skill = payload if command == BattleCommands.SKILL else null
+	_pending_item = payload if command == BattleCommands.ITEM else null
 	command_selected.emit(command, payload)
-	if command == COMMAND_FLEE:
+	if command == BattleCommands.FLEE:
 		_transition_to(MicroState.ACTION_EXECUTE)
 	else:
 		_transition_to(MicroState.TARGET_SELECT)
@@ -104,12 +100,12 @@ func _execute_action() -> Dictionary:
 		"item": null,
 	}
 	match _pending_command:
-		COMMAND_ATTACK:
+		BattleCommands.ATTACK:
 			if _pending_target and not _pending_target.is_dead() and damage_calculator != null:
 				result.damage = damage_calculator.calc_physical(_current_actor, _pending_target)
 				_pending_target.take_damage(result.damage)
 			_current_actor.power_multiplier = 1.0   # 攻击结算后复位，防泄漏到该单位下次行动
-		COMMAND_SKILL:
+		BattleCommands.SKILL:
 			if _pending_skill and _pending_target and not _pending_target.is_dead() and damage_calculator != null:
 				result.mp_cost = _pending_skill.mp_cost
 				_current_actor.consume_mp(result.mp_cost)
@@ -119,9 +115,9 @@ func _execute_action() -> Dictionary:
 				elif _pending_skill.skill_type == SkillData.SkillType.HEAL:
 					result.heal = _pending_skill.power
 					_pending_target.heal(result.heal)
-		COMMAND_FLEE:
+		BattleCommands.FLEE:
 			result.fled = _try_flee()
-		COMMAND_ITEM:
+		BattleCommands.ITEM:
 			if _pending_item != null and _pending_target and not _pending_target.is_dead():
 				if GameData.remove_item(_pending_item.id, 1):
 					result.item = _pending_item

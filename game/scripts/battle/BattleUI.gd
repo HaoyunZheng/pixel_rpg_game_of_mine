@@ -23,10 +23,6 @@ extends Control
 @onready var _turn_label: Label = $TurnLabel
 
 # ── 既有常量（沿用，勿改键位/指令字符串）──
-const COMMAND_ATTACK: String = "attack"
-const COMMAND_SKILL: String = "skill"
-const COMMAND_ITEM: String = "item"
-const COMMAND_FLEE: String = "flee"
 const TARGET_GROUP_ENEMY: String = "enemy"
 const TARGET_GROUP_PARTY: String = "party"
 const CONFIRM_KEY: Key = KEY_Z
@@ -183,13 +179,13 @@ func _on_cmd_pressed(cmd: String) -> void:
 		"攻击":
 			# 选完目标后：进 TARGET_SELECT 态 → 弹力度转盘 → 等定格写倍率 → 才 select_target。
 			# 关键时序（§3.2）：select_target 同步触发伤害计算，转盘必须先跑完写好 power_multiplier。
-			_start_target_select(TARGET_GROUP_ENEMY, func(t): _turn_state_machine.select_command(COMMAND_ATTACK); _show_attack_wheel(t))
+			_start_target_select(TARGET_GROUP_ENEMY, func(t): _turn_state_machine.select_command(BattleCommands.ATTACK); _show_attack_wheel(t))
 		"技能":
 			_show_skill_menu()
 		"物品":
 			_show_item_menu()
 		"逃跑":
-			_turn_state_machine.select_command(COMMAND_FLEE)
+			_turn_state_machine.select_command(BattleCommands.FLEE)
 
 ## 攻击力度转盘：覆盖中央框、弱化命令栏 → 等 Z 定格 → 倍率回填攻击者 → 才放行 select_target。
 ## 时序：此函数被攻击 lambda 调用，select_command(ATTACK) 已置 TARGET_SELECT 态；
@@ -229,7 +225,7 @@ func _show_skill_menu() -> void:
 func _create_skill_action(skill) -> Callable:
 	return func() -> void:
 		var target_type := TARGET_GROUP_ENEMY if skill.skill_type == SkillData.SkillType.ATTACK else TARGET_GROUP_PARTY
-		_start_target_select(target_type, func(t): _turn_state_machine.select_command(COMMAND_SKILL, skill); _turn_state_machine.select_target(t))
+		_start_target_select(target_type, func(t): _turn_state_machine.select_command(BattleCommands.SKILL, skill); _turn_state_machine.select_target(t))
 
 ## 物品二级选项：同技能，渲染在中央框内。缓解物按 §4.5 战斗内置灰。
 func _show_item_menu() -> void:
@@ -249,7 +245,7 @@ func _show_item_menu() -> void:
 func _create_item_action(item: ItemData) -> Callable:
 	return func() -> void:
 		var target_type := TARGET_GROUP_ENEMY if item.effect_type == ItemData.EffectType.DAMAGE else TARGET_GROUP_PARTY
-		_start_target_select(target_type, func(t): _turn_state_machine.select_command(COMMAND_ITEM, item); _turn_state_machine.select_target(t))
+		_start_target_select(target_type, func(t): _turn_state_machine.select_command(BattleCommands.ITEM, item); _turn_state_machine.select_target(t))
 
 func _has_battle_usable_items() -> bool:
 	for slot in GameData.inventory:
