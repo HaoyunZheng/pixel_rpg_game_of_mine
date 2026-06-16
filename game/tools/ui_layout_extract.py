@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-"""背包账簿底图 → 版式锚点数据层（layout.json）+ clean-plate 底版
+"""背包账簿底图 → 版式锚点数据层（layout.json）+ clean-plate 底版 + debug 叠加图。
 
 设计意图（业内"切片元数据"管线：Aseprite Slices / TexturePacker / 本仓库 sprite-pipeline）：
   版式坐标是【资产级数据】，由本工具一次性从背景图离线生成；游戏代码只读 layout.json，
   GDScript 里不写死任何摆放像素。美术换版(bg v2/v3) → 重跑本工具，代码零改。
 
-产出（与背景图同目录）：
+产出（默认与背景图同目录，可用 --out-dir 改写）：
   layout.json                          —— 井格/标签锚点/页矩形/页内分区（背景图原生像素）
   bg_inventory_field_ledger_clean.png  —— 铲掉画死静态标签的 clean plate（运行时实际背景）
   layout_debug.png                     —— 检测叠加图，离线一次性肉眼/agent 核对用
@@ -17,19 +17,33 @@
   - 页矩形：暖米黄掩码列/行剖面（低阈值 + 区段并集端点，避开页内框线切断）
   - 页内分区：页矩形的【声明式比例】（portrait/header/body/footer），换图按比例自适应
 
-用法（game/ 目录下）：
-  python3 tools/ui_layout_extract.py assets/ui/inventory/bg_inventory_field_ledger_v1.png
+用法（工作目录 = game/）：
+  python3 tools/ui_layout_extract.py                         # 用默认背景图全量重生成
+  python3 tools/ui_layout_extract.py <bg.png>               # 指定背景图
+  python3 tools/ui_layout_extract.py <bg.png> --no-debug    # 跳过 debug 叠加图
+  python3 tools/ui_layout_extract.py <bg.png> --out-dir <d> # 改写输出目录
+
+所有"调参面"集中在下方 CONFIG 区；算法函数不应内联魔法数。
 """
-import sys
-import os
+import argparse
 import json
+import os
+import sys
 
 import numpy as np
 from PIL import Image, ImageDraw
 
-# ── 粗 ROI（只约束"在哪一带找"，精确边界由算法得出）────────────────────────
+# ════════════════════════════════ CONFIG（唯一调参面）════════════════════════════════
+
+DEFAULT_BG = "assets/ui/inventory/bg_inventory_field_ledger_v1.png"
+CLEAN_NAME = "bg_inventory_field_ledger_clean.png"   # 运行时实际背景（铲掉画死标签）
+LAYOUT_NAME = "layout.json"
+DEBUG_NAME = "layout_debug.png"
+
+# ── 粗 ROI（只约束"在哪一带找"，精确边界由算法得出）──
 GRID_ROI = (210, 200, 960, 770)
 EXPECT_COLS, EXPECT_ROWS = 5, 4
+WELL_W_RANGE, WELL_P_RANGE = (105, 130), (130, 150)         # 点阵拟合：格宽 / 周期搜索域
 PAGE_TAN = dict(r_min=138, g_min=100, rb_gap=38, gb_gap=20)  # 实测页主色 ~154,120,84
 
 # 标签：clean-plate 铲除区 + 锚点样式（锚点 = 井列中心）
@@ -38,13 +52,23 @@ TAB_STRIP_X = (235, 940)
 TAB_CLEAN_SRC_X = (384, 434)
 TAB_STYLE = dict(top=55, width=112, selected_scale=1.08, selected_lift=8)
 
-# 详情页内分区（相对页矩形的比例：x,y,w,h ∈ [0,1]）—— 声明式，换图按比例自适应
+# 详情页内分区（相对页矩形的比例：x,y,w,h ∈ [0,1]）—— 声明式，换图按比例自适应。
+# 比例标定自 v1 羊皮纸页实际画稿的四个画死框（梯度+目视核对），对应像素见行尾注释。
+# 页矩形 = [1087,117,464,696]。换美术后若画框位置变了，重测画框、按 (px-1087)/464、(py-117)/696 重算即可。
 PAGE_ZONES_FRAC = {
-	"portrait": (0.060, 0.045, 0.275, 0.205),   # 左上 物品大图框
-	"header":   (0.380, 0.055, 0.560, 0.190),   # 右上 名称 + 分类章
-	"body":     (0.070, 0.300, 0.860, 0.330),   # 中部大框 数值 + 说明
-	"footer":   (0.070, 0.730, 0.860, 0.215),   # 底部框 装备状态 / 操作菜单
+	"portrait": (0.05819, 0.04310, 0.35345, 0.23707),   # 左上 物品大图框      px[1114,147,164,165]
+	"header":   (0.45905, 0.04310, 0.46552, 0.23707),   # 右上 名称+分类章     px[1300,147,216,165]
+	"body":     (0.08405, 0.30891, 0.81466, 0.43534),   # 中部 数值+说明 ruled px[1126,332,378,303]
+	"footer":   (0.08836, 0.78736, 0.80819, 0.20115),   # 底部 装备状态/操作菜单 px[1128,665,375,140]
 }
+
+# debug 叠加图配色（BGR? 否，PIL 用 RGB）
+DBG_WELL = (0, 255, 0)
+DBG_TAB = (255, 80, 0)
+DBG_PAGE = (0, 160, 255)
+DBG_ZONE = (255, 0, 255)
+
+# ════════════════════════════════ 检测算法 ════════════════════════════════
 
 
 def smooth(p, k=5):
@@ -88,8 +112,8 @@ def detect_wells(g):
 	roi = g[y0:y1, x0:x1]
 	gx = np.abs(np.diff(roi, axis=1)).sum(axis=0)
 	gy = np.abs(np.diff(roi, axis=0)).sum(axis=1)
-	cols = fit_lattice(gx, EXPECT_COLS, (105, 130), (130, 150))
-	rows = fit_lattice(gy, EXPECT_ROWS, (105, 130), (130, 150))
+	cols = fit_lattice(gx, EXPECT_COLS, WELL_W_RANGE, WELL_P_RANGE)
+	rows = fit_lattice(gy, EXPECT_ROWS, WELL_W_RANGE, WELL_P_RANGE)
 	return [[x0 + cx, y0 + ry, cw, rh] for (ry, rh) in rows for (cx, cw) in cols]
 
 
@@ -121,8 +145,22 @@ def page_zones(page):
 	return out
 
 
-def make_clean_plate(im, wells, out_path):
-	"""铲除画死的静态标签 banner：用同条带干净背衬纹理隔块镜像平铺修补。"""
+def extract_layout(im):
+	"""纯检测：从 RGB 图算出 (wells, tabs, page, zones)，不落盘。"""
+	arr = np.asarray(im)
+	g = arr.mean(axis=2)
+	wells = detect_wells(g)
+	tabs = derive_tabs(wells)
+	page = detect_page(arr)
+	zones = page_zones(page)
+	return wells, tabs, page, zones
+
+
+# ════════════════════════════════ 产物生成 ════════════════════════════════
+
+
+def build_clean_plate(im, wells):
+	"""铲除画死的静态标签 banner：用同条带干净背衬纹理隔块镜像平铺修补，返回新图（不落盘）。"""
 	arr = np.asarray(im).copy()
 	y0, y1 = TAB_STRIP_Y
 	y1 = min(y1, min(w[1] for w in wells) - 4)
@@ -136,48 +174,78 @@ def make_clean_plate(im, wells, out_path):
 		arr[y0:y1, x:x + w] = (patch[:, ::-1] if flip else patch)[:, :w]
 		x += w
 		flip = not flip
-	Image.fromarray(arr).save(out_path)
-	return out_path
+	return Image.fromarray(arr)
 
 
-def main():
-	bg_path = sys.argv[1] if len(sys.argv) > 1 else "assets/ui/inventory/bg_inventory_field_ledger_v1.png"
-	im = Image.open(bg_path).convert("RGB")
-	arr = np.asarray(im)
-	g = arr.mean(axis=2)
-	out_dir = os.path.dirname(bg_path)
-
-	wells = detect_wells(g)
-	tabs = derive_tabs(wells)
-	page = detect_page(arr)
-	zones = page_zones(page)
-
-	clean_name = "bg_inventory_field_ledger_clean.png"
-	make_clean_plate(im, wells, os.path.join(out_dir, clean_name))
-
-	layout = dict(source=os.path.basename(bg_path), bg=clean_name,
-				  size=[im.width, im.height], wells=wells, tabs=tabs, page=page, zones=zones)
-	with open(os.path.join(out_dir, "layout.json"), "w", encoding="utf-8") as f:
-		json.dump(layout, f, ensure_ascii=False, indent=1)
-
-	dbg = Image.open(os.path.join(out_dir, clean_name)).convert("RGB")
+def build_debug_overlay(base_img, wells, tabs, page, zones):
+	"""在给定底图（一般为 clean-plate）上叠画检测框，返回新图（不落盘）。"""
+	dbg = base_img.convert("RGB").copy()
 	d = ImageDraw.Draw(dbg)
-	for i, (x, y, w, h) in enumerate(wells):
-		d.rectangle([x, y, x + w, y + h], outline=(0, 255, 0), width=2)
+	for (x, y, w, h) in wells:
+		d.rectangle([x, y, x + w, y + h], outline=DBG_WELL, width=2)
 	for i, cx in enumerate(tabs["centers"]):
 		tw = tabs["width"]
 		d.rectangle([cx - tw // 2, tabs["top"], cx + tw // 2, tabs["top"] + int(tw * 1.12)],
-					outline=(255, 80, 0), width=2)
+					outline=DBG_TAB, width=2)
 		d.text((cx - 6, tabs["top"] + 4), f"T{i}", fill=(255, 200, 0))
-	d.rectangle([page[0], page[1], page[0] + page[2], page[1] + page[3]], outline=(0, 160, 255), width=2)
+	d.rectangle([page[0], page[1], page[0] + page[2], page[1] + page[3]], outline=DBG_PAGE, width=2)
 	for name, (x, y, w, h) in zones.items():
-		d.rectangle([x, y, x + w, y + h], outline=(255, 0, 255), width=2)
-		d.text((x + 4, y + 4), name, fill=(255, 0, 255))
-	dbg.save(os.path.join(out_dir, "layout_debug.png"))
+		d.rectangle([x, y, x + w, y + h], outline=DBG_ZONE, width=2)
+		d.text((x + 4, y + 4), name, fill=DBG_ZONE)
+	return dbg
 
-	print(f"[ui-layout] wells={len(wells)} tabs={tabs['centers']} page={page}")
-	print(f"[ui-layout] zones={zones}")
-	print(f"[ui-layout] 写出 layout.json / {clean_name} / layout_debug.png")
+
+# ════════════════════════════════ CLI ════════════════════════════════
+
+
+def run(bg_path, out_dir=None, write_clean=True, write_debug=True, quiet=False):
+	"""检测 + 落盘，返回 layout dict。out_dir 默认 = 背景图所在目录。"""
+	if not os.path.isfile(bg_path):
+		raise SystemExit(f"[ui-layout] 错误：背景图不存在: {bg_path}")
+	try:
+		im = Image.open(bg_path).convert("RGB")
+	except Exception as e:  # noqa: BLE001 — 给出可读错误而非裸栈
+		raise SystemExit(f"[ui-layout] 错误：无法读取图片 {bg_path}: {e}")
+
+	out_dir = out_dir or os.path.dirname(bg_path) or "."
+	os.makedirs(out_dir, exist_ok=True)
+
+	wells, tabs, page, zones = extract_layout(im)
+
+	clean_img = build_clean_plate(im, wells)
+	if write_clean:
+		clean_img.save(os.path.join(out_dir, CLEAN_NAME))
+
+	layout = dict(source=os.path.basename(bg_path), bg=CLEAN_NAME,
+				  size=[im.width, im.height], wells=wells, tabs=tabs, page=page, zones=zones)
+	with open(os.path.join(out_dir, LAYOUT_NAME), "w", encoding="utf-8") as f:
+		json.dump(layout, f, ensure_ascii=False, indent=1)
+
+	if write_debug:
+		build_debug_overlay(clean_img, wells, tabs, page, zones).save(os.path.join(out_dir, DEBUG_NAME))
+
+	if not quiet:
+		outs = [LAYOUT_NAME] + ([CLEAN_NAME] if write_clean else []) + ([DEBUG_NAME] if write_debug else [])
+		print(f"[ui-layout] wells={len(wells)} tabs={tabs['centers']} page={page}")
+		print(f"[ui-layout] zones={zones}")
+		print(f"[ui-layout] 写出 {' / '.join(outs)} → {out_dir}")
+	return layout
+
+
+def parse_args(argv):
+	ap = argparse.ArgumentParser(
+		description="背包账簿底图 → 版式锚点数据层(layout.json) + clean-plate + debug 叠加图")
+	ap.add_argument("bg", nargs="?", default=DEFAULT_BG, help="背景图路径（默认 %(default)s）")
+	ap.add_argument("--out-dir", default=None, help="输出目录（默认 = 背景图所在目录）")
+	ap.add_argument("--no-clean", action="store_true", help="不重生成 clean-plate")
+	ap.add_argument("--no-debug", action="store_true", help="不生成 debug 叠加图")
+	ap.add_argument("--quiet", action="store_true", help="静默（不打印摘要）")
+	return ap.parse_args(argv)
+
+
+def main(argv=None):
+	a = parse_args(sys.argv[1:] if argv is None else argv)
+	run(a.bg, out_dir=a.out_dir, write_clean=not a.no_clean, write_debug=not a.no_debug, quiet=a.quiet)
 
 
 if __name__ == "__main__":
