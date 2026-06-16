@@ -359,8 +359,10 @@ func _refresh_detail() -> void:
 	var item: ItemData = slot.item
 	var count: int = slot.count
 	_build_detail_icon(item)
-	_build_detail_header(item)
-	_build_detail_body(item)
+	_build_detail_name(item)
+	_build_detail_tag(item)
+	_build_detail_stats(item)
+	_build_detail_desc(item)
 	if _state == UIState.ACTION_MENU:
 		_build_action_menu(item, count)
 	else:
@@ -369,7 +371,7 @@ func _refresh_detail() -> void:
 
 func _add_detail_empty_hint() -> void:
 	var hint := InventoryWidgets.make_empty_detail_hint()
-	_place_in_zone(hint, "body")
+	_place_in_zone(hint, "desc")
 	_detail_layer.add_child(hint)
 
 
@@ -387,60 +389,65 @@ func _build_detail_icon(item: ItemData) -> void:
 	_detail_layer.add_child(holder)
 
 
-## ④ 详情文字（标题区）：名称 + 分类章，置于 header 分区。
-func _build_detail_header(item: ItemData) -> void:
+## ② 物品名：名称置于 name 分区（横线之上，左对齐贴底，过长截断）。
+func _build_detail_name(item: ItemData) -> void:
+	var label := Label.new()
+	label.text = item.display_name if item != null else InventoryWidgets.STR_UNKNOWN_ITEM_NAME
+	label.add_theme_font_size_override("font_size", 24)
+	label.add_theme_color_override("font_color", InventoryWidgets.COL_INK)
+	label.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
+	label.vertical_alignment = VERTICAL_ALIGNMENT_BOTTOM
+	label.clip_text = true
+	label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_place_in_zone(label, "name")
+	_detail_layer.add_child(label)
+
+
+## ③ 物品标签：分类章置于 tag 名牌框内（居中）。
+func _build_detail_tag(item: ItemData) -> void:
+	if item == null:
+		return
+	var holder := CenterContainer.new()
+	holder.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_place_in_zone(holder, "tag")
+	var chip := Label.new()
+	chip.text = InventoryWidgets.get_category_name(item.category)
+	chip.add_theme_font_size_override("font_size", 15)
+	chip.add_theme_color_override("font_color", InventoryWidgets.COL_BONE)
+	chip.add_theme_constant_override("outline_size", 1)
+	chip.add_theme_stylebox_override("normal", InventoryWidgets.make_chip_style())
+	chip.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	holder.add_child(chip)
+	_detail_layer.add_child(holder)
+
+
+## ④ 状态介绍：数值条目（攻击/防御/恢复等）置于 stats 分区（两横线之间，左对齐列表）。
+func _build_detail_stats(item: ItemData) -> void:
+	if item == null:
+		return
 	var box := VBoxContainer.new()
-	box.add_theme_constant_override("separation", 6)
-	box.alignment = BoxContainer.ALIGNMENT_CENTER
+	box.add_theme_constant_override("separation", 4)
 	box.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_place_in_zone(box, "header")
-
-	var name_label := Label.new()
-	name_label.text = item.display_name if item != null else InventoryWidgets.STR_UNKNOWN_ITEM_NAME
-	name_label.add_theme_font_size_override("font_size", 26)
-	name_label.add_theme_color_override("font_color", InventoryWidgets.COL_INK)
-	name_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	name_label.autowrap_mode = TextServer.AUTOWRAP_WORD
-	name_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	box.add_child(name_label)
-
-	if item != null:
-		var chip_row := HBoxContainer.new()
-		chip_row.alignment = BoxContainer.ALIGNMENT_CENTER
-		chip_row.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		var chip := Label.new()
-		chip.text = InventoryWidgets.get_category_name(item.category)
-		chip.add_theme_font_size_override("font_size", 15)
-		chip.add_theme_color_override("font_color", InventoryWidgets.COL_BONE)
-		chip.add_theme_constant_override("outline_size", 1)
-		chip.add_theme_stylebox_override("normal", InventoryWidgets.make_chip_style())
-		chip_row.add_child(chip)
-		box.add_child(chip_row)
-
+	_place_in_zone(box, "stats")
+	for line in InventoryWidgets.get_stat_lines(item):
+		box.add_child(_make_stat_line(line))
 	_detail_layer.add_child(box)
 
 
-## ④ 详情文字（正文区）：数值条目 + 说明文字，置于 body 分区。
-func _build_detail_body(item: ItemData) -> void:
+## ⑤ 物品说明：描述/Lore 文本置于 desc 描述框内（左对齐自动换行）。
+func _build_detail_desc(item: ItemData) -> void:
 	var box := VBoxContainer.new()
-	box.add_theme_constant_override("separation", 8)
 	box.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_place_in_zone(box, "body")
-
-	if item != null:
-		for line in InventoryWidgets.get_stat_lines(item):
-			box.add_child(_make_stat_line(line))
-
+	_place_in_zone(box, "desc")
 	var desc := Label.new()
 	desc.text = item.description if item != null else InventoryWidgets.STR_UNKNOWN_ITEM_DESC
-	desc.add_theme_font_size_override("font_size", 17)
+	desc.add_theme_font_size_override("font_size", 16)
 	desc.add_theme_color_override("font_color", InventoryWidgets.COL_INK_LIGHT)
 	desc.add_theme_constant_override("line_spacing", 6)
 	desc.autowrap_mode = TextServer.AUTOWRAP_WORD
 	desc.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	desc.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	box.add_child(desc)
-
 	_detail_layer.add_child(box)
 
 
