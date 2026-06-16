@@ -10,8 +10,6 @@ const COMMAND_ATTACK: String = "attack"
 const COMMAND_SKILL: String = "skill"
 const COMMAND_FLEE: String = "flee"
 const COMMAND_ITEM: String = "item"
-const SKILL_TYPE_ATTACK: int = 0
-const SKILL_TYPE_HEAL: int = 1
 
 signal state_changed(new_state: MicroState)
 signal command_selected(command: String, skill)
@@ -115,10 +113,10 @@ func _execute_action() -> Dictionary:
 			if _pending_skill and _pending_target and not _pending_target.is_dead() and damage_calculator != null:
 				result.mp_cost = _pending_skill.mp_cost
 				_current_actor.consume_mp(result.mp_cost)
-				if _pending_skill.skill_type == SKILL_TYPE_ATTACK:
+				if _pending_skill.skill_type == SkillData.SkillType.ATTACK:
 					result.damage = damage_calculator.calc_skill(_current_actor, _pending_target, _pending_skill)
 					_pending_target.take_damage(result.damage)
-				elif _pending_skill.skill_type == SKILL_TYPE_HEAL:
+				elif _pending_skill.skill_type == SkillData.SkillType.HEAL:
 					result.heal = _pending_skill.power
 					_pending_target.heal(result.heal)
 		COMMAND_FLEE:

@@ -29,7 +29,6 @@ const COMMAND_ITEM: String = "item"
 const COMMAND_FLEE: String = "flee"
 const TARGET_GROUP_ENEMY: String = "enemy"
 const TARGET_GROUP_PARTY: String = "party"
-const SKILL_TYPE_ATTACK: int = 0
 const CONFIRM_KEY: Key = KEY_Z
 const CANCEL_KEY: Key = KEY_X
 const MENU_MODE_COMMAND: String = "command"
@@ -229,7 +228,7 @@ func _show_skill_menu() -> void:
 
 func _create_skill_action(skill) -> Callable:
 	return func() -> void:
-		var target_type := TARGET_GROUP_ENEMY if skill.skill_type == SKILL_TYPE_ATTACK else TARGET_GROUP_PARTY
+		var target_type := TARGET_GROUP_ENEMY if skill.skill_type == SkillData.SkillType.ATTACK else TARGET_GROUP_PARTY
 		_start_target_select(target_type, func(t): _turn_state_machine.select_command(COMMAND_SKILL, skill); _turn_state_machine.select_target(t))
 
 ## 物品二级选项：同技能，渲染在中央框内。缓解物按 §4.5 战斗内置灰。

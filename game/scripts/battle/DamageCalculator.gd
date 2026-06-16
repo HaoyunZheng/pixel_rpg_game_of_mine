@@ -1,9 +1,6 @@
 extends RefCounted
 ## 伤害计算器 — 确定性公式
 
-const DAMAGE_TYPE_PHYSICAL: int = 0
-const DAMAGE_TYPE_MAGIC: int = 1
-
 func calc_physical(attacker, target) -> int:
 	var raw: int = attacker.atk - target.def
 	# 力度倍率作用于"攻减防"净值后、下限前：完美 1.5× 放大净伤、失误 0.6× 缩小，
@@ -18,9 +15,9 @@ func calc_magic(attacker, target) -> int:
 func calc_skill(attacker, target, skill) -> int:
 	var base_atk: int = attacker.atk + skill.power
 	match skill.damage_type:
-		DAMAGE_TYPE_PHYSICAL:
+		SkillData.DamageType.PHYSICAL:
 			return maxi(1, base_atk - target.def)
-		DAMAGE_TYPE_MAGIC:
+		SkillData.DamageType.MAGIC:
 			return maxi(1, base_atk - target.def / 2)
 		_:
 			return maxi(1, base_atk - target.def)

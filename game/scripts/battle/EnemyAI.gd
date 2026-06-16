@@ -2,18 +2,15 @@ class_name EnemyAI
 extends RefCounted
 ## 敌人 AI — 签名行为（MVP 简化版）
 
-const AI_TYPE_HUNTER: int = 0
-const AI_TYPE_BURNER: int = 1
-const AI_TYPE_MUTANT: int = 2
 const COMMAND_ATTACK: String = "attack"
 
 static func decide_action(enemy, party_units: Array) -> Dictionary:
 	match enemy.ai_type:
-		AI_TYPE_HUNTER:
+		EnemyStats.AIType.HUNTER:
 			return _hunter_ai(enemy, party_units)
-		AI_TYPE_BURNER:
+		EnemyStats.AIType.BURNER:
 			return _burner_ai(enemy, party_units)
-		AI_TYPE_MUTANT:
+		EnemyStats.AIType.MUTANT:
 			return _mutant_ai(enemy, party_units)
 		_:
 			return _mutant_ai(enemy, party_units)
