@@ -16,6 +16,11 @@ func _ready() -> void:
 	_play_idle_for_facing()
 
 func _physics_process(_delta: float) -> void:
+	if DialogueManager.is_active():
+		velocity = Vector2.ZERO
+		move_and_slide()
+		return
+
 	var input := _get_movement_input()
 	var is_running := Input.is_action_pressed(&"run")
 	var speed := run_speed if is_running else walk_speed
