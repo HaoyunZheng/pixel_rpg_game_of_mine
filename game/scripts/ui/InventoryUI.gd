@@ -271,11 +271,16 @@ func _build_item_slot(slot: Dictionary, rect: Rect2) -> Control:
 	holder.add_child(overlay)
 
 	var icon_px: int = int(min(rect.size.x, rect.size.y) * 0.62)
+	# 用 CenterContainer 居中：容器按子节点最小尺寸逐帧居中，不依赖 PRESET_CENTER 的调用时机
+	# （preset 在节点入树前以 size=0 锚定左上角，会让图标向右下方溢出半格）。
+	var icon_center := CenterContainer.new()
+	icon_center.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	icon_center.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	var icon := InventoryWidgets.make_item_icon(item, icon_px)
-	icon.set_anchors_and_offsets_preset(Control.PRESET_CENTER)
 	if item != null and not item.usable:
 		icon.modulate.a = 0.5
-	holder.add_child(icon)
+	icon_center.add_child(icon)
+	holder.add_child(icon_center)
 
 	if item != null and item.category == ItemData.ItemCategory.CONSUMABLE:
 		var qty := Label.new()
@@ -374,11 +379,11 @@ func _build_detail_icon(item: ItemData) -> void:
 	var r: Rect2 = _zone("portrait")
 	var icon_px: int = int(min(r.size.x, r.size.y) * 0.7)
 	var icon := InventoryWidgets.make_item_icon(item, icon_px)
-	var holder := Control.new()
+	# 同 grid：CenterContainer 按子节点最小尺寸居中，替代时机敏感的 PRESET_CENTER。
+	var holder := CenterContainer.new()
 	holder.position = r.position
 	holder.size = r.size
 	holder.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	icon.set_anchors_and_offsets_preset(Control.PRESET_CENTER)
 	holder.add_child(icon)
 	_detail_layer.add_child(holder)
 
