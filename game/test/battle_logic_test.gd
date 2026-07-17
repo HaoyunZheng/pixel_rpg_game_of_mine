@@ -146,6 +146,7 @@ func _test_enemy_attack_patterns() -> void:
 	var target := _make_unit(0, 0, 5)
 	var enemy := _make_unit(10, 0, 5)
 	var hunter_patterns: Dictionary = {}
+	var burner_patterns: Dictionary = {}
 	var mutant_patterns: Dictionary = {}
 	var params_valid: bool = true
 	for _sample in range(80):
@@ -153,6 +154,10 @@ func _test_enemy_attack_patterns() -> void:
 		var hunter_intent: Dictionary = EnemyAI.decide_intent(enemy, [target])
 		hunter_patterns[hunter_intent.attack_pattern] = true
 		params_valid = params_valid and _attack_pattern_params_valid(hunter_intent)
+		enemy.ai_type = EnemyStats.AIType.BURNER
+		var burner_intent: Dictionary = EnemyAI.decide_intent(enemy, [target])
+		burner_patterns[burner_intent.attack_pattern] = true
+		params_valid = params_valid and _attack_pattern_params_valid(burner_intent)
 		enemy.ai_type = EnemyStats.AIType.MUTANT
 		var mutant_intent: Dictionary = EnemyAI.decide_intent(enemy, [target])
 		mutant_patterns[mutant_intent.attack_pattern] = true
@@ -160,6 +165,9 @@ func _test_enemy_attack_patterns() -> void:
 	_check("猎手随机覆盖两套固定攻击流程", hunter_patterns.size() == 2
 		and hunter_patterns.has(EnemyAI.PATTERN_HUNTER_LOCK_THRUST)
 		and hunter_patterns.has(EnemyAI.PATTERN_HUNTER_CROSS_THRUST))
+	_check("燃烬者随机覆盖两套固定区域攻击流程", burner_patterns.size() == 2
+		and burner_patterns.has(EnemyAI.PATTERN_BURNER_ERUPTION)
+		and burner_patterns.has(EnemyAI.PATTERN_BURNER_SCORCH_FIELD))
 	_check("变异体随机覆盖两套固定攻击流程", mutant_patterns.size() == 2
 		and mutant_patterns.has(EnemyAI.PATTERN_MUTANT_SWEEP)
 		and mutant_patterns.has(EnemyAI.PATTERN_MUTANT_CLEAVE))
@@ -173,7 +181,7 @@ func _attack_pattern_params_valid(intent: Dictionary) -> bool:
 				and params.telegraph >= 0.45 and params.telegraph <= 0.75 \
 				and params.active >= 0.16 and params.active <= 0.24 \
 				and params.gap >= 0.12 and params.gap <= 0.22 \
-				and params.width >= 22.0 and params.width <= 30.0 \
+				and params.width >= 42.0 and params.width <= 56.0 \
 				and params.aim_offset.length() <= 48.01
 		EnemyAI.PATTERN_HUNTER_CROSS_THRUST:
 			return params.hit_count == 2 \
@@ -181,21 +189,37 @@ func _attack_pattern_params_valid(intent: Dictionary) -> bool:
 				and params.stagger >= 0.16 and params.stagger <= 0.30 \
 				and params.telegraph >= 0.65 and params.telegraph <= 0.95 \
 				and params.active >= 0.25 and params.active <= 0.40 \
-				and params.width >= 18.0 and params.width <= 26.0
+				and params.width >= 38.0 and params.width <= 52.0
+		EnemyAI.PATTERN_BURNER_ERUPTION:
+			return params.hit_count in [2, 3] \
+				and params.telegraph >= 0.50 and params.telegraph <= 0.72 \
+				and params.active >= 0.28 and params.active <= 0.40 \
+				and params.gap >= 0.15 and params.gap <= 0.25 \
+				and params.radius >= 88.0 and params.radius <= 122.0 \
+				and params.aim_offset.length() <= 80.01 \
+				and params.rotation_degrees >= 95.0 and params.rotation_degrees <= 135.0
+		EnemyAI.PATTERN_BURNER_SCORCH_FIELD:
+			return params.hit_count == 2 and params.start_side in [-1, 1] \
+				and params.telegraph >= 0.70 and params.telegraph <= 0.95 \
+				and params.active >= 0.40 and params.active <= 0.58 \
+				and params.gap >= 0.18 and params.gap <= 0.28 \
+				and params.radius >= 180.0 and params.radius <= 240.0 \
+				and params.center_offset >= 90.0 and params.center_offset <= 140.0 \
+				and params.vertical_offset >= -48.0 and params.vertical_offset <= 48.0
 		EnemyAI.PATTERN_MUTANT_SWEEP:
 			return params.hit_count == 2 and params.clockwise is bool \
 				and params.telegraph >= 0.80 and params.telegraph <= 1.15 \
 				and params.active >= 0.50 and params.active <= 0.75 \
 				and params.gap >= 0.18 and params.gap <= 0.35 \
 				and params.arc_degrees >= 100.0 and params.arc_degrees <= 140.0 \
-				and params.width >= 56.0 and params.width <= 76.0
+				and params.width >= 72.0 and params.width <= 96.0
 		EnemyAI.PATTERN_MUTANT_CLEAVE:
 			return params.hit_count == 3 \
 				and params.offset_x >= -120.0 and params.offset_x <= 120.0 \
 				and params.telegraph >= 1.0 and params.telegraph <= 1.4 \
 				and params.active >= 0.25 and params.active <= 0.40 \
 				and params.aftershock_delay >= 0.18 and params.aftershock_delay <= 0.35 \
-				and params.width >= 64.0 and params.width <= 92.0 \
+				and params.width >= 84.0 and params.width <= 116.0 \
 				and params.aftershock_spacing >= 100.0 and params.aftershock_spacing <= 160.0
 		_:
 			return false
@@ -360,6 +384,33 @@ func _test_defense_action_field() -> void:
 	_check("Shift+方向走真实输入路径产生冲刺位移", dodge._reaction_started_at == 0.0
 		and dodge._player_position.x - dodge_position.x > TIMING_CHECK.MOVE_SPEED * 0.05)
 	dodge.queue_free()
+
+	var area := TIMING_CHECK.new()
+	add_child(area)
+	area.start(BattleUnit.Stance.ATTACK, Rect2(0, 0, 960, 540),
+		EnemyAI.PATTERN_BURNER_ERUPTION, {
+			"hit_count": 2, "telegraph": 0.5, "active": 0.3, "gap": 0.2,
+			"radius": 104.0, "aim_offset": Vector2.ZERO,
+		})
+	area.set_physics_process(false)
+	await get_tree().physics_frame
+	area._physics_process(0.52 * TIMING_CHECK.ACTION_DURATION_SCALE)
+	_check("区域攻击使用圆形物理遮罩并覆盖预警区域",
+		area._hazard_shape is CircleShape2D and not area._hit_results.is_empty()
+		and area._hit_results[0].contact)
+	area.queue_free()
+
+	var field := TIMING_CHECK.new()
+	add_child(field)
+	field.start(BattleUnit.Stance.ATTACK, Rect2(0, 0, 960, 540),
+		EnemyAI.PATTERN_BURNER_SCORCH_FIELD, {
+			"hit_count": 2, "radius": 210.0, "center_offset": 112.0,
+			"vertical_offset": 24.0, "start_side": -1,
+		})
+	_check("焦土围猎生成对侧双区域固定流程", field._stages.size() == 2
+		and float(field._stages[0].center.x) < field._player_position.x
+		and float(field._stages[1].center.x) > field._player_position.x)
+	field.queue_free()
 
 	var sweep := TIMING_CHECK.new()
 	add_child(sweep)

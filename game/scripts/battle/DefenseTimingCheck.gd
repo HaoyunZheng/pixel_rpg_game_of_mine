@@ -42,6 +42,8 @@ var _stage_start: Vector2 = Vector2.ZERO
 var _stage_end: Vector2 = Vector2.ZERO
 var _hazard_draw_from: Vector2 = Vector2.ZERO
 var _hazard_draw_to: Vector2 = Vector2.ZERO
+var _hazard_draw_center: Vector2 = Vector2.ZERO
+var _hazard_draw_radius: float = 0.0
 var _pattern_label: String = "直线突击"
 var _attack_color: Color = Color(1.0, 0.38, 0.22)
 var _feedback_text: String = ""
@@ -51,7 +53,10 @@ var _hit_stop_remaining: float = 0.0
 
 var _player_area: Area2D
 var _hazard_area: Area2D
-var _hazard_shape: RectangleShape2D
+var _hazard_shape: Shape2D
+var _hazard_shape_node: CollisionShape2D
+var _hazard_rect_shape: RectangleShape2D
+var _hazard_circle_shape: CircleShape2D
 var _trail_particles: GPUParticles2D
 var _impact_particles: GPUParticles2D
 
@@ -173,11 +178,14 @@ func _create_collision_areas() -> void:
 	_hazard_area = Area2D.new()
 	_hazard_area.collision_layer = 0
 	_hazard_area.collision_mask = 0
-	_hazard_shape = RectangleShape2D.new()
-	_hazard_shape.size = Vector2.ONE
-	var hazard_shape_node := CollisionShape2D.new()
-	hazard_shape_node.shape = _hazard_shape
-	_hazard_area.add_child(hazard_shape_node)
+	_hazard_rect_shape = RectangleShape2D.new()
+	_hazard_rect_shape.size = Vector2.ONE
+	_hazard_circle_shape = CircleShape2D.new()
+	_hazard_circle_shape.radius = 1.0
+	_hazard_shape = _hazard_rect_shape
+	_hazard_shape_node = CollisionShape2D.new()
+	_hazard_shape_node.shape = _hazard_shape
+	_hazard_area.add_child(_hazard_shape_node)
 	_hazard_area.position = Vector2(-10000.0, -10000.0)
 	add_child(_hazard_area)
 
@@ -185,7 +193,7 @@ func _build_stages(pattern_id: String, params: Dictionary) -> Array[Dictionary]:
 	var stages: Array[Dictionary] = []
 	var telegraph: float = float(params.get("telegraph", 0.75))
 	var active: float = float(params.get("active", 0.30))
-	var width: float = float(params.get("width", 28.0))
+	var width: float = float(params.get("width", 48.0))
 	match pattern_id:
 		EnemyAI.PATTERN_HUNTER_LOCK_THRUST:
 			for index in range(int(params.get("hit_count", 2))):
@@ -198,6 +206,32 @@ func _build_stages(pattern_id: String, params: Dictionary) -> Array[Dictionary]:
 				stages.append({"kind": "cross", "telegraph": telegraph, "active": active,
 					"gap": float(params.get("stagger", 0.22)), "width": width,
 					"angle": angle if index == 0 else -angle})
+		EnemyAI.PATTERN_BURNER_ERUPTION:
+			var aim_offset := Vector2(params.get("aim_offset", Vector2.ZERO))
+			var rotation_step := deg_to_rad(float(params.get("rotation_degrees", 115.0)))
+			var area_radius := minf(float(params.get("radius", 104.0)),
+				minf(_arena_rect.size.x, _arena_rect.size.y) * 0.46)
+			for index in range(int(params.get("hit_count", 2))):
+				var center := _player_position + aim_offset.rotated(rotation_step * index)
+				center = Vector2(clampf(center.x, _arena_rect.position.x + area_radius, _arena_rect.end.x - area_radius),
+					clampf(center.y, _arena_rect.position.y + area_radius, _arena_rect.end.y - area_radius))
+				stages.append({"kind": "area", "telegraph": telegraph, "active": active,
+					"gap": float(params.get("gap", 0.20)), "radius": area_radius,
+					"center": center})
+		EnemyAI.PATTERN_BURNER_SCORCH_FIELD:
+			var side: int = int(params.get("start_side", 1))
+			var center_offset: float = float(params.get("center_offset", 112.0))
+			var vertical_offset: float = float(params.get("vertical_offset", 0.0))
+			var area_radius := minf(float(params.get("radius", 210.0)),
+				minf(_arena_rect.size.x, _arena_rect.size.y) * 0.46)
+			for index in range(2):
+				var center := _player_position + Vector2(side * center_offset, vertical_offset * (1.0 if index == 0 else -1.0))
+				center = Vector2(clampf(center.x, _arena_rect.position.x + area_radius, _arena_rect.end.x - area_radius),
+					clampf(center.y, _arena_rect.position.y + area_radius, _arena_rect.end.y - area_radius))
+				stages.append({"kind": "area", "telegraph": telegraph, "active": active,
+					"gap": float(params.get("gap", 0.23)), "radius": area_radius,
+					"center": center})
+				side *= -1
 		EnemyAI.PATTERN_MUTANT_SWEEP:
 			var arc: float = deg_to_rad(float(params.get("arc_degrees", 120.0)))
 			var clockwise: bool = bool(params.get("clockwise", true))
@@ -245,6 +279,9 @@ func _prepare_stage() -> void:
 			_stage_start = _arena_rect.get_center()
 			var direction := Vector2.from_angle(float(stage.angle_from))
 			_stage_end = _stage_start + direction * _distance_to_arena_edge(_stage_start, direction)
+		"area":
+			_hazard_draw_center = Vector2(stage.center)
+			_hazard_draw_radius = float(stage.radius)
 	_hazard_area.position = Vector2(-10000.0, -10000.0)
 	_hazard_draw_from = _stage_start
 	_hazard_draw_to = _stage_end
@@ -279,11 +316,14 @@ func _update_active_hazard() -> void:
 	var progress: float = clampf(_phase_elapsed / _phase_duration(), 0.0, 1.0)
 	var previous_progress: float = _active_progress
 	_active_progress = progress
+	# ponytail: 同一 stage 参数驱动物理遮罩、绘制与粒子，避免三套配置漂移。
 	if stage.kind == "sweep":
 		var angle: float = lerpf(float(stage.angle_from), float(stage.angle_to), progress)
 		var direction := Vector2.from_angle(angle)
 		var radius: float = _distance_to_arena_edge(_arena_rect.get_center(), direction)
 		_set_hazard_segment(_arena_rect.get_center(), _arena_rect.get_center() + direction * radius, float(stage.width))
+	elif stage.kind == "area":
+		_set_hazard_circle(Vector2(stage.center), float(stage.radius))
 	else:
 		_set_hazard_segment(
 			_stage_start.lerp(_stage_end, previous_progress),
@@ -292,11 +332,25 @@ func _update_active_hazard() -> void:
 
 func _set_hazard_segment(from: Vector2, to: Vector2, width: float) -> void:
 	var delta: Vector2 = to - from
-	_hazard_shape.size = Vector2(maxf(width, delta.length() + width), width)
+	if _hazard_shape != _hazard_rect_shape:
+		_hazard_shape = _hazard_rect_shape
+		_hazard_shape_node.shape = _hazard_shape
+	_hazard_rect_shape.size = Vector2(maxf(width, delta.length() + width), width)
 	_hazard_area.position = (from + to) * 0.5
 	_hazard_area.rotation = delta.angle()
 	_hazard_draw_from = from
 	_hazard_draw_to = to
+
+func _set_hazard_circle(center: Vector2, radius: float) -> void:
+	if _hazard_shape != _hazard_circle_shape:
+		_hazard_shape = _hazard_circle_shape
+		_hazard_shape_node.shape = _hazard_shape
+	if not is_equal_approx(_hazard_circle_shape.radius, radius):
+		_hazard_circle_shape.radius = radius
+	_hazard_area.position = center
+	_hazard_area.rotation = 0.0
+	_hazard_draw_center = center
+	_hazard_draw_radius = radius
 
 func _distance_to_arena_edge(origin: Vector2, direction: Vector2) -> float:
 	var distance: float = INF
@@ -388,6 +442,12 @@ func _set_pattern_style(pattern_id: String) -> void:
 		EnemyAI.PATTERN_HUNTER_CROSS_THRUST:
 			_pattern_label = "猎手·交叉穿刺"
 			_attack_color = Color(0.62, 0.72, 1.0)
+		EnemyAI.PATTERN_BURNER_ERUPTION:
+			_pattern_label = "燃烬者·灼地连爆"
+			_attack_color = Color(1.0, 0.50, 0.12)
+		EnemyAI.PATTERN_BURNER_SCORCH_FIELD:
+			_pattern_label = "燃烬者·焦土围猎"
+			_attack_color = Color(1.0, 0.24, 0.10)
 		EnemyAI.PATTERN_MUTANT_SWEEP:
 			_pattern_label = "变异体·交替横扫"
 			_attack_color = Color(0.92, 0.30, 0.48)
@@ -463,12 +523,22 @@ func _create_particles() -> void:
 	add_child(_impact_particles)
 
 func _emit_attack_particles() -> void:
-	var delta: Vector2 = _stage_end - _stage_start
-	_trail_particles.position = (_stage_start + _stage_end) * 0.5
-	_trail_particles.rotation = delta.angle()
+	var stage: Dictionary = _stages[_stage_index]
 	_trail_particles.modulate = _attack_color
 	var material := _trail_particles.process_material as ParticleProcessMaterial
-	material.emission_box_extents = Vector3(delta.length() * 0.5, float(_stages[_stage_index].width) * 0.32, 1.0)
+	if stage.kind == "area":
+		_trail_particles.position = Vector2(stage.center)
+		_trail_particles.rotation = 0.0
+		material.emission_shape = ParticleProcessMaterial.EMISSION_SHAPE_SPHERE
+		material.emission_sphere_radius = float(stage.radius) * 0.78
+		material.direction = Vector3(0.0, -1.0, 0.0)
+	else:
+		var delta: Vector2 = _stage_end - _stage_start
+		_trail_particles.position = (_stage_start + _stage_end) * 0.5
+		_trail_particles.rotation = delta.angle()
+		material.emission_shape = ParticleProcessMaterial.EMISSION_SHAPE_BOX
+		material.emission_box_extents = Vector3(delta.length() * 0.5, float(stage.width) * 0.32, 1.0)
+		material.direction = Vector3(1.0, 0.0, 0.0)
 	_trail_particles.restart()
 	_trail_particles.emitting = true
 
@@ -506,9 +576,15 @@ func _draw() -> void:
 	draw_rect(_arena_rect, Color(0.72, 0.63, 0.42, 0.65), false, 3.0)
 	if _running and _stage_index < _stages.size():
 		var stage: Dictionary = _stages[_stage_index]
-		var width: float = float(_stages[_stage_index].width)
 		if _phase == Phase.TELEGRAPH:
-			if stage.kind == "sweep":
+			if stage.kind == "area":
+				var warning_progress: float = clampf(_phase_elapsed / _phase_duration(), 0.0, 1.0)
+				draw_circle(_hazard_draw_center, _hazard_draw_radius, Color(_attack_color, 0.12))
+				draw_arc(_hazard_draw_center, _hazard_draw_radius, 0.0, TAU, 64, Color(_attack_color, 0.82), 5.0, true)
+				draw_arc(_hazard_draw_center, lerpf(_hazard_draw_radius * 1.35, _hazard_draw_radius, warning_progress),
+					0.0, TAU, 64, Color(_attack_color.lightened(0.55), 0.85), 3.0, true)
+			elif stage.kind == "sweep":
+				var width: float = float(stage.width)
 				for index in range(9):
 					var angle: float = lerpf(float(stage.angle_from), float(stage.angle_to), float(index) / 8.0)
 					var direction := Vector2.from_angle(angle)
@@ -516,11 +592,20 @@ func _draw() -> void:
 					draw_line(_arena_rect.get_center(), _arena_rect.get_center() + direction * radius,
 						Color(_attack_color, 0.10), maxf(2.0, width * 0.16), true)
 			else:
+				var width: float = float(stage.width)
+				draw_line(_hazard_draw_from, _hazard_draw_to, Color(_attack_color, 0.13),
+					width + 8.0, true)
 				draw_dashed_line(_hazard_draw_from, _hazard_draw_to, Color(_attack_color, 0.50),
-					maxf(3.0, width * 0.34), 18.0, true)
+					maxf(3.0, width * 0.22), 18.0, true)
 		else:
-			draw_line(_hazard_draw_from, _hazard_draw_to, Color(_attack_color, 0.72), width + 8.0, true)
-			draw_line(_hazard_draw_from, _hazard_draw_to, _attack_color.lightened(0.55), maxf(3.0, width * 0.22), true)
+			if stage.kind == "area":
+				draw_circle(_hazard_draw_center, _hazard_draw_radius, Color(_attack_color, 0.52))
+				draw_arc(_hazard_draw_center, _hazard_draw_radius, 0.0, TAU, 64,
+					_attack_color.lightened(0.55), 7.0, true)
+			else:
+				var width: float = float(stage.width)
+				draw_line(_hazard_draw_from, _hazard_draw_to, Color(_attack_color, 0.72), width + 8.0, true)
+				draw_line(_hazard_draw_from, _hazard_draw_to, _attack_color.lightened(0.55), maxf(3.0, width * 0.22), true)
 	var font := ThemeDB.fallback_font
 	draw_string(font, _arena_rect.position + Vector2(16.0, 28.0),
 		"%s  %d/%d" % [_pattern_label, mini(_stage_index + 1, _stages.size()), _stages.size()],
