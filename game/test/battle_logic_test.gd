@@ -61,6 +61,7 @@ func _ready() -> void:
 	_test_battle_unit_clamp()
 	_test_stance_lifecycle()
 	_test_defense_timing_rules()
+	_test_attack_duration_scale()
 	await _test_defense_action_field()
 	await _test_enemy_damage_waits_for_timing()
 	_test_flee_turn_flow()
@@ -368,7 +369,7 @@ func _test_defense_action_field() -> void:
 		})
 	sweep.set_physics_process(false)
 	await get_tree().physics_frame
-	sweep._physics_process(1.3)
+	sweep._physics_process(1.3 * TIMING_CHECK.ACTION_DURATION_SCALE)
 	_check("横扫在大 delta 下仍命中经过的玩家", not sweep._hit_results.is_empty()
 		and sweep._hit_results[0].contact)
 	sweep.queue_free()
@@ -391,6 +392,25 @@ func _test_defense_action_field() -> void:
 	await get_tree().process_frame
 	_check("秒制动作场完整回传三段重劈结果", action_results.size() == 3
 		and action_results[0].contact)
+
+func _test_attack_duration_scale() -> void:
+	var timing := TIMING_CHECK.new()
+	add_child(timing)
+	timing.start(BattleUnit.Stance.ATTACK, Rect2(0, 0, 960, 540),
+		EnemyAI.PATTERN_FALLBACK_THRUST, {"telegraph": 0.8, "active": 0.4})
+	var stage: Dictionary = timing._stages[0]
+	var raw_total: float = float(stage.telegraph) + float(stage.active) + float(stage.gap)
+	var scaled_total: float = 0.0
+	for phase in [timing.Phase.TELEGRAPH, timing.Phase.ACTIVE, timing.Phase.GAP]:
+		timing._phase = phase
+		scaled_total += timing._phase_duration()
+	timing._phase = timing.Phase.ACTIVE
+	timing._phase_elapsed = timing._phase_duration() * 0.5
+	timing._update_active_hazard()
+	_check("攻击总演出延长至 1.5 倍且轨迹同步减速",
+		is_equal_approx(scaled_total, raw_total * 1.5)
+		and is_equal_approx(timing._active_progress, 0.5))
+	timing.free()
 
 func _test_enemy_damage_waits_for_timing() -> void:
 	var enemy := _make_unit(20, 0, 10)

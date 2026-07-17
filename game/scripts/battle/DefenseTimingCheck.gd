@@ -11,6 +11,8 @@ const PARRY_DURATION: float = 0.25
 const DODGE_DURATION: float = 0.20
 const PERFECT_DURATION: float = 0.05
 const HIT_INVULNERABILITY: float = 0.50
+# ponytail: 单一比例在统一相位入口缩放，避免逐攻击模板复制时长。
+const ACTION_DURATION_SCALE: float = 1.5
 # ponytail: 只限制碰撞采样距离；流程时长仍按秒累计，不依赖固定 tick。
 const MAX_ACTIVE_SUBSTEP_SECONDS: float = PLAYER_RADIUS / DASH_SPEED
 
@@ -235,9 +237,9 @@ func _prepare_stage() -> void:
 func _phase_duration() -> float:
 	var stage: Dictionary = _stages[_stage_index]
 	match _phase:
-		Phase.TELEGRAPH: return maxf(0.01, float(stage.telegraph))
-		Phase.ACTIVE: return maxf(0.01, float(stage.active))
-		_: return maxf(0.01, float(stage.gap))
+		Phase.TELEGRAPH: return maxf(0.01, float(stage.telegraph) * ACTION_DURATION_SCALE)
+		Phase.ACTIVE: return maxf(0.01, float(stage.active) * ACTION_DURATION_SCALE)
+		_: return maxf(0.01, float(stage.gap) * ACTION_DURATION_SCALE)
 
 func _advance_phase() -> void:
 	_phase_elapsed = 0.0
@@ -259,7 +261,7 @@ func _advance_phase() -> void:
 
 func _update_active_hazard() -> void:
 	var stage: Dictionary = _stages[_stage_index]
-	var progress: float = clampf(_phase_elapsed / maxf(0.01, float(stage.active)), 0.0, 1.0)
+	var progress: float = clampf(_phase_elapsed / _phase_duration(), 0.0, 1.0)
 	var previous_progress: float = _active_progress
 	_active_progress = progress
 	if stage.kind == "sweep":
