@@ -124,6 +124,9 @@ func get_enemy_intent(enemy: BattleUnit) -> Dictionary:
 	var intent: Dictionary = _enemy_intents.get(enemy, {})
 	return intent.duplicate(true)
 
+func run_timing_check(attacker: BattleUnit, target: BattleUnit, base_damage: int) -> int:
+	return await _battle_ui.run_timing_check(attacker, target, base_damage)
+
 func _on_turn_order_calculated(order: Array) -> void:
 	_turn_order = order.duplicate()
 	_turn_index = 0

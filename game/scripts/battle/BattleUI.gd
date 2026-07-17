@@ -33,6 +33,7 @@ const MENU_MODE_ITEM: String = "item"
 
 # ── 攻击力度转盘（纯代码自绘，攻击流中实例化叠加在中央框上）──
 const ATTACK_WHEEL_SCENE: PackedScene = preload("res://scenes/battle/AttackPowerWheel.tscn")
+const DEFENSE_TIMING_SCENE: PackedScene = preload("res://scenes/battle/DefenseTimingCheck.tscn")
 
 # 视觉常量（切片路径 / 配色 / 像素缩放）已抽到 BattleWidgets，本控制器仅引用所需配色。
 
@@ -60,6 +61,7 @@ var _enemy_anchor_by_unit: Dictionary = {}
 var _party_anchor_by_unit: Dictionary = {}
 var _menu_visible: bool = false
 var _wheel_active: bool = false   # 攻击转盘期间：BattleUI 自身 _input 让位给转盘
+var _timing_active: bool = false
 var _central_option_box: VBoxContainer = null   # ③ 中央框二级选项临时容器
 
 # ───────────────────────────────────────────── 生命周期 / 对外接口
@@ -98,6 +100,20 @@ func show_battle_result(victory: bool) -> void:
 	_clear_reticles()
 	_message_label.text = "战斗结束 — %s" % ("胜利！" if victory else "失败...")
 	_turn_label.text = ""
+
+func run_timing_check(attacker: BattleUnit, target: BattleUnit, _base_damage: int) -> int:
+	var timing := DEFENSE_TIMING_SCENE.instantiate()
+	add_child(timing)
+	_timing_active = true
+	_set_menu_visible(false)
+	var key_hint: String = "Z 防御" if target.pending_stance == BattleUnit.Stance.DEFEND else "Shift 闪避"
+	if target.pending_stance == BattleUnit.Stance.ATTACK:
+		key_hint = "攻击姿态：无法防御"
+	_message_label.text = "%s 攻击 %s｜%s" % [attacker.display_name, target.display_name, key_hint]
+	timing.start(target.pending_stance, _central_box.get_global_rect())
+	var input_tick: int = await timing.timing_resolved
+	_timing_active = false
+	return input_tick
 
 # ───────────────────────────────────────────── ① 顶部行动顺序条（pip）
 
@@ -451,6 +467,8 @@ func _input(event: InputEvent) -> void:
 		return
 	if _wheel_active:
 		return   # 转盘阶段：输入交给转盘自身处理（仅 Z 定格，X 不响应）
+	if _timing_active:
+		return
 	if _is_selecting_target:
 		_handle_target_input(event.keycode)
 	elif _menu_visible and not _menu_buttons.is_empty():

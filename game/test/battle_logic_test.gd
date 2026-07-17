@@ -8,12 +8,18 @@ extends Node
 
 var _fails: int = 0
 
+const TIMING_RULES := preload("res://scripts/battle/DefenseTimingRules.gd")
+const TIMING_CHECK := preload("res://scripts/battle/DefenseTimingCheck.gd")
+
 class FleeBattleController:
 	extends Node
+	signal timing_submitted(input_tick: int)
+
 	var party: Array = []
 	var enemies: Array = []
 	var intents: Dictionary = {}
 	var freeze_count: int = 0
+	var wait_for_timing: bool = false
 
 	func get_party_units() -> Array:
 		return party
@@ -32,6 +38,11 @@ class FleeBattleController:
 	func get_enemy_intent(enemy: BattleUnit) -> Dictionary:
 		return intents.get(enemy, {}).duplicate(true)
 
+	func run_timing_check(_attacker: BattleUnit, _target: BattleUnit, _base_damage: int) -> int:
+		if wait_for_timing:
+			return await timing_submitted
+		return -1
+
 func _ready() -> void:
 	_test_damage_calculator()
 	_test_enemy_ai_targeting()
@@ -39,6 +50,9 @@ func _ready() -> void:
 	_test_enemy_intent_execution()
 	_test_battle_unit_clamp()
 	_test_stance_lifecycle()
+	_test_defense_timing_rules()
+	_test_defense_timing_input()
+	await _test_enemy_damage_waits_for_timing()
 	_test_flee_turn_flow()
 	_test_inventory()
 	_test_equipment_battle_copy()
@@ -199,6 +213,111 @@ func _test_stance_lifecycle() -> void:
 	sm.start_turn(actor)
 	_check("下一次行动开始重置闪避姿态", actor.pending_stance == BattleUnit.Stance.ATTACK)
 	sm.free()
+
+func _test_defense_timing_rules() -> void:
+	_check("占位判定使用 60 Hz 逻辑 tick", Engine.physics_ticks_per_second == 60)
+	var boundary_cases: Array = [
+		[-1, TIMING_RULES.Outcome.FAILURE],
+		[44, TIMING_RULES.Outcome.FAILURE],
+		[45, TIMING_RULES.Outcome.SUCCESS],
+		[56, TIMING_RULES.Outcome.SUCCESS],
+		[57, TIMING_RULES.Outcome.PERFECT],
+		[60, TIMING_RULES.Outcome.PERFECT],
+		[61, TIMING_RULES.Outcome.FAILURE],
+	]
+	for test_case in boundary_cases:
+		var result: Dictionary = TIMING_RULES.evaluate(
+			BattleUnit.Stance.DEFEND, test_case[0], 10, 10, 100)
+		_check("判定窗口边界 tick %d" % test_case[0], result.outcome == test_case[1])
+
+	var defend_perfect: Dictionary = TIMING_RULES.evaluate(
+		BattleUnit.Stance.DEFEND, 57, 10, 5, 100)
+	var defend_success: Dictionary = TIMING_RULES.evaluate(
+		BattleUnit.Stance.DEFEND, 45, 4, 5, 100)
+	var defend_low_mp: Dictionary = TIMING_RULES.evaluate(
+		BattleUnit.Stance.DEFEND, 56, 10, 1, 100)
+	var defend_fail: Dictionary = TIMING_RULES.evaluate(
+		BattleUnit.Stance.DEFEND, 44, 10, 5, 100)
+	_check("完美防御零伤害零 MP", defend_perfect.damage == 0 and defend_perfect.mp_change == 0)
+	_check("普通防御向上取整并最多消耗 2 MP", defend_success.damage == 2 and defend_success.mp_change == -2)
+	_check("普通防御 MP 不足时只扣现有值", defend_low_mp.damage == 4 and defend_low_mp.mp_change == -1)
+	_check("防御失败承受完整伤害", defend_fail.damage == 10 and defend_fail.mp_change == 0)
+
+	var dodge_perfect: Dictionary = TIMING_RULES.evaluate(
+		BattleUnit.Stance.DODGE, 60, 10, 9, 10)
+	var dodge_success: Dictionary = TIMING_RULES.evaluate(
+		BattleUnit.Stance.DODGE, 45, 10, 0, 10)
+	var dodge_fail: Dictionary = TIMING_RULES.evaluate(
+		BattleUnit.Stance.DODGE, -1, 10, 0, 10)
+	_check("完美闪避零伤害且 MP 回复不越上限", dodge_perfect.damage == 0 and dodge_perfect.mp_change == 1)
+	_check("普通闪避零伤害不回复 MP", dodge_success.damage == 0 and dodge_success.mp_change == 0)
+	_check("闪避失败承受完整伤害", dodge_fail.damage == 10)
+
+	var repeated_target := _make_unit(0, 0, 5, 20)
+	repeated_target.mp = 3
+	repeated_target.max_mp = 100
+	for _hit in range(2):
+		var hit: Dictionary = TIMING_RULES.evaluate(
+			BattleUnit.Stance.DEFEND, 45, 4, repeated_target.mp, repeated_target.max_mp)
+		TIMING_RULES.apply(repeated_target, hit)
+	_check("连续受击逐次结算同一姿态", repeated_target.hp == 16 and repeated_target.mp == 0)
+
+func _test_defense_timing_input() -> void:
+	var timing := TIMING_CHECK.new()
+	add_child(timing)
+	timing.start(BattleUnit.Stance.DEFEND, Rect2(0, 0, 640, 240))
+	timing._tick = 44
+	_check("错误按键不锁定防御判定", not timing._record_input(KEY_SHIFT) and timing._input_tick == -1)
+	_check("首次正确按键锁定 tick", timing._record_input(KEY_Z) and timing._input_tick == 44)
+	timing._tick = 58
+	_check("锁定后不能重复输入重试", not timing._record_input(KEY_Z) and timing._input_tick == 44)
+	timing.free()
+
+	var dodge_timing := TIMING_CHECK.new()
+	add_child(dodge_timing)
+	dodge_timing.start(BattleUnit.Stance.DODGE, Rect2(0, 0, 640, 240))
+	dodge_timing._tick = 57
+	_check("闪避只接受 Shift", not dodge_timing._record_input(KEY_Z)
+		and dodge_timing._record_input(KEY_SHIFT) and dodge_timing._input_tick == 57)
+	dodge_timing.free()
+
+	var attack_timing := TIMING_CHECK.new()
+	add_child(attack_timing)
+	var resolved_ticks: Array = []
+	attack_timing.timing_resolved.connect(func(input_tick: int): resolved_ticks.append(input_tick))
+	attack_timing.start(BattleUnit.Stance.ATTACK, Rect2(0, 0, 640, 240))
+	for _tick in range(59):
+		attack_timing._physics_process(0.0)
+	_check("第 59 tick 前不结算", resolved_ticks.is_empty())
+	attack_timing._physics_process(0.0)
+	_check("第 60 tick 命中并结算", resolved_ticks == [-1])
+	attack_timing.free()
+
+func _test_enemy_damage_waits_for_timing() -> void:
+	var enemy := _make_unit(20, 0, 10)
+	enemy.is_player = false
+	var target := _make_unit(0, 5, 8, 30)
+	target.is_player = true
+	target.mp = 5
+	target.max_mp = 100
+	target.pending_stance = BattleUnit.Stance.DEFEND
+	var controller := FleeBattleController.new()
+	controller.party = [target]
+	controller.enemies = [enemy]
+	controller.wait_for_timing = true
+	controller.intents[enemy] = EnemyAI.decide_intent(enemy, [target])
+	add_child(controller)
+	var sm := TurnStateMachine.new()
+	sm.battle_controller = controller
+	sm.damage_calculator = DamageCalculator.new()
+	add_child(sm)
+	sm.start_turn(enemy)
+	_check("敌方伤害等待判定完成", target.hp == 30 and target.mp == 5)
+	controller.timing_submitted.emit(45)
+	await get_tree().process_frame
+	_check("判定完成后才应用伤害和 MP", target.hp == 25 and target.mp == 3)
+	sm.free()
+	controller.free()
 
 func _test_flee_turn_flow() -> void:
 	var fast_actor := _make_unit(0, 0, 13)

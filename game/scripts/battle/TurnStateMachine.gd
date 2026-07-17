@@ -6,6 +6,7 @@ extends Node
 enum MicroState { IDLE, COMMAND_SELECT, TARGET_SELECT, ACTION_EXECUTE, ACTION_RESOLVE }
 
 const ENEMY_AI_SCRIPT := preload("res://scripts/battle/EnemyAI.gd")
+const TIMING_RULES := preload("res://scripts/battle/DefenseTimingRules.gd")
 
 signal state_changed(new_state: MicroState)
 signal command_selected(command: String, skill)
@@ -98,7 +99,11 @@ func select_target(target: BattleUnit) -> void:
 
 func _on_action_execute() -> void:
 	Log.info("TurnState", "%s 执行行动: %s" % [_current_actor.display_name, _pending_command])
-	var result := _execute_action()
+	var result: Dictionary
+	if not _current_actor.is_player and _pending_command == BattleCommands.ATTACK:
+		result = await _execute_enemy_attack()
+	else:
+		result = _execute_action()
 	action_executed.emit(result)
 	if result.fled:
 		# 逃跑成功由战斗控制器立即切回野外；不能再进入结算并发出 turn_finished，
@@ -109,17 +114,7 @@ func _on_action_execute() -> void:
 
 func _execute_action() -> Dictionary:
 	var action_targets: Array = _get_action_targets()
-	var result := {
-		"actor": _current_actor,
-		"command": _pending_command,
-		"target": _pending_target,
-		"targets": action_targets,
-		"damage": 0,
-		"heal": 0,
-		"mp_cost": 0,
-		"fled": false,
-		"item": null,
-	}
+	var result: Dictionary = _new_action_result(action_targets)
 	match _pending_command:
 		BattleCommands.ATTACK:
 			if damage_calculator != null:
@@ -158,6 +153,37 @@ func _execute_action() -> Dictionary:
 							result.damage = _pending_item.effect_value
 							target.take_damage(result.damage)
 	return result
+
+func _execute_enemy_attack() -> Dictionary:
+	var action_targets: Array = _get_action_targets()
+	var result: Dictionary = _new_action_result(action_targets)
+	if damage_calculator == null:
+		return result
+	for target: BattleUnit in action_targets:
+		var base_damage: int = damage_calculator.calc_physical(_current_actor, target)
+		var input_tick: int = -1
+		if battle_controller != null and battle_controller.has_method("run_timing_check"):
+			input_tick = await battle_controller.run_timing_check(_current_actor, target, base_damage)
+		var timing_result: Dictionary = TIMING_RULES.evaluate(
+			target.pending_stance, input_tick, base_damage, target.mp, target.max_mp)
+		TIMING_RULES.apply(target, timing_result)
+		result.damage += timing_result.damage
+		result.timing_results.append(timing_result.merged({"target": target}))
+	return result
+
+func _new_action_result(action_targets: Array) -> Dictionary:
+	return {
+		"actor": _current_actor,
+		"command": _pending_command,
+		"target": _pending_target,
+		"targets": action_targets,
+		"damage": 0,
+		"heal": 0,
+		"mp_cost": 0,
+		"fled": false,
+		"item": null,
+		"timing_results": [],
+	}
 
 func _get_action_targets() -> Array:
 	var targets: Array = _pending_targets.duplicate()
