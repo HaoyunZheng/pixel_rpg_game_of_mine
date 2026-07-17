@@ -44,7 +44,7 @@ func has_status(effect_type: StatusEffect.Type) -> bool:
 			return true
 	return false
 
-static func from_party_member(member: Dictionary) -> BattleUnit:
+static func from_party_member(member: Dictionary, combat_bonuses: Dictionary = {}) -> BattleUnit:
 	var unit := BattleUnit.new()
 	unit.id = member.id
 	unit.display_name = member.display_name
@@ -52,8 +52,8 @@ static func from_party_member(member: Dictionary) -> BattleUnit:
 	unit.max_hp = member.max_hp
 	unit.mp = member.mp
 	unit.max_mp = member.max_mp
-	unit.atk = member.atk
-	unit.def = member.def
+	unit.atk = member.atk + int(combat_bonuses.get("atk", 0))
+	unit.def = member.def + int(combat_bonuses.get("def", 0))
 	unit.spd = member.spd
 	unit.is_player = true
 	unit.status_effects = member.status_effects.duplicate()

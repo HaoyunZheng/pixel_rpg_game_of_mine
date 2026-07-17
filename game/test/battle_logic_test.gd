@@ -13,6 +13,7 @@ func _ready() -> void:
 	_test_enemy_ai_targeting()
 	_test_battle_unit_clamp()
 	_test_inventory()
+	_test_equipment_battle_copy()
 	_test_inventory_pagination()
 	_test_inventory_detail_layout()
 	print("[test] 结果：%s" % ("全部通过 ✅" if _fails == 0 else "%d 项失败 ❌" % _fails))
@@ -170,6 +171,40 @@ func _test_inventory() -> void:
 	_check("超量丢弃仍不卸装", gd.equipment.weapon == weapon_b.id)
 	_check("成功丢弃已装备物品", gd.discard_item(weapon_b.id, 1) == true)
 	_check("成功丢弃先卸装并移除", gd.equipment.weapon.is_empty() and gd.get_item_count(weapon_b.id) == 0)
+
+func _test_equipment_battle_copy() -> void:
+	var gd: Node = get_node("/root/GameData")
+	gd.inventory.clear()
+	gd.equipment = {"weapon": "", "armor": "", "accessory": ""}
+	var weapon := ItemData.new()
+	weapon.id = "battle_copy_weapon"
+	weapon.category = ItemData.ItemCategory.WEAPON
+	weapon.attack_bonus = 5
+	var armor := ItemData.new()
+	armor.id = "battle_copy_armor"
+	armor.category = ItemData.ItemCategory.ARMOR
+	armor.defense_bonus = 3
+	gd.add_item(weapon)
+	gd.add_item(armor)
+	gd.equip_item(weapon.id)
+	gd.equip_item(armor.id)
+
+	var player: Dictionary = gd.party_members[0]
+	var companion: Dictionary = gd.party_members[1]
+	var base_player_atk: int = player.atk
+	var base_player_def: int = player.def
+	var bonuses: Dictionary = gd.get_equipment_bonuses()
+	var first_battle := BattleUnit.from_party_member(player, bonuses)
+	var second_battle := BattleUnit.from_party_member(player, bonuses)
+	var companion_battle := BattleUnit.from_party_member(companion)
+	_check("主角战斗副本叠加当前装备", first_battle.atk == base_player_atk + 5
+		and first_battle.def == base_player_def + 3)
+	_check("重复进入战斗不重复叠加", second_battle.atk == first_battle.atk
+		and second_battle.def == first_battle.def)
+	_check("装备加成不污染 GameData 基础值", player.atk == base_player_atk
+		and player.def == base_player_def)
+	_check("队友战斗副本不应用主角装备", companion_battle.atk == companion.atk
+		and companion_battle.def == companion.def)
 
 func _test_inventory_pagination() -> void:
 	var gd: Node = get_node("/root/GameData")

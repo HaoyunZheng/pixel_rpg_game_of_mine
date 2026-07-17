@@ -62,8 +62,11 @@ func _init_battle() -> void:
 	_turn_order.clear()
 	_inventory_snapshot = GameData.duplicate_inventory()
 	_party_units.clear()
-	for member in GameData.party_members:
-		_party_units.append(BATTLE_UNIT_SCRIPT.from_party_member(member))
+	var equipment_bonuses: Dictionary = GameData.get_equipment_bonuses()
+	for i in range(GameData.party_members.size()):
+		var combat_bonuses: Dictionary = equipment_bonuses if i == 0 else {}
+		_party_units.append(BATTLE_UNIT_SCRIPT.from_party_member(
+			GameData.party_members[i], combat_bonuses))
 
 	_enemy_units.clear()
 	for key in _enemy_keys:
