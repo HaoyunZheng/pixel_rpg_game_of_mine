@@ -1,6 +1,6 @@
 extends Node
 ## 战斗 / 背包 确定性逻辑单元测试（headless，无资产依赖）
-## 覆盖：DamageCalculator 公式、EnemyAI 选靶、BattleUnit 钳制、GameData 背包增删堆叠。
+## 覆盖：DamageCalculator 公式、EnemyAI 选靶、BattleUnit 钳制、GameData 背包/装备边界。
 ## 以场景方式运行（自动加载单例须先就绪，故不用 --script SceneTree）：
 ##   /Applications/Godot.app/Contents/MacOS/Godot --headless --path . \
 ##       res://test/battle_logic_test.tscn
@@ -102,11 +102,69 @@ func _test_inventory() -> void:
 	gd.add_item(item, 2)
 	gd.add_item(item, 3)
 	_check("add_item 同 id 堆叠 = 5", gd.get_item_count("test_potion") == 5)
+	_check("add_item 零数量返回 false", gd.add_item(item, 0) == false)
+	_check("add_item 负数量返回 false", gd.add_item(item, -2) == false)
+	_check("非法 add 不改数量", gd.get_item_count("test_potion") == 5)
 
 	_check("remove_item 足量返回 true", gd.remove_item("test_potion", 2) == true)
 	_check("remove 后剩余 = 3", gd.get_item_count("test_potion") == 3)
+	_check("remove_item 零数量返回 false", gd.remove_item("test_potion", 0) == false)
+	_check("remove_item 负数量返回 false", gd.remove_item("test_potion", -2) == false)
 	_check("remove_item 超量返回 false", gd.remove_item("test_potion", 99) == false)
 	_check("超量 remove 不改数量", gd.get_item_count("test_potion") == 3)
 
 	gd.remove_item("test_potion", 3)
 	_check("扣到 0 移除槽位", gd.get_item_count("test_potion") == 0)
+
+	var member: Dictionary = gd.party_members[0]
+	item.effect_type = ItemData.EffectType.HEAL_HP
+	item.effect_value = 20
+	item.usable = true
+	gd.add_item(item, 2)
+	member.hp = member.max_hp
+	_check("满 HP 时 can_use_item = false", gd.can_use_item(item.id) == false)
+	_check("满 HP 时 use_item = false", gd.use_item(item.id) == false)
+	_check("满 HP 不消耗物品", gd.get_item_count(item.id) == 2)
+	member.hp = member.max_hp - 10
+	_check("缺 HP 时 can_use_item = true", gd.can_use_item(item.id) == true)
+	_check("缺 HP 时 use_item = true", gd.use_item(item.id) == true)
+	_check("使用后恢复并消耗 1 个", member.hp == member.max_hp and gd.get_item_count(item.id) == 1)
+	item.effect_type = ItemData.EffectType.HEAL_MP
+	member.mp = member.max_mp
+	_check("满 MP 时 use_item = false", gd.use_item(item.id) == false)
+	_check("满 MP 不消耗物品", gd.get_item_count(item.id) == 1)
+	member.mp = member.max_mp - 10
+	_check("缺 MP 时 use_item = true", gd.use_item(item.id) == true)
+	_check("使用后恢复 MP 并消耗", member.mp == member.max_mp and gd.get_item_count(item.id) == 0)
+
+	var weapon_a := ItemData.new()
+	weapon_a.id = "test_weapon_a"
+	weapon_a.category = ItemData.ItemCategory.WEAPON
+	weapon_a.attack_bonus = 2
+	var weapon_b := ItemData.new()
+	weapon_b.id = "test_weapon_b"
+	weapon_b.category = ItemData.ItemCategory.WEAPON
+	weapon_b.attack_bonus = 5
+	var armor := ItemData.new()
+	armor.id = "test_armor"
+	armor.category = ItemData.ItemCategory.ARMOR
+	armor.defense_bonus = 3
+	gd.add_item(weapon_a)
+	gd.add_item(weapon_b)
+	gd.add_item(armor)
+	gd.equipment = {"weapon": "", "armor": "", "accessory": ""}
+	_check("装备第一把武器", gd.equip_item(weapon_a.id) == true)
+	_check("重复装备同一物品返回 false", gd.equip_item(weapon_a.id) == false)
+	_check("替换武器成功", gd.equip_item(weapon_b.id) == true and gd.equipment.weapon == weapon_b.id)
+	_check("替换装备不移除旧物品", gd.get_item_count(weapon_a.id) == 1)
+	_check("装备护甲成功", gd.equip_item(armor.id) == true)
+	_check("未知槽位无法卸下", gd.unequip_item("unknown") == false)
+	_check("空槽位无法卸下", gd.unequip_item("accessory") == false)
+	var bonuses: Dictionary = gd.get_equipment_bonuses()
+	_check("装备加成按当前三槽汇总", bonuses.atk == 5 and bonuses.def == 3)
+	_check("非法丢弃返回 false", gd.discard_item(weapon_b.id, 0) == false)
+	_check("失败丢弃不卸下装备", gd.equipment.weapon == weapon_b.id)
+	_check("超量丢弃返回 false", gd.discard_item(weapon_b.id, 2) == false)
+	_check("超量丢弃仍不卸装", gd.equipment.weapon == weapon_b.id)
+	_check("成功丢弃已装备物品", gd.discard_item(weapon_b.id, 1) == true)
+	_check("成功丢弃先卸装并移除", gd.equipment.weapon.is_empty() and gd.get_item_count(weapon_b.id) == 0)

@@ -23,7 +23,6 @@ const ACTION_MENU_ROW_HEIGHT: int = 30
 enum UIState { PREVIEW, ACTION_MENU, DISCARD_CONFIRM }
 
 # ── 节点引用 ──
-@onready var _mask: ColorRect = $Mask
 @onready var _stage: Control = $Stage
 @onready var _bg: TextureRect = $Stage/Background
 @onready var _layers: Control = $Stage/Layers
@@ -126,10 +125,10 @@ func _rect_of(arr) -> Rect2:
 	return Rect2(float(arr[0]), float(arr[1]), float(arr[2]), float(arr[3]))
 
 
-func _zone(name: String) -> Rect2:
+func _zone(zone_name: String) -> Rect2:
 	var zones: Dictionary = _layout.get("zones", {})
-	if zones.has(name):
-		return _rect_of(zones[name])
+	if zones.has(zone_name):
+		return _rect_of(zones[zone_name])
 	return Rect2()
 
 
@@ -513,7 +512,7 @@ func _build_menu_options(item: ItemData, _count: int) -> Array:
 		options.append({"label": InventoryWidgets.STR_ACTION_DISCARD, "action": "discard", "disabled": false})
 		return options
 	if item.usable:
-		options.append({"label": InventoryWidgets.STR_ACTION_USE, "action": "use", "disabled": false})
+		options.append({"label": InventoryWidgets.STR_ACTION_USE, "action": "use", "disabled": not GameData.can_use_item(item.id)})
 	if InventoryWidgets.is_equipment_category(item.category):
 		var equipped: bool = GameData.is_item_equipped(item.id)
 		options.append({
@@ -529,6 +528,11 @@ func _build_menu_options(item: ItemData, _count: int) -> Array:
 func _build_action_menu(item: ItemData, count: int) -> void:
 	_menu_options = _build_menu_options(item, count)
 	_menu_index = clampi(_menu_index, 0, _menu_options.size() - 1)
+	if _menu_options[_menu_index].disabled:
+		for i in range(_menu_options.size()):
+			if not _menu_options[i].disabled:
+				_menu_index = i
+				break
 
 	var menu_panel := PanelContainer.new()
 	menu_panel.add_theme_stylebox_override("panel", InventoryWidgets.make_action_menu_style())
@@ -770,8 +774,8 @@ func _move_focus(dx: int, dy: int) -> void:
 	var cols: int = InventoryWidgets.GRID_COLUMNS
 	var idx: int = _get_focus_index()
 	var col: int = idx % cols
-	var row: int = idx / cols
-	var row_count: int = (count - 1) / cols + 1
+	var row: int = floori(idx / float(cols))
+	var row_count: int = ceili(count / float(cols))
 
 	if dx != 0:
 		var new_col: int = col + dx
