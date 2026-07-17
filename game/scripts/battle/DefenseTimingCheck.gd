@@ -11,6 +11,8 @@ const PARRY_DURATION: float = 0.25
 const DODGE_DURATION: float = 0.20
 const PERFECT_DURATION: float = 0.05
 const HIT_INVULNERABILITY: float = 0.50
+# ponytail: 只限制碰撞采样距离；流程时长仍按秒累计，不依赖固定 tick。
+const MAX_ACTIVE_SUBSTEP_SECONDS: float = PLAYER_RADIUS / DASH_SPEED
 
 enum Phase { TELEGRAPH, ACTIVE, GAP }
 
@@ -87,13 +89,15 @@ func start(
 func _physics_process(delta: float) -> void:
 	if not _running:
 		return
-	_total_elapsed += delta
-	_move_player(delta)
 	var remaining: float = delta
 	while remaining > 0.0 and _running:
 		var duration: float = _phase_duration()
 		var step: float = minf(remaining, maxf(0.0, duration - _phase_elapsed))
+		if _phase == Phase.ACTIVE:
+			step = minf(step, MAX_ACTIVE_SUBSTEP_SECONDS)
 		_phase_elapsed += step
+		_total_elapsed += step
+		_move_player(step)
 		remaining -= step
 		if _phase == Phase.ACTIVE:
 			_update_active_hazard()

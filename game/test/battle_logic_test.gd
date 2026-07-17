@@ -359,6 +359,20 @@ func _test_defense_action_field() -> void:
 		and dodge._player_position.x - dodge_position.x > TIMING_CHECK.MOVE_SPEED * 0.05)
 	dodge.queue_free()
 
+	var sweep := TIMING_CHECK.new()
+	add_child(sweep)
+	sweep.start(BattleUnit.Stance.ATTACK, Rect2(0, 0, 960, 540),
+		EnemyAI.PATTERN_MUTANT_SWEEP, {
+			"hit_count": 2, "telegraph": 0.8, "active": 0.5, "gap": 0.2,
+			"arc_degrees": 140.0, "width": 56.0, "clockwise": true,
+		})
+	sweep.set_physics_process(false)
+	await get_tree().physics_frame
+	sweep._physics_process(1.3)
+	_check("横扫在大 delta 下仍命中经过的玩家", not sweep._hit_results.is_empty()
+		and sweep._hit_results[0].contact)
+	sweep.queue_free()
+
 	var timing := TIMING_CHECK.new()
 	add_child(timing)
 	var action_results: Array = []
