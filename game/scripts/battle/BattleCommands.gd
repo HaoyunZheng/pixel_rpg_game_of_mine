@@ -5,6 +5,8 @@ extends RefCounted
 ## 统一在此声明，避免同义字面量多源漂移。
 
 const ATTACK: String = "attack"
+const DEFEND: String = "defend"
+const DODGE: String = "dodge"
 const SKILL: String = "skill"
 const ITEM: String = "item"
 const FLEE: String = "flee"

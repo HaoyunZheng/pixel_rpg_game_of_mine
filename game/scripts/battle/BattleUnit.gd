@@ -2,6 +2,8 @@ class_name BattleUnit
 extends RefCounted
 ## 战斗中的单位 — 运行时状态包装
 
+enum Stance { ATTACK, DEFEND, DODGE }
+
 var id: String = ""
 var display_name: String = ""
 var is_player: bool = false
@@ -19,6 +21,8 @@ var stats_res: Resource = null
 ## 本次攻击的力度倍率（攻击转盘写入，DamageCalculator.calc_physical 末乘，结算后复位 1.0）。
 ## 不进 from_party_member / from_enemy_stats 持久拷贝——默认值即正确，非转盘路径恒为 1.0。
 var power_multiplier: float = 1.0
+## 仅存在于本场战斗：选择后持续到该单位下一次行动开始。
+var pending_stance: Stance = Stance.ATTACK
 
 func is_dead() -> bool:
 	return hp <= 0

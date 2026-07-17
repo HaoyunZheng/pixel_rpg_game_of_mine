@@ -22,6 +22,8 @@ var _pending_command: String = ""
 var _pending_skill: SkillData = null
 var _pending_item: ItemData = null
 var _pending_target: BattleUnit = null
+var _pending_targets: Array = []
+var _pending_target_mode: String = EnemyAI.TARGET_MODE_SINGLE
 
 func start_turn(actor: BattleUnit) -> void:
 	_current_actor = actor
@@ -29,7 +31,10 @@ func start_turn(actor: BattleUnit) -> void:
 	_pending_skill = null
 	_pending_item = null
 	_pending_target = null
+	_pending_targets.clear()
+	_pending_target_mode = EnemyAI.TARGET_MODE_SINGLE
 	actor.power_multiplier = 1.0   # 兜底复位力度倍率，防上一回合泄漏
+	actor.pending_stance = BattleUnit.Stance.ATTACK
 
 	if actor.has_status(StatusEffect.Type.STUN):
 		Log.info("TurnState", "%s 被眩晕，跳过回合" % actor.display_name)
@@ -61,8 +66,15 @@ func select_command(command: String, payload = null) -> void:
 	_pending_command = command
 	_pending_skill = payload if command == BattleCommands.SKILL else null
 	_pending_item = payload if command == BattleCommands.ITEM else null
+	match command:
+		BattleCommands.DEFEND:
+			_current_actor.pending_stance = BattleUnit.Stance.DEFEND
+		BattleCommands.DODGE:
+			_current_actor.pending_stance = BattleUnit.Stance.DODGE
+		BattleCommands.ATTACK:
+			_current_actor.pending_stance = BattleUnit.Stance.ATTACK
 	command_selected.emit(command, payload)
-	if command == BattleCommands.FLEE:
+	if command in [BattleCommands.FLEE, BattleCommands.DEFEND, BattleCommands.DODGE]:
 		_transition_to(MicroState.ACTION_EXECUTE)
 	else:
 		_transition_to(MicroState.TARGET_SELECT)
@@ -79,6 +91,8 @@ func select_target(target: BattleUnit) -> void:
 	if current_state != MicroState.TARGET_SELECT:
 		return
 	_pending_target = target
+	_pending_targets = [target]
+	_pending_target_mode = EnemyAI.TARGET_MODE_SINGLE
 	target_selected.emit(target)
 	_transition_to(MicroState.ACTION_EXECUTE)
 
@@ -94,10 +108,12 @@ func _on_action_execute() -> void:
 	_transition_to(MicroState.ACTION_RESOLVE)
 
 func _execute_action() -> Dictionary:
+	var action_targets: Array = _get_action_targets()
 	var result := {
 		"actor": _current_actor,
 		"command": _pending_command,
 		"target": _pending_target,
+		"targets": action_targets,
 		"damage": 0,
 		"heal": 0,
 		"mp_cost": 0,
@@ -106,37 +122,52 @@ func _execute_action() -> Dictionary:
 	}
 	match _pending_command:
 		BattleCommands.ATTACK:
-			if _pending_target and not _pending_target.is_dead() and damage_calculator != null:
-				result.damage = damage_calculator.calc_physical(_current_actor, _pending_target)
-				_pending_target.take_damage(result.damage)
+			if damage_calculator != null:
+				for target in action_targets:
+					var damage: int = damage_calculator.calc_physical(_current_actor, target)
+					target.take_damage(damage)
+					result.damage += damage
 			_current_actor.power_multiplier = 1.0   # 攻击结算后复位，防泄漏到该单位下次行动
 		BattleCommands.SKILL:
-			if _pending_skill and _pending_target and not _pending_target.is_dead() and damage_calculator != null:
+			if _pending_skill and not action_targets.is_empty() and damage_calculator != null:
 				result.mp_cost = _pending_skill.mp_cost
 				_current_actor.consume_mp(result.mp_cost)
-				if _pending_skill.skill_type == SkillData.SkillType.ATTACK:
-					result.damage = damage_calculator.calc_skill(_current_actor, _pending_target, _pending_skill)
-					_pending_target.take_damage(result.damage)
-				elif _pending_skill.skill_type == SkillData.SkillType.HEAL:
-					result.heal = _pending_skill.power
-					_pending_target.heal(result.heal)
+				for target in action_targets:
+					if _pending_skill.skill_type == SkillData.SkillType.ATTACK:
+						var damage: int = damage_calculator.calc_skill(_current_actor, target, _pending_skill)
+						target.take_damage(damage)
+						result.damage += damage
+					elif _pending_skill.skill_type == SkillData.SkillType.HEAL:
+						target.heal(_pending_skill.power)
+						result.heal += _pending_skill.power
 		BattleCommands.FLEE:
 			result.fled = _try_flee()
 		BattleCommands.ITEM:
-			if _pending_item != null and _pending_target and not _pending_target.is_dead():
+			if _pending_item != null and not action_targets.is_empty():
+				var target: BattleUnit = action_targets[0]
 				if GameData.remove_item(_pending_item.id, 1):
 					result.item = _pending_item
 					match _pending_item.effect_type:
 						ItemData.EffectType.HEAL_HP:
 							result.heal = _pending_item.effect_value
-							_pending_target.heal(result.heal)
+							target.heal(result.heal)
 						ItemData.EffectType.HEAL_MP:
 							result.heal = _pending_item.effect_value
-							_pending_target.restore_mp(result.heal)
+							target.restore_mp(result.heal)
 						ItemData.EffectType.DAMAGE:
 							result.damage = _pending_item.effect_value
-							_pending_target.take_damage(result.damage)
+							target.take_damage(result.damage)
 	return result
+
+func _get_action_targets() -> Array:
+	var targets: Array = _pending_targets.duplicate()
+	if targets.is_empty() and _pending_target != null:
+		targets.append(_pending_target)
+	if _pending_target_mode == EnemyAI.TARGET_MODE_ALL:
+		return targets.filter(func(target): return target != null and not target.is_dead())
+	if targets.is_empty() or targets[0] == null or targets[0].is_dead():
+		return []
+	return [targets[0]]
 
 func _try_flee() -> bool:
 	var controller := battle_controller
@@ -165,10 +196,16 @@ func _run_enemy_ai() -> void:
 	var party: Array = []
 	if battle_controller != null:
 		party = battle_controller.get_party_units()
-	var ai_result := ENEMY_AI_SCRIPT.decide_action(_current_actor, party)
-	_pending_command = ai_result.command
-	_pending_skill = ai_result.skill
-	_pending_target = ai_result.target
+	var intent: Dictionary = {}
+	if battle_controller != null and battle_controller.has_method("get_enemy_intent"):
+		intent = battle_controller.get_enemy_intent(_current_actor)
+	if intent.is_empty():
+		intent = ENEMY_AI_SCRIPT.decide_intent(_current_actor, party)
+	_pending_command = intent.get("command", BattleCommands.ATTACK)
+	_pending_skill = intent.get("skill", null)
+	_pending_target_mode = intent.get("target_mode", EnemyAI.TARGET_MODE_SINGLE)
+	_pending_targets = intent.get("targets", []).duplicate()
+	_pending_target = _pending_targets[0] if not _pending_targets.is_empty() else null
 	_transition_to(MicroState.ACTION_EXECUTE)
 
 func _resolve_stun(actor: BattleUnit) -> void:

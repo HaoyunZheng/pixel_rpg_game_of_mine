@@ -12,6 +12,8 @@ class FleeBattleController:
 	extends Node
 	var party: Array = []
 	var enemies: Array = []
+	var intents: Dictionary = {}
+	var freeze_count: int = 0
 
 	func get_party_units() -> Array:
 		return party
@@ -19,10 +21,24 @@ class FleeBattleController:
 	func get_enemy_units() -> Array:
 		return enemies
 
+	func get_all_units() -> Array:
+		var units: Array = party.duplicate()
+		units.append_array(enemies)
+		return units
+
+	func freeze_enemy_intents() -> void:
+		freeze_count += 1
+
+	func get_enemy_intent(enemy: BattleUnit) -> Dictionary:
+		return intents.get(enemy, {}).duplicate(true)
+
 func _ready() -> void:
 	_test_damage_calculator()
 	_test_enemy_ai_targeting()
+	_test_round_start_intents()
+	_test_enemy_intent_execution()
 	_test_battle_unit_clamp()
+	_test_stance_lifecycle()
 	_test_flee_turn_flow()
 	_test_inventory()
 	_test_equipment_battle_copy()
@@ -99,12 +115,90 @@ func _test_enemy_ai_targeting() -> void:
 	var res2 := EnemyAI.decide_action(enemy, [hi, lo])
 	_check("全灭时 target = null", res2.target == null)
 
+func _test_round_start_intents() -> void:
+	var controller := FleeBattleController.new()
+	add_child(controller)
+	var macro_sm := BattleStateMachine.new()
+	macro_sm.setup(controller)
+	add_child(macro_sm)
+	macro_sm.start_battle()
+	_check("RoundStart 每轮只冻结一次敌方意图", controller.freeze_count == 1)
+	macro_sm.request_next_turn()
+	_check("下一 RoundStart 重新冻结一次意图", controller.freeze_count == 2)
+	macro_sm.free()
+	controller.free()
+
+func _test_enemy_intent_execution() -> void:
+	var enemy := _make_unit(20, 0, 10)
+	enemy.is_player = false
+	enemy.ai_type = EnemyStats.AIType.HUNTER
+	var frozen_target := _make_unit(0, 5, 8, 10)
+	var other_target := _make_unit(0, 5, 7, 30)
+	var intent: Dictionary = EnemyAI.decide_intent(enemy, [other_target, frozen_target])
+	_check("敌方意图包含锁定字段", intent.actor == enemy
+		and intent.command == BattleCommands.ATTACK
+		and intent.target_side == EnemyAI.TARGET_SIDE_PARTY
+		and intent.target_mode == EnemyAI.TARGET_MODE_SINGLE
+		and intent.targets == [frozen_target])
+
+	# 冻结后即使血量条件变化，意图仍指向 RoundStart 选中的对象。
+	frozen_target.hp = 0
+	other_target.hp = 1
+	_check("冻结意图不随世界状态重选目标", intent.targets[0] == frozen_target)
+	var controller := FleeBattleController.new()
+	controller.party = [frozen_target, other_target]
+	controller.enemies = [enemy]
+	controller.intents[enemy] = intent
+	add_child(controller)
+	var micro_sm := TurnStateMachine.new()
+	micro_sm.battle_controller = controller
+	micro_sm.damage_calculator = DamageCalculator.new()
+	add_child(micro_sm)
+	var results: Array = []
+	micro_sm.action_executed.connect(func(result: Dictionary): results.append(result))
+	micro_sm.start_turn(enemy)
+	_check("失效单体目标不重定向", other_target.hp == 1 and results[0].targets.is_empty())
+
+	var living_target := _make_unit(0, 5, 6, 30)
+	var dead_target := _make_unit(0, 5, 5, 30)
+	dead_target.hp = 0
+	controller.party = [living_target, dead_target]
+	controller.intents[enemy] = {
+		"actor": enemy,
+		"command": BattleCommands.ATTACK,
+		"skill": null,
+		"target_side": EnemyAI.TARGET_SIDE_PARTY,
+		"target_mode": EnemyAI.TARGET_MODE_ALL,
+		"targets": [living_target, dead_target],
+	}
+	micro_sm.start_turn(enemy)
+	_check("全体行动只结算存活目标", living_target.hp == 15 and dead_target.hp == 0
+		and results[1].targets == [living_target])
+	micro_sm.free()
+	controller.free()
+
 func _test_battle_unit_clamp() -> void:
 	var u := _make_unit(0, 0, 5, 50)
 	u.take_damage(80)
 	_check("take_damage 不低于 0", u.hp == 0)
 	u.heal(999)
 	_check("heal 不超过 max_hp", u.hp == 50)
+
+func _test_stance_lifecycle() -> void:
+	var actor := _make_unit(0, 0, 10)
+	actor.is_player = true
+	var sm := TurnStateMachine.new()
+	add_child(sm)
+	sm.start_turn(actor)
+	sm.select_command(BattleCommands.DEFEND)
+	_check("选择防御后姿态持续", actor.pending_stance == BattleUnit.Stance.DEFEND)
+	sm.start_turn(actor)
+	_check("下一次行动开始重置防御姿态", actor.pending_stance == BattleUnit.Stance.ATTACK)
+	sm.select_command(BattleCommands.DODGE)
+	_check("选择闪避后姿态持续", actor.pending_stance == BattleUnit.Stance.DODGE)
+	sm.start_turn(actor)
+	_check("下一次行动开始重置闪避姿态", actor.pending_stance == BattleUnit.Stance.ATTACK)
+	sm.free()
 
 func _test_flee_turn_flow() -> void:
 	var fast_actor := _make_unit(0, 0, 13)

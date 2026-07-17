@@ -2,6 +2,26 @@ class_name EnemyAI
 extends RefCounted
 ## 敌人 AI — 签名行为（MVP 简化版）
 
+const TARGET_SIDE_PARTY: String = "party"
+const TARGET_SIDE_ENEMY: String = "enemy"
+const TARGET_MODE_SINGLE: String = "single"
+const TARGET_MODE_ALL: String = "all"
+
+## 将 AI 本轮决策固化为轻量 Dictionary。调用者在 RoundStart 保存该字典，
+## 敌人实际行动时只读取，不重新选靶。
+static func decide_intent(enemy: BattleUnit, party_units: Array) -> Dictionary:
+	var action: Dictionary = decide_action(enemy, party_units)
+	var target: BattleUnit = action.get("target", null)
+	var targets: Array = [target] if target != null else []
+	return {
+		"actor": enemy,
+		"command": action.get("command", BattleCommands.ATTACK),
+		"skill": action.get("skill", null),
+		"target_side": TARGET_SIDE_PARTY,
+		"target_mode": TARGET_MODE_SINGLE,
+		"targets": targets,
+	}
+
 static func decide_action(enemy: BattleUnit, party_units: Array) -> Dictionary:
 	match enemy.ai_type:
 		EnemyStats.AIType.HUNTER:

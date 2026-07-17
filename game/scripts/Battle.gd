@@ -27,6 +27,7 @@ var _turn_index: int = 0
 var _current_actor: BattleUnit = null
 var _enemy_key: String = DEFAULT_ENEMY_KEY   # 遭遇标识（用于胜利后标记野外敌人已击败）
 var _enemy_keys: Array[String] = []          # 本场敌方阵容 key 列表（1~N 体）
+var _enemy_intents: Dictionary = {}
 var _battle_started: bool = false
 var _battle_exiting: bool = false
 # §B.2 战斗数据隔离：开战时快照背包，失败时回滚物品消耗
@@ -71,6 +72,7 @@ func _init_battle() -> void:
 			GameData.party_members[i], combat_bonuses))
 
 	_enemy_units.clear()
+	_enemy_intents.clear()
 	for key in _enemy_keys:
 		var enemy_stats = _lookup_enemy_stats(key)
 		if enemy_stats:
@@ -109,6 +111,18 @@ func get_party_units() -> Array:
 
 func get_enemy_units() -> Array:
 	return _enemy_units
+
+func freeze_enemy_intents() -> void:
+	_enemy_intents.clear()
+	for enemy in _enemy_units:
+		if enemy.is_dead():
+			continue
+		_enemy_intents[enemy] = EnemyAI.decide_intent(enemy, _party_units)
+	Log.info("Battle", "本轮敌方意图已冻结: %d" % _enemy_intents.size())
+
+func get_enemy_intent(enemy: BattleUnit) -> Dictionary:
+	var intent: Dictionary = _enemy_intents.get(enemy, {})
+	return intent.duplicate(true)
 
 func _on_turn_order_calculated(order: Array) -> void:
 	_turn_order = order.duplicate()
