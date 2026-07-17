@@ -13,6 +13,18 @@ context.txt
 .ccgs/
 # Superpowers 外部工具库（obra/superpowers 的克隆，不纳入本仓库）
 superpowers/
+# 本轮三系统规格：只纳入明确列出的基线/规格，继续忽略其它 superpowers 工具文件。
+!game/docs/superpowers/
+game/docs/superpowers/*
+!game/docs/superpowers/plans/
+game/docs/superpowers/plans/*
+!game/docs/superpowers/plans/2026-07-17-three-systems-baseline.md
+!game/docs/superpowers/specs/
+game/docs/superpowers/specs/*
+!game/docs/superpowers/specs/2026-06-18-dialogic-migration-design.md
+!game/docs/superpowers/specs/星辰之烬纪元_战斗系统文档.md
+!game/docs/superpowers/specs/星辰之烬纪元_对话系统文档.md
+!game/docs/superpowers/specs/星辰之烬纪元_通用文档.md
 # game 子项目原 .git 的本地备份（不纳入本仓库）
 game/.git.bak/
 # 框架运行时产物
