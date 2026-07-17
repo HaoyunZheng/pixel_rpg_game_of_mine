@@ -18,6 +18,7 @@ extends Control
 @onready var _message_label: Label = $CentralBox/MessageLabel        # ③ 框内单条战况文字
 @onready var _command_bar: Control = $CommandBar                     # ④ 命令栏（四格各自带框，不再用整条底板）
 @onready var _command_cells: HBoxContainer = $CommandBar/CommandCells # ④ 四格固定命令
+@onready var _party_panel: NinePatchRect = $PartyPanel
 @onready var _party_container: VBoxContainer = $PartyPanel/PartyContainer # ⑤ 左下我方状态列
 @onready var _reticle_layer: Control = $ReticleLayer                 # ⑥ 准星 / 锁敌层
 @onready var _turn_label: Label = $TurnLabel
@@ -28,8 +29,13 @@ const TARGET_GROUP_PARTY: String = "party"
 const CONFIRM_KEY: Key = KEY_Z
 const CANCEL_KEY: Key = KEY_X
 const MENU_MODE_COMMAND: String = "command"
+const MENU_MODE_ACTION: String = "action"
 const MENU_MODE_SKILL: String = "skill"
 const MENU_MODE_ITEM: String = "item"
+const TIMING_TWEEN_SECONDS: float = 0.3
+const TIMING_MARGIN_LEFT_RIGHT: float = 24.0
+const TIMING_MARGIN_TOP: float = 112.0
+const TIMING_MARGIN_BOTTOM: float = 156.0
 
 # ── 攻击力度转盘（纯代码自绘，攻击流中实例化叠加在中央框上）──
 const ATTACK_WHEEL_SCENE: PackedScene = preload("res://scenes/battle/AttackPowerWheel.tscn")
@@ -63,6 +69,12 @@ var _menu_visible: bool = false
 var _wheel_active: bool = false   # 攻击转盘期间：BattleUI 自身 _input 让位给转盘
 var _timing_active: bool = false
 var _central_option_box: VBoxContainer = null   # ③ 中央框二级选项临时容器
+var _enemy_intents: Dictionary = {}
+var _timing_normal_rect: Rect2 = Rect2()
+var _timing_overlay: Control = null
+var _timing_result_label: Label = null
+var _timing_tween: Tween = null
+var _intent_refresh_pending: bool = false
 
 # ───────────────────────────────────────────── 生命周期 / 对外接口
 
@@ -84,11 +96,11 @@ func show_actor_turn(actor) -> void:
 	_current_actor = actor
 	_turn_label.text = "✦ 轮到 %s" % actor.display_name
 	_is_selecting_target = false
-	_clear_reticles()
+	_clear_target_reticles()
 	_rebuild_turn_order_bar(actor)
 	if actor.is_player and not actor.is_dead():
 		_build_command_menu()
-		_message_label.text = "✦ %s 行动了——请选择指令。" % actor.display_name
+		_message_label.text = _actor_turn_message(actor)
 	else:
 		_clear_menu_highlight()
 		_set_menu_visible(false)
@@ -97,23 +109,39 @@ func show_actor_turn(actor) -> void:
 func show_battle_result(victory: bool) -> void:
 	_clear_menu_highlight()
 	_set_menu_visible(false)
-	_clear_reticles()
+	_clear_all_reticles()
 	_message_label.text = "战斗结束 — %s" % ("胜利！" if victory else "失败...")
 	_turn_label.text = ""
 
 func run_timing_check(attacker: BattleUnit, target: BattleUnit, _base_damage: int) -> int:
-	var timing := DEFENSE_TIMING_SCENE.instantiate()
-	add_child(timing)
 	_timing_active = true
 	_set_menu_visible(false)
+	_clear_target_reticles()
+	_timing_normal_rect = Rect2(_central_box.position, _central_box.size)
+	await _set_timing_layout(true)
+	_build_timing_overlay(attacker, target)
+	var timing := DEFENSE_TIMING_SCENE.instantiate()
+	add_child(timing)
 	var key_hint: String = "Z 防御" if target.pending_stance == BattleUnit.Stance.DEFEND else "Shift 闪避"
 	if target.pending_stance == BattleUnit.Stance.ATTACK:
 		key_hint = "攻击姿态：无法防御"
-	_message_label.text = "%s 攻击 %s｜%s" % [attacker.display_name, target.display_name, key_hint]
+	_timing_result_label.text = "%s 攻击 %s｜%s" % [attacker.display_name, target.display_name, key_hint]
 	timing.start(target.pending_stance, _central_box.get_global_rect())
 	var input_tick: int = await timing.timing_resolved
-	_timing_active = false
 	return input_tick
+
+func finish_timing_check(target: BattleUnit, timing_result: Dictionary) -> void:
+	if is_instance_valid(_timing_result_label):
+		_timing_result_label.text = _format_timing_result(target, timing_result)
+	_refresh_display()
+	await _set_timing_layout(false)
+	_clear_timing_overlay()
+	_message_label.visible = true
+	_timing_active = false
+
+func show_enemy_intents(intents: Dictionary) -> void:
+	_enemy_intents = intents.duplicate(true)
+	_schedule_intent_marker_refresh()
 
 # ───────────────────────────────────────────── ① 顶部行动顺序条（pip）
 
@@ -147,6 +175,7 @@ func _refresh_display() -> void:
 		child.queue_free()
 	for member in _party_units:
 		_party_container.add_child(BattleWidgets.make_unit_card(member, true))
+	_schedule_intent_marker_refresh()
 
 # ───────────────────────────────────────────── ④ 命令栏四格（固定）
 
@@ -176,7 +205,7 @@ func _build_command_menu() -> void:
 	# _menu_buttons 直接复用四个命令格 Label，行动绑定到旧的指令分发。
 	var cells: Array = _command_cells.get_children()
 	var actions: Array = [
-		func(): _on_cmd_pressed("攻击"),   # 行动 → 攻击（Demo：行动一级即进攻击目标选择）
+		_show_action_menu,
 		func(): _on_cmd_pressed("技能"),
 		func(): _on_cmd_pressed("物品"),
 		func(): _on_cmd_pressed("逃跑"),
@@ -186,6 +215,16 @@ func _build_command_menu() -> void:
 		_menu_actions.append(actions[i])
 		_menu_disabled.append(i == CMD_ITEM_INDEX and not _has_battle_usable_items())
 		_menu_labels.append(CMD_LABELS[i])
+	_select_menu_index(0)
+
+func _show_action_menu() -> void:
+	_menu_mode = MENU_MODE_ACTION
+	_clear_menu_highlight()
+	_render_central_options_header("✦ 选择姿态（Z确认 / X返回）")
+	_add_central_option("攻击", func(): _on_cmd_pressed("攻击"), false)
+	_add_central_option("防御", func(): _turn_state_machine.select_command(BattleCommands.DEFEND), false)
+	_add_central_option("闪避", func(): _turn_state_machine.select_command(BattleCommands.DODGE), false)
+	_add_central_option("返回", _build_command_menu, false)
 	_select_menu_index(0)
 
 func _on_cmd_pressed(cmd: String) -> void:
@@ -275,6 +314,7 @@ func _render_central_options_header(header: String) -> void:
 	# 用一个临时 VBox 覆盖在 MessageLabel 上呈现选项列表。
 	_clear_central_options()
 	_message_label.text = header
+	_message_label.vertical_alignment = VERTICAL_ALIGNMENT_TOP
 	_central_option_box = VBoxContainer.new()
 	_central_option_box.set_anchors_and_offsets_preset(Control.PRESET_CENTER_BOTTOM)
 	_central_option_box.anchor_top = 0.35
@@ -303,6 +343,7 @@ func _clear_central_options() -> void:
 	if _central_option_box != null and is_instance_valid(_central_option_box):
 		_central_option_box.queue_free()
 	_central_option_box = null
+	_message_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 
 # ───────────────────────────────────────────── 菜单高亮 / 激活（沿用旧机制）
 
@@ -407,7 +448,7 @@ func _pick_selected_target() -> void:
 	var target = _valid_targets[_selected_target_index]
 	_is_selecting_target = false
 	_valid_targets.clear()
-	_clear_reticles()
+	_clear_target_reticles()
 	_message_label.text = ""
 	if _on_target_picked.is_valid():
 		_on_target_picked.call(target)
@@ -415,20 +456,24 @@ func _pick_selected_target() -> void:
 func _cancel_target_select() -> void:
 	_is_selecting_target = false
 	_valid_targets.clear()
-	_clear_reticles()
+	_clear_target_reticles()
+	if _turn_state_machine != null:
+		_turn_state_machine.cancel_command()
 	if _menu_mode == MENU_MODE_SKILL:
 		_show_skill_menu()
 	elif _menu_mode == MENU_MODE_ITEM:
 		_show_item_menu()
+	elif _menu_mode == MENU_MODE_ACTION:
+		_show_action_menu()
 	else:
 		_build_command_menu()
-		_message_label.text = "✦ %s 行动了——请选择指令。" % _current_actor.display_name
+		_message_label.text = _actor_turn_message(_current_actor)
 
 # ───────────────────────────────────────────── ⑥ 准星 / 锁敌标记层
 
 ## 我锁敌：金色准星浮于当前合法敌方目标头像上方。
 func _update_target_reticle() -> void:
-	_clear_reticles()
+	_clear_target_reticles()
 	if _valid_targets.is_empty():
 		return
 	var target = _valid_targets[_selected_target_index]
@@ -437,16 +482,163 @@ func _update_target_reticle() -> void:
 		return
 	var tex: Texture2D = BattleWidgets.load_tex(BattleWidgets.TEX_RETICLE)
 	var marker := BattleWidgets.make_overlay_marker(tex, 16, BattleWidgets.COL_GOLD)
+	marker.set_meta("target_marker", true)
 	_reticle_layer.add_child(marker)
 	# 浮于头像上方居中
 	var center := _avatar_screen_center(anchor)
 	marker.position = center - marker.custom_minimum_size * 0.5 - Vector2(0, anchor.size.y * 0.6)
 
-func _clear_reticles() -> void:
+func _clear_target_reticles() -> void:
+	if not is_instance_valid(_reticle_layer):
+		return
+	for child in _reticle_layer.get_children():
+		if child.has_meta("target_marker"):
+			child.queue_free()
+
+func _clear_intent_markers() -> void:
+	if not is_instance_valid(_reticle_layer):
+		return
+	for child in _reticle_layer.get_children():
+		if child.has_meta("intent_marker"):
+			child.queue_free()
+
+func _clear_all_reticles() -> void:
 	if not is_instance_valid(_reticle_layer):
 		return
 	for child in _reticle_layer.get_children():
 		child.queue_free()
+
+func _schedule_intent_marker_refresh() -> void:
+	if _intent_refresh_pending:
+		return
+	_intent_refresh_pending = true
+	call_deferred("_update_intent_markers_after_layout")
+
+func _update_intent_markers_after_layout() -> void:
+	await get_tree().process_frame
+	_intent_refresh_pending = false
+	_clear_intent_markers()
+	for member in _party_units:
+		var lock_count: int = _intent_count_for(member)
+		if lock_count <= 0 or member.is_dead():
+			continue
+		var avatar: Control = _find_avatar_for_unit(member)
+		if avatar == null:
+			continue
+		var marker := Panel.new()
+		marker.set_meta("intent_marker", true)
+		marker.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		marker.size = avatar.size + Vector2(16, 16)
+		marker.position = _avatar_screen_center(avatar) - marker.size * 0.5
+		var outline := StyleBoxFlat.new()
+		outline.bg_color = Color(0, 0, 0, 0)
+		outline.border_color = BattleWidgets.COL_ENEMY
+		outline.set_border_width_all(4)
+		marker.add_theme_stylebox_override("panel", outline)
+		var label := Label.new()
+		label.text = "锁定 ×%d" % lock_count
+		label.position = Vector2(-12, -34)
+		label.size = Vector2(marker.size.x + 24, 30)
+		label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		label.add_theme_font_size_override("font_size", 18)
+		label.add_theme_color_override("font_color", BattleWidgets.COL_ENEMY.lightened(0.25))
+		label.add_theme_constant_override("outline_size", 5)
+		label.add_theme_color_override("font_outline_color", Color(0.04, 0.03, 0.05))
+		label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		marker.add_child(label)
+		_reticle_layer.add_child(marker)
+
+func _intent_count_for(unit) -> int:
+	var count: int = 0
+	for enemy in _enemy_intents:
+		if enemy == null or enemy.is_dead():
+			continue
+		var intent: Dictionary = _enemy_intents[enemy]
+		for target in intent.get("targets", []):
+			if target == unit:
+				count += 1
+	return count
+
+func _actor_turn_message(actor) -> String:
+	var count: int = _intent_count_for(actor)
+	var lock_text: String = "｜敌方锁定 ×%d" % count if count > 0 else ""
+	return "✦ %s 行动了——请选择指令%s。" % [actor.display_name, lock_text]
+
+func _set_timing_layout(expanded: bool) -> void:
+	if _timing_tween != null and _timing_tween.is_valid():
+		_timing_tween.kill()
+	var target_rect: Rect2 = _timing_normal_rect
+	var hud_alpha: float = 1.0
+	if expanded:
+		var viewport_size: Vector2 = get_viewport_rect().size
+		target_rect = Rect2(
+			Vector2(TIMING_MARGIN_LEFT_RIGHT, TIMING_MARGIN_TOP),
+			viewport_size - Vector2(TIMING_MARGIN_LEFT_RIGHT * 2.0, TIMING_MARGIN_TOP + TIMING_MARGIN_BOTTOM))
+		hud_alpha = 0.15
+	_message_label.visible = false
+	_timing_tween = create_tween().set_parallel(true)
+	_timing_tween.set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN_OUT)
+	_timing_tween.tween_property(_central_box, "position", target_rect.position, TIMING_TWEEN_SECONDS)
+	_timing_tween.tween_property(_central_box, "size", target_rect.size, TIMING_TWEEN_SECONDS)
+	for hud: CanvasItem in [_turn_order_bar, _enemy_container, _party_panel, _reticle_layer, _turn_label]:
+		_timing_tween.tween_property(hud, "modulate:a", hud_alpha, TIMING_TWEEN_SECONDS)
+	await _timing_tween.finished
+
+func _build_timing_overlay(attacker: BattleUnit, target: BattleUnit) -> void:
+	_clear_timing_overlay()
+	_timing_overlay = Control.new()
+	_timing_overlay.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	_timing_overlay.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_timing_overlay.z_index = 2
+	_central_box.add_child(_timing_overlay)
+	var attacker_box := VBoxContainer.new()
+	attacker_box.set_anchors_preset(Control.PRESET_CENTER_TOP)
+	attacker_box.offset_left = -140
+	attacker_box.offset_top = 42
+	attacker_box.offset_right = 140
+	attacker_box.offset_bottom = 174
+	attacker_box.alignment = BoxContainer.ALIGNMENT_CENTER
+	attacker_box.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var avatar := BattleWidgets.make_avatar(attacker, false)
+	avatar.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	attacker_box.add_child(avatar)
+	var name_label := Label.new()
+	name_label.text = attacker.display_name
+	name_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	name_label.add_theme_font_size_override("font_size", 24)
+	attacker_box.add_child(name_label)
+	_timing_overlay.add_child(attacker_box)
+	_timing_result_label = Label.new()
+	_timing_result_label.set_anchors_preset(Control.PRESET_CENTER_BOTTOM)
+	_timing_result_label.offset_left = -460
+	_timing_result_label.offset_top = -126
+	_timing_result_label.offset_right = 460
+	_timing_result_label.offset_bottom = -76
+	_timing_result_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_timing_result_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	_timing_result_label.add_theme_font_size_override("font_size", 26)
+	_timing_result_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_timing_overlay.add_child(_timing_result_label)
+
+func _clear_timing_overlay() -> void:
+	if is_instance_valid(_timing_overlay):
+		_timing_overlay.visible = false
+		_timing_overlay.queue_free()
+	_timing_overlay = null
+	_timing_result_label = null
+
+func _format_timing_result(target: BattleUnit, result: Dictionary) -> String:
+	var outcome_text: String = "失败"
+	match result.get("outcome", DefenseTimingRules.Outcome.FAILURE):
+		DefenseTimingRules.Outcome.PERFECT:
+			outcome_text = "完美"
+		DefenseTimingRules.Outcome.SUCCESS:
+			outcome_text = "成功"
+	var mp_change: int = result.get("mp_change", 0)
+	var mp_text: String = ""
+	if mp_change != 0:
+		mp_text = "｜MP %+d" % mp_change
+	return "%s %s｜%d 伤害%s" % [target.display_name, outcome_text, result.get("damage", 0), mp_text]
 
 func _find_avatar_for_unit(unit) -> Control:
 	var pools: Array = [_enemy_container, _party_container]
@@ -487,9 +679,9 @@ func _handle_menu_input(keycode: Key) -> void:
 			_activate_selected_menu_item()
 			accept_event()
 		CANCEL_KEY:
-			if _menu_mode == MENU_MODE_SKILL or _menu_mode == MENU_MODE_ITEM:
+			if _menu_mode in [MENU_MODE_ACTION, MENU_MODE_SKILL, MENU_MODE_ITEM]:
 				_build_command_menu()
-				_message_label.text = "✦ %s 行动了——请选择指令。" % _current_actor.display_name
+				_message_label.text = _actor_turn_message(_current_actor)
 				accept_event()
 
 func _handle_target_input(keycode: Key) -> void:

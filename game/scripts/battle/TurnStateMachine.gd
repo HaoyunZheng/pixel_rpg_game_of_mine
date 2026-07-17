@@ -167,6 +167,8 @@ func _execute_enemy_attack() -> Dictionary:
 		var timing_result: Dictionary = TIMING_RULES.evaluate(
 			target.pending_stance, input_tick, base_damage, target.mp, target.max_mp)
 		TIMING_RULES.apply(target, timing_result)
+		if battle_controller != null and battle_controller.has_method("finish_timing_check"):
+			await battle_controller.finish_timing_check(target, timing_result)
 		result.damage += timing_result.damage
 		result.timing_results.append(timing_result.merged({"target": target}))
 	return result

@@ -79,11 +79,22 @@ static func make_unit_card(unit, is_party: bool) -> Control:
 	info.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	info.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 
+	var name_row := HBoxContainer.new()
+	name_row.add_theme_constant_override("separation", 8)
+	name_row.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	var name_label := Label.new()
 	name_label.text = unit.display_name
 	name_label.add_theme_font_size_override("font_size", 22)
 	name_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	info.add_child(name_label)
+	name_row.add_child(name_label)
+	if is_party and unit.pending_stance != BattleUnit.Stance.ATTACK:
+		var stance_label := Label.new()
+		stance_label.text = "[防]" if unit.pending_stance == BattleUnit.Stance.DEFEND else "[闪]"
+		stance_label.add_theme_font_size_override("font_size", 18)
+		stance_label.add_theme_color_override("font_color", COL_GOLD if unit.pending_stance == BattleUnit.Stance.DEFEND else COL_ALLY.lightened(0.25))
+		stance_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		name_row.add_child(stance_label)
+	info.add_child(name_row)
 
 	# HP 条（底轨 + 填充，TextureProgressBar 九宫横拉）
 	info.add_child(make_stat_bar(unit.hp, unit.max_hp, TEX_BAR_HP, COL_HP))

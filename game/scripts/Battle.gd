@@ -118,6 +118,7 @@ func freeze_enemy_intents() -> void:
 		if enemy.is_dead():
 			continue
 		_enemy_intents[enemy] = EnemyAI.decide_intent(enemy, _party_units)
+	_battle_ui.show_enemy_intents(_enemy_intents)
 	Log.info("Battle", "本轮敌方意图已冻结: %d" % _enemy_intents.size())
 
 func get_enemy_intent(enemy: BattleUnit) -> Dictionary:
@@ -126,6 +127,9 @@ func get_enemy_intent(enemy: BattleUnit) -> Dictionary:
 
 func run_timing_check(attacker: BattleUnit, target: BattleUnit, base_damage: int) -> int:
 	return await _battle_ui.run_timing_check(attacker, target, base_damage)
+
+func finish_timing_check(target: BattleUnit, timing_result: Dictionary) -> void:
+	await _battle_ui.finish_timing_check(target, timing_result)
 
 func _on_turn_order_calculated(order: Array) -> void:
 	_turn_order = order.duplicate()
@@ -152,6 +156,7 @@ func _process_turn(actor: BattleUnit) -> void:
 	if not _micro_sm.turn_finished.is_connected(_on_turn_finished):
 		_micro_sm.turn_finished.connect(_on_turn_finished, CONNECT_ONE_SHOT)
 	_micro_sm.start_turn(actor)
+	_battle_ui.call_deferred("refresh")
 
 func _on_turn_finished() -> void:
 	if _battle_exiting:
