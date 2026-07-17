@@ -1,3 +1,18 @@
-这片空地以前是有人住的，现在只剩下被风啃过的石阶。
-你也是被梦催着来的吧。我看得出那种眼神。
-往里走，路会越来越不像路。能回头的人，趁早回头。
+if {story.branches.forest_wanderer} == "unseen":
+	forest_wanderer: 这片空地以前是有人住的，现在只剩下被风啃过的石阶。
+	forest_wanderer: 你也是被梦催着来的吧。我看得出那种眼神。
+	forest_wanderer: 往里走，路会越来越不像路。你打算怎么办？
+	- 先听听他的警告。
+		set {story.flags.met_forest_wanderer} = true
+		set {story.branches.forest_wanderer} = "cautious"
+		forest_wanderer: 那就记住：看见没有影子的火，立刻回头。
+	- 我会继续前进。
+		set {story.flags.met_forest_wanderer} = true
+		set {story.branches.forest_wanderer} = "defiant"
+		forest_wanderer: 我劝不住你。至少别把勇气错当成不死。
+elif {story.branches.forest_wanderer} == "cautious":
+	forest_wanderer: 你还记得我的警告。谨慎不是退缩，活下来才有下一步。
+else:
+	forest_wanderer: 还是那副不会回头的眼神。希望你已经学会承担代价。
+if GameData.is_enemy_defeated("Enemy1"):
+	forest_wanderer: 荒野里的猎手已经倒下了。那条路暂时安静，但不会永远安静。
