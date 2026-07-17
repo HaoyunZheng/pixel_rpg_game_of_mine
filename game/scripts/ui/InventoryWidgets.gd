@@ -384,21 +384,6 @@ static func make_divider() -> ColorRect:
 	rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	return rect
 
-# ───────────────────────────────────────────── ⑥ ActionMenu（§6）
-
-## ActionMenu 容器外框：半透明米色"便签"叠层。
-static func make_action_menu_style() -> StyleBoxFlat:
-	var sb := StyleBoxFlat.new()
-	sb.bg_color = Color(0.706, 0.631, 0.475, 0.6)
-	sb.border_color = COL_PARCHMENT_BORDER
-	sb.set_border_width_all(2)
-	sb.corner_radius_top_left = 0
-	sb.corner_radius_top_right = 0
-	sb.corner_radius_bottom_left = 0
-	sb.corner_radius_bottom_right = 0
-	sb.set_content_margin_all(8)
-	return sb
-
 # ───────────────────────────────────────────── ⑦ DiscardConfirmDialog（§7）
 
 ## 弹窗背景：复用 panel_central_9p（与外框同源资产，560×240 小尺寸实例）。

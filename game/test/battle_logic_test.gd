@@ -14,6 +14,7 @@ func _ready() -> void:
 	_test_battle_unit_clamp()
 	_test_inventory()
 	_test_inventory_pagination()
+	_test_inventory_detail_layout()
 	print("[test] 结果：%s" % ("全部通过 ✅" if _fails == 0 else "%d 项失败 ❌" % _fails))
 	get_tree().quit(_fails)
 
@@ -210,4 +211,46 @@ func _test_inventory_pagination() -> void:
 	gd.remove_item("page_weapon_20")
 	inv._refresh_grid()
 	_check("删除末页最后一项后页码钳制", inv._get_page_index() == 0 and inv._current_items.size() == 20)
+	inv.queue_free()
+
+func _test_inventory_detail_layout() -> void:
+	var gd: Node = get_node("/root/GameData")
+	gd.inventory.clear()
+	gd.equipment = {"weapon": "", "armor": "", "accessory": ""}
+	var item := ItemData.new()
+	item.id = "layout_accessory"
+	item.display_name = "风蚀遗迹中无法辨认真名的古老守望者护符"
+	item.description = "这是一段用于验证说明文字边界的长文本。它必须在说明框内自动换行，到达最小字号后仍然过长的内容以省略号截断，不能覆盖属性栏、分隔线或下方操作区域。".repeat(3)
+	item.category = ItemData.ItemCategory.ACCESSORY
+	item.usable = true
+	item.discardable = true
+	item.attack_bonus = 12
+	item.defense_bonus = 8
+	gd.add_item(item)
+
+	var inv: InventoryUI = load("res://scenes/ui/InventoryUI.tscn").instantiate()
+	add_child(inv)
+	inv._category_index = 2
+	inv._refresh_grid()
+	inv._refresh_detail()
+	var name_label: Label = inv._detail_layer.get_node("ItemName")
+	var desc_label: Label = inv._detail_layer.get_node("Description")
+	_check("详情长名称在 18~26 号字内自适应", name_label.get_theme_font_size("font_size") in range(18, 27))
+	_check("详情长说明在 13~17 号字内自适应", desc_label.get_theme_font_size("font_size") in range(13, 18))
+	_check("详情文字启用裁切和省略号", name_label.clip_text and desc_label.clip_text
+		and desc_label.text_overrun_behavior == TextServer.OVERRUN_TRIM_ELLIPSIS)
+	var desc_zone: Rect2 = inv._zone("desc")
+	var desc_font_size: int = desc_label.get_theme_font_size("font_size")
+	var visible_text_height: float = desc_label.max_lines_visible * (
+		desc_label.get_theme_font("font").get_height(desc_font_size)
+		+ desc_label.get_theme_constant("line_spacing"))
+	_check("说明文字可见行严格限制在 desc 分区", desc_label.position == desc_zone.position
+		and desc_label.size.x == desc_zone.size.x and visible_text_height <= desc_zone.size.y)
+
+	inv._enter_action_menu()
+	var footer: Rect2 = inv._zone("footer")
+	_check("操作菜单使用无背景 2 列网格", inv._action_menu_box is GridContainer
+		and inv._action_menu_box.columns == 2 and inv._action_menu_box.get_child_count() == 3)
+	_check("操作菜单严格嵌入 footer 分区", inv._action_menu_box.position == footer.position
+		and inv._action_menu_box.size == footer.size)
 	inv.queue_free()

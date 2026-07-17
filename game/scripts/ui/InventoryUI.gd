@@ -16,9 +16,8 @@ extends CanvasLayer
 const CONFIRM_KEY: Key = KEY_Z
 const CANCEL_KEY: Key = KEY_X
 const FADE_DURATION: float = 0.15
-const MENU_EXPAND_DURATION: float = 0.1
 const DIALOG_POPUP_DURATION: float = 0.12
-const ACTION_MENU_ROW_HEIGHT: int = 30
+const ACTION_MENU_ROW_HEIGHT: int = 42
 const ITEMS_PER_PAGE: int = 20
 
 enum UIState { PREVIEW, ACTION_MENU, DISCARD_CONFIRM }
@@ -31,8 +30,8 @@ enum UIState { PREVIEW, ACTION_MENU, DISCARD_CONFIRM }
 @onready var _grid_layer: Control = $Stage/Layers/Grid
 @onready var _grid_hint_layer: Control = $Stage/Layers/GridHint
 @onready var _detail_layer: Control = $Stage/Layers/Detail
-@onready var _dialog_layer: Control = $DialogLayer
-@onready var _dialog_panel: PanelContainer = $DialogLayer/Dialog
+@onready var _dialog_layer: Control = $Stage/DialogLayer
+@onready var _dialog_panel: PanelContainer = $Stage/DialogLayer/Dialog
 
 var _state: UIState = UIState.PREVIEW
 var _category_index: int = 0
@@ -44,7 +43,7 @@ var _is_open: bool = false
 var _layout: Dictionary = {}
 var _current_items: Array = []
 var _menu_options: Array = []
-var _action_menu_box: PanelContainer = null
+var _action_menu_box: GridContainer = null
 var _pending_discard_item: ItemData = null
 var _pending_discard_count: int = 0
 
@@ -407,14 +406,14 @@ func _refresh_detail() -> void:
 
 func _add_detail_empty_hint() -> void:
 	var hint := InventoryWidgets.make_empty_detail_hint()
-	_place_in_zone(hint, "body")
+	_place_in_zone(hint, "desc")
 	_detail_layer.add_child(hint)
 
 
 ## ③ 详情图框：物品大图标置于画好的 portrait 框内（框由底图提供，仅叠图标）。
 func _build_detail_icon(item: ItemData) -> void:
 	var r: Rect2 = _zone("portrait")
-	var icon_px: int = int(min(r.size.x, r.size.y) * 0.7)
+	var icon_px: int = mini(90, int(min(r.size.x, r.size.y) * 0.7))
 	var icon := InventoryWidgets.make_item_icon(item, icon_px)
 	# 同 grid：CenterContainer 按子节点最小尺寸居中，替代时机敏感的 PRESET_CENTER。
 	var holder := CenterContainer.new()
@@ -427,75 +426,94 @@ func _build_detail_icon(item: ItemData) -> void:
 
 ## ④ 详情文字（标题区）：名称 + 分类章，置于 header 分区。
 func _build_detail_header(item: ItemData) -> void:
-	var box := VBoxContainer.new()
-	box.add_theme_constant_override("separation", 6)
-	box.alignment = BoxContainer.ALIGNMENT_CENTER
-	box.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_place_in_zone(box, "header")
-
 	var name_label := Label.new()
+	name_label.name = "ItemName"
 	name_label.text = item.display_name if item != null else InventoryWidgets.STR_UNKNOWN_ITEM_NAME
-	name_label.add_theme_font_size_override("font_size", 26)
 	name_label.add_theme_color_override("font_color", InventoryWidgets.COL_INK)
 	name_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	name_label.autowrap_mode = TextServer.AUTOWRAP_WORD
+	name_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	name_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	name_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	box.add_child(name_label)
+	_place_in_zone(name_label, "name")
+	_detail_layer.add_child(name_label)
+	_fit_label_font(name_label, 26, 18, _zone("name").size)
 
 	if item != null:
-		var chip_row := HBoxContainer.new()
-		chip_row.alignment = BoxContainer.ALIGNMENT_CENTER
-		chip_row.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		var chip_holder := CenterContainer.new()
+		chip_holder.name = "Category"
+		chip_holder.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		_place_in_zone(chip_holder, "tag")
 		var chip := Label.new()
+		chip.name = "CategoryChip"
 		chip.text = InventoryWidgets.get_category_name(item.category)
 		chip.add_theme_font_size_override("font_size", 15)
 		chip.add_theme_color_override("font_color", InventoryWidgets.COL_BONE)
 		chip.add_theme_constant_override("outline_size", 1)
 		chip.add_theme_stylebox_override("normal", InventoryWidgets.make_chip_style())
-		chip_row.add_child(chip)
-		box.add_child(chip_row)
-
-	_detail_layer.add_child(box)
+		chip_holder.add_child(chip)
+		_detail_layer.add_child(chip_holder)
 
 
 ## ④ 详情文字（正文区）：数值条目 + 说明文字，置于 body 分区。
 func _build_detail_body(item: ItemData) -> void:
-	var box := VBoxContainer.new()
-	box.add_theme_constant_override("separation", 8)
-	box.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_place_in_zone(box, "body")
-
+	var stats := GridContainer.new()
+	stats.name = "Stats"
+	stats.columns = 2
+	stats.clip_contents = true
+	stats.add_theme_constant_override("h_separation", 20)
+	stats.add_theme_constant_override("v_separation", 2)
+	stats.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_place_in_zone(stats, "stats")
 	if item != null:
 		for line in InventoryWidgets.get_stat_lines(item):
-			box.add_child(_make_stat_line(line))
+			stats.add_child(_make_stat_line(line))
+	_detail_layer.add_child(stats)
 
 	var desc := Label.new()
+	desc.name = "Description"
 	desc.text = item.description if item != null else InventoryWidgets.STR_UNKNOWN_ITEM_DESC
-	desc.add_theme_font_size_override("font_size", 17)
 	desc.add_theme_color_override("font_color", InventoryWidgets.COL_INK_LIGHT)
 	desc.add_theme_constant_override("line_spacing", 6)
-	desc.autowrap_mode = TextServer.AUTOWRAP_WORD
-	desc.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	desc.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	desc.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	box.add_child(desc)
-
-	_detail_layer.add_child(box)
+	_place_in_zone(desc, "desc")
+	_detail_layer.add_child(desc)
+	_fit_label_font(desc, 17, 13, _zone("desc").size)
 
 
 ## ④ 详情文字（页脚区）：装备状态徽章，置于 footer 分区（非菜单态）。
 func _build_detail_footer(item: ItemData) -> void:
 	if item == null or not InventoryWidgets.is_equipment_category(item.category):
 		return
-	var box := VBoxContainer.new()
-	box.alignment = BoxContainer.ALIGNMENT_END
-	box.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_place_in_zone(box, "footer")
-	box.add_child(_make_equip_status_badge(item))
-	_detail_layer.add_child(box)
+	var holder := CenterContainer.new()
+	holder.name = "EquipStatus"
+	holder.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_place_in_zone(holder, "footer")
+	holder.add_child(_make_equip_status_badge(item))
+	_detail_layer.add_child(holder)
+
+
+func _fit_label_font(label: Label, max_font_size: int, min_font_size: int,
+		available_size: Vector2 = Vector2.ZERO) -> void:
+	var font: Font = label.get_theme_font("font")
+	var fit_size: Vector2 = label.size if available_size == Vector2.ZERO else available_size
+	var font_size: int = max_font_size
+	while font_size > min_font_size:
+		var measured: Vector2 = font.get_multiline_string_size(
+			label.text, label.horizontal_alignment, fit_size.x, font_size)
+		if measured.y <= fit_size.y:
+			break
+		font_size -= 1
+	label.add_theme_font_size_override("font_size", font_size)
+	var line_height: float = font.get_height(font_size) + label.get_theme_constant("line_spacing")
+	label.max_lines_visible = maxi(1, floori(fit_size.y / line_height))
+	label.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+	label.clip_text = true
 
 
 func _make_stat_line(text: String) -> Control:
 	var row := HBoxContainer.new()
+	row.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	row.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	var split_idx: int = text.rfind(" ")
 	var label_part: String = text
@@ -572,27 +590,18 @@ func _build_action_menu(item: ItemData, count: int) -> void:
 				_menu_index = i
 				break
 
-	var menu_panel := PanelContainer.new()
-	menu_panel.add_theme_stylebox_override("panel", InventoryWidgets.make_action_menu_style())
-	menu_panel.clip_contents = true
-	var inner := VBoxContainer.new()
-	inner.add_theme_constant_override("separation", 4)
+	var menu_grid := GridContainer.new()
+	menu_grid.name = "ActionMenu"
+	menu_grid.columns = 2
+	menu_grid.clip_contents = true
+	menu_grid.add_theme_constant_override("h_separation", 12)
+	menu_grid.add_theme_constant_override("v_separation", 8)
 	for opt in _menu_options:
-		inner.add_child(_make_menu_option_label(opt))
-	menu_panel.add_child(inner)
-	_place_in_zone(menu_panel, "footer")
-	_detail_layer.add_child(menu_panel)
-	_action_menu_box = menu_panel
+		menu_grid.add_child(_make_menu_option_label(opt))
+	_place_in_zone(menu_grid, "footer")
+	_detail_layer.add_child(menu_grid)
+	_action_menu_box = menu_grid
 	_update_menu_selection()
-
-	var target_h: float = float(_menu_options.size() * ACTION_MENU_ROW_HEIGHT + 16)
-	var zone_w: float = _zone("footer").size.x
-	menu_panel.custom_minimum_size = Vector2(zone_w, 0)
-	var tween := create_tween()
-	tween.set_pause_mode(Tween.TWEEN_PAUSE_PROCESS)
-	tween.set_ease(Tween.EASE_OUT)
-	tween.set_trans(Tween.TRANS_QUAD)
-	tween.tween_property(menu_panel, "custom_minimum_size:y", target_h, MENU_EXPAND_DURATION)
 
 
 func _make_menu_option_label(opt: Dictionary) -> Label:
@@ -600,6 +609,9 @@ func _make_menu_option_label(opt: Dictionary) -> Label:
 	label.text = opt.label
 	label.add_theme_font_size_override("font_size", 19)
 	label.custom_minimum_size = Vector2(0, ACTION_MENU_ROW_HEIGHT)
+	label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	label.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	label.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	return label
@@ -608,9 +620,8 @@ func _make_menu_option_label(opt: Dictionary) -> Label:
 func _update_menu_selection() -> void:
 	if _action_menu_box == null:
 		return
-	var inner: VBoxContainer = _action_menu_box.get_child(0)
-	for i in range(inner.get_child_count()):
-		var label: Label = inner.get_child(i)
+	for i in range(_action_menu_box.get_child_count()):
+		var label: Label = _action_menu_box.get_child(i)
 		var opt: Dictionary = _menu_options[i]
 		if opt.disabled:
 			label.add_theme_color_override("font_color", InventoryWidgets.COL_PARCHMENT_DIM)
@@ -668,10 +679,12 @@ func _open_discard_dialog(item: ItemData, count: int) -> void:
 	var item_name: String = item.display_name if item != null else InventoryWidgets.STR_UNKNOWN_ITEM_NAME
 	var body := Label.new()
 	body.text = InventoryWidgets.STR_DISCARD_BODY_FMT % [item_name, count]
-	body.add_theme_font_size_override("font_size", 22)
 	body.add_theme_color_override("font_color", InventoryWidgets.COL_GOLD)
 	body.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	body.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	body.custom_minimum_size = Vector2(0, 58)
 	content.add_child(body)
+	call_deferred("_fit_label_font", body, 22, 14)
 
 	var spacer := Control.new()
 	spacer.custom_minimum_size = Vector2(0, 16)
@@ -873,9 +886,15 @@ func _switch_category(direction: int) -> void:
 func _handle_action_menu_input(keycode: Key) -> void:
 	match keycode:
 		KEY_UP, KEY_W:
-			_move_menu_selection(-1)
+			_move_menu_selection(-2)
 			get_viewport().set_input_as_handled()
 		KEY_DOWN, KEY_S:
+			_move_menu_selection(2)
+			get_viewport().set_input_as_handled()
+		KEY_LEFT, KEY_A:
+			_move_menu_selection(-1)
+			get_viewport().set_input_as_handled()
+		KEY_RIGHT, KEY_D:
 			_move_menu_selection(1)
 			get_viewport().set_input_as_handled()
 		CONFIRM_KEY:
