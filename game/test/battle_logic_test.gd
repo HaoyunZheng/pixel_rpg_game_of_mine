@@ -46,6 +46,7 @@ class FleeBattleController:
 func _ready() -> void:
 	_test_damage_calculator()
 	_test_enemy_ai_targeting()
+	_test_enemy_attack_patterns()
 	_test_round_start_intents()
 	_test_enemy_intent_execution()
 	_test_battle_unit_clamp()
@@ -128,6 +129,65 @@ func _test_enemy_ai_targeting() -> void:
 	lo.hp = 0
 	var res2 := EnemyAI.decide_action(enemy, [hi, lo])
 	_check("全灭时 target = null", res2.target == null)
+
+func _test_enemy_attack_patterns() -> void:
+	seed(20260718)
+	var target := _make_unit(0, 0, 5)
+	var enemy := _make_unit(10, 0, 5)
+	var hunter_patterns: Dictionary = {}
+	var mutant_patterns: Dictionary = {}
+	var params_valid: bool = true
+	for _sample in range(80):
+		enemy.ai_type = EnemyStats.AIType.HUNTER
+		var hunter_intent: Dictionary = EnemyAI.decide_intent(enemy, [target])
+		hunter_patterns[hunter_intent.attack_pattern] = true
+		params_valid = params_valid and _attack_pattern_params_valid(hunter_intent)
+		enemy.ai_type = EnemyStats.AIType.MUTANT
+		var mutant_intent: Dictionary = EnemyAI.decide_intent(enemy, [target])
+		mutant_patterns[mutant_intent.attack_pattern] = true
+		params_valid = params_valid and _attack_pattern_params_valid(mutant_intent)
+	_check("猎手随机覆盖两套固定攻击流程", hunter_patterns.size() == 2
+		and hunter_patterns.has(EnemyAI.PATTERN_HUNTER_LOCK_THRUST)
+		and hunter_patterns.has(EnemyAI.PATTERN_HUNTER_CROSS_THRUST))
+	_check("变异体随机覆盖两套固定攻击流程", mutant_patterns.size() == 2
+		and mutant_patterns.has(EnemyAI.PATTERN_MUTANT_SWEEP)
+		and mutant_patterns.has(EnemyAI.PATTERN_MUTANT_CLEAVE))
+	_check("攻击流程随机参数始终在设计范围内", params_valid)
+
+func _attack_pattern_params_valid(intent: Dictionary) -> bool:
+	var params: Dictionary = intent.pattern_params
+	match intent.attack_pattern:
+		EnemyAI.PATTERN_HUNTER_LOCK_THRUST:
+			return params.hit_count in [2, 3] \
+				and params.telegraph >= 0.45 and params.telegraph <= 0.75 \
+				and params.active >= 0.16 and params.active <= 0.24 \
+				and params.gap >= 0.12 and params.gap <= 0.22 \
+				and params.width >= 22.0 and params.width <= 30.0 \
+				and params.aim_offset.length() <= 48.01
+		EnemyAI.PATTERN_HUNTER_CROSS_THRUST:
+			return params.hit_count == 2 \
+				and params.angle_degrees >= 20.0 and params.angle_degrees <= 35.0 \
+				and params.stagger >= 0.16 and params.stagger <= 0.30 \
+				and params.telegraph >= 0.65 and params.telegraph <= 0.95 \
+				and params.active >= 0.25 and params.active <= 0.40 \
+				and params.width >= 18.0 and params.width <= 26.0
+		EnemyAI.PATTERN_MUTANT_SWEEP:
+			return params.hit_count == 2 and params.clockwise is bool \
+				and params.telegraph >= 0.80 and params.telegraph <= 1.15 \
+				and params.active >= 0.50 and params.active <= 0.75 \
+				and params.gap >= 0.18 and params.gap <= 0.35 \
+				and params.arc_degrees >= 100.0 and params.arc_degrees <= 140.0 \
+				and params.width >= 56.0 and params.width <= 76.0
+		EnemyAI.PATTERN_MUTANT_CLEAVE:
+			return params.hit_count == 3 \
+				and params.offset_x >= -120.0 and params.offset_x <= 120.0 \
+				and params.telegraph >= 1.0 and params.telegraph <= 1.4 \
+				and params.active >= 0.25 and params.active <= 0.40 \
+				and params.aftershock_delay >= 0.18 and params.aftershock_delay <= 0.35 \
+				and params.width >= 64.0 and params.width <= 92.0 \
+				and params.aftershock_spacing >= 100.0 and params.aftershock_spacing <= 160.0
+		_:
+			return false
 
 func _test_round_start_intents() -> void:
 	var controller := FleeBattleController.new()
