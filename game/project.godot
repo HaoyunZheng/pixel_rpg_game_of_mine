@@ -35,6 +35,16 @@ directories/dtl_directory={
 }
 layout/style_directory={}
 text/input_action="dialogic_default_action"
+variables={
+"story": {
+"branches": {
+"forest_wanderer": "unseen"
+},
+"flags": {
+"met_forest_wanderer": false
+}
+}
+}
 
 [display]
 
