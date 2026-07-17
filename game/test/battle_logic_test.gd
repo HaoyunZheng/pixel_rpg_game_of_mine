@@ -62,6 +62,7 @@ func _ready() -> void:
 	_test_stance_lifecycle()
 	_test_defense_timing_rules()
 	_test_attack_duration_scale()
+	_test_impact_camera_feedback()
 	await _test_defense_action_field()
 	await _test_enemy_damage_waits_for_timing()
 	_test_flee_turn_flow()
@@ -411,6 +412,38 @@ func _test_attack_duration_scale() -> void:
 		is_equal_approx(scaled_total, raw_total * 1.5)
 		and is_equal_approx(timing._active_progress, 0.5))
 	timing.free()
+
+func _test_impact_camera_feedback() -> void:
+	var battle_scene: Node = load("res://scenes/Battle.tscn").instantiate()
+	_check("战斗场接入 Phantom Camera 噪声链",
+		ProjectSettings.has_setting("autoload/PhantomCameraManager")
+		and battle_scene.get_node_or_null("BattleCamera/PhantomCameraHost") != null
+		and battle_scene.get_node_or_null("BattlePCam") != null
+		and battle_scene.get_node_or_null("UI/BattleUI/ImpactCameraNoise") != null)
+	battle_scene.free()
+
+	var timing := TIMING_CHECK.new()
+	add_child(timing)
+	var feedback_amplitudes: Array[float] = []
+	if timing.has_signal("impact_feedback"):
+		timing.connect("impact_feedback", func(amplitude: float): feedback_amplitudes.append(amplitude))
+	timing.start(BattleUnit.Stance.ATTACK, Rect2(0, 0, 960, 540))
+	timing._resolve_contact()
+	var elapsed_before: float = timing._total_elapsed
+	timing._physics_process(0.02)
+	var failure_paused: bool = is_equal_approx(timing._total_elapsed, elapsed_before)
+	timing.free()
+
+	var parry := TIMING_CHECK.new()
+	add_child(parry)
+	parry.impact_feedback.connect(func(amplitude: float): feedback_amplitudes.append(amplitude))
+	parry.start(BattleUnit.Stance.DEFEND, Rect2(0, 0, 960, 540))
+	parry._reaction_started_at = parry._total_elapsed
+	parry._resolve_contact()
+	_check("受击与完美弹反触发分级镜头反馈和局部停顿",
+		failure_paused and feedback_amplitudes == [12.0, 16.0]
+		and is_equal_approx(parry._hit_stop_remaining, TIMING_CHECK.HIT_STOP_PARRY))
+	parry.free()
 
 func _test_enemy_damage_waits_for_timing() -> void:
 	var enemy := _make_unit(20, 0, 10)

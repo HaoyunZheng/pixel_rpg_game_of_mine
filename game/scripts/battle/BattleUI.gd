@@ -22,6 +22,7 @@ extends Control
 @onready var _party_container: VBoxContainer = $PartyPanel/PartyContainer # ⑤ 左下我方状态列
 @onready var _reticle_layer: Control = $ReticleLayer                 # ⑥ 准星 / 锁敌层
 @onready var _turn_label: Label = $TurnLabel
+@onready var _impact_camera_noise: PhantomCameraNoiseEmitter2D = $ImpactCameraNoise
 
 # ── 既有常量（沿用，勿改键位/指令字符串）──
 const TARGET_GROUP_ENEMY: String = "enemy"
@@ -126,6 +127,7 @@ func run_timing_check(
 	_build_timing_overlay(attacker, target)
 	var timing := DEFENSE_TIMING_SCENE.instantiate()
 	add_child(timing)
+	timing.impact_feedback.connect(_on_timing_impact_feedback)
 	var key_hint: String = "WASD 移动｜Z 弹反" if target.pending_stance == BattleUnit.Stance.DEFEND else "WASD 移动｜Shift 冲刺"
 	if target.pending_stance == BattleUnit.Stance.ATTACK:
 		key_hint = "WASD 移动｜攻击姿态无主动防御"
@@ -137,6 +139,10 @@ func run_timing_check(
 		Dictionary(intent.get("pattern_params", {})))
 	var hit_results: Array = await timing.timing_resolved
 	return hit_results
+
+func _on_timing_impact_feedback(amplitude: float) -> void:
+	_impact_camera_noise.noise.amplitude = amplitude
+	_impact_camera_noise.emit()
 
 func finish_timing_check(target: BattleUnit, timing_result: Dictionary) -> void:
 	if is_instance_valid(_timing_result_label):

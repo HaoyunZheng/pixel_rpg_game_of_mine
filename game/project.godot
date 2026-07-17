@@ -24,6 +24,7 @@ Log="*res://scripts/autoload/Log.gd"
 GameData="*res://scripts/autoload/GameData.gd"
 SceneManager="*res://scripts/autoload/SceneManager.gd"
 GameCamera="*res://scripts/autoload/GameCamera.gd"
+PhantomCameraManager="*res://addons/phantom_camera/scripts/managers/phantom_camera_manager.gd"
 Dialogic="*uid://ds2q0uclmolvu"
 DialogueManager="*res://scripts/autoload/DialogueManager.gd"
 

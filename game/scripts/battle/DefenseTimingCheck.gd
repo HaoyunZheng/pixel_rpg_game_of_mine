@@ -3,6 +3,7 @@ extends Control
 ## 秒制受击动作场：固定流程 + 冻结参数驱动预警、物理遮罩与防御输入。
 
 signal timing_resolved(hit_results: Array)
+signal impact_feedback(amplitude: float)
 
 const MOVE_SPEED: float = 320.0
 const DASH_SPEED: float = 960.0
@@ -11,6 +12,9 @@ const PARRY_DURATION: float = 0.25
 const DODGE_DURATION: float = 0.20
 const PERFECT_DURATION: float = 0.05
 const HIT_INVULNERABILITY: float = 0.50
+const HIT_STOP_FAILURE: float = 0.07
+const HIT_STOP_BLOCK: float = 0.035
+const HIT_STOP_PARRY: float = 0.06
 # ponytail: 单一比例在统一相位入口缩放，避免逐攻击模板复制时长。
 const ACTION_DURATION_SCALE: float = 1.5
 # ponytail: 只限制碰撞采样距离；流程时长仍按秒累计，不依赖固定 tick。
@@ -43,6 +47,7 @@ var _attack_color: Color = Color(1.0, 0.38, 0.22)
 var _feedback_text: String = ""
 var _feedback_color: Color = Color.WHITE
 var _feedback_until: float = -1.0
+var _hit_stop_remaining: float = 0.0
 
 var _player_area: Area2D
 var _hazard_area: Area2D
@@ -82,6 +87,7 @@ func start(
 	_hit_invulnerable_until = -1.0
 	_feedback_text = ""
 	_feedback_until = -1.0
+	_hit_stop_remaining = 0.0
 	_hit_results.clear()
 	_running = true
 	_prepare_stage()
@@ -92,6 +98,14 @@ func _physics_process(delta: float) -> void:
 	if not _running:
 		return
 	var remaining: float = delta
+	# ponytail: 只暂停动作场，让镜头噪声与粒子继续播放，不引入全局 time_scale。
+	if _hit_stop_remaining > 0.0:
+		var paused: float = minf(remaining, _hit_stop_remaining)
+		_hit_stop_remaining -= paused
+		remaining -= paused
+		if remaining <= 0.0:
+			queue_redraw()
+			return
 	while remaining > 0.0 and _running:
 		var duration: float = _phase_duration()
 		var step: float = minf(remaining, maxf(0.0, duration - _phase_elapsed))
@@ -112,7 +126,8 @@ func _physics_process(delta: float) -> void:
 	queue_redraw()
 
 func _unhandled_input(event: InputEvent) -> void:
-	if not _running or not (event is InputEventKey) or not event.pressed or event.echo:
+	if not _running or _hit_stop_remaining > 0.0 \
+		or not (event is InputEventKey) or not event.pressed or event.echo:
 		return
 	if _total_elapsed <= _reaction_ends_at:
 		return
@@ -312,6 +327,12 @@ func _resolve_contact() -> void:
 	var reaction_age: float = _total_elapsed - _reaction_started_at if _reaction_started_at >= 0.0 else -1.0
 	var outcome := classify_contact(_stance, reaction_age, invulnerable)
 	_emit_impact_particles(outcome)
+	if outcome == DefenseTimingRules.Outcome.FAILURE:
+		_hit_stop_remaining = HIT_STOP_FAILURE
+		impact_feedback.emit(12.0)
+	elif _stance == BattleUnit.Stance.DEFEND:
+		_hit_stop_remaining = HIT_STOP_PARRY if outcome == DefenseTimingRules.Outcome.PERFECT else HIT_STOP_BLOCK
+		impact_feedback.emit(16.0 if outcome == DefenseTimingRules.Outcome.PERFECT else 7.0)
 	if invulnerable:
 		_record_result(false, outcome)
 	else:
