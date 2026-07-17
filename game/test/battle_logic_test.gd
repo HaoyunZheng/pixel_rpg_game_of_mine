@@ -328,6 +328,37 @@ func _test_defense_action_field() -> void:
 		BattleUnit.Stance.DODGE, 0.04) == TIMING_RULES.Outcome.PERFECT)
 	_check("冲刺 0.20s 内为普通闪避", TIMING_CHECK.classify_contact(
 		BattleUnit.Stance.DODGE, 0.18) == TIMING_RULES.Outcome.SUCCESS)
+	var parry := TIMING_CHECK.new()
+	add_child(parry)
+	parry.start(BattleUnit.Stance.DEFEND, Rect2(0, 0, 960, 540))
+	var parry_event := InputEventKey.new()
+	parry_event.keycode = KEY_Z
+	parry_event.pressed = true
+	parry._unhandled_input(parry_event)
+	var parry_position: Vector2 = parry._player_position
+	Input.action_press("move_right")
+	parry._move_player(0.05)
+	Input.action_release("move_right")
+	_check("Z 走真实输入路径开启弹反并冻结移动", parry._reaction_started_at == 0.0
+		and parry._player_position == parry_position)
+	parry.queue_free()
+
+	var dodge := TIMING_CHECK.new()
+	add_child(dodge)
+	dodge.start(BattleUnit.Stance.DODGE, Rect2(0, 0, 960, 540))
+	var dodge_event := InputEventKey.new()
+	dodge_event.keycode = KEY_SHIFT
+	dodge_event.physical_keycode = KEY_SHIFT
+	dodge_event.pressed = true
+	Input.action_press("move_right")
+	var dodge_position: Vector2 = dodge._player_position
+	dodge._unhandled_input(dodge_event)
+	dodge._move_player(0.05)
+	Input.action_release("move_right")
+	_check("Shift+方向走真实输入路径产生冲刺位移", dodge._reaction_started_at == 0.0
+		and dodge._player_position.x - dodge_position.x > TIMING_CHECK.MOVE_SPEED * 0.05)
+	dodge.queue_free()
+
 	var timing := TIMING_CHECK.new()
 	add_child(timing)
 	var action_results: Array = []
