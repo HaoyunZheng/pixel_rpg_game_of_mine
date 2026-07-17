@@ -19,6 +19,7 @@ const FADE_DURATION: float = 0.15
 const MENU_EXPAND_DURATION: float = 0.1
 const DIALOG_POPUP_DURATION: float = 0.12
 const ACTION_MENU_ROW_HEIGHT: int = 30
+const ITEMS_PER_PAGE: int = 20
 
 enum UIState { PREVIEW, ACTION_MENU, DISCARD_CONFIRM }
 
@@ -36,6 +37,7 @@ enum UIState { PREVIEW, ACTION_MENU, DISCARD_CONFIRM }
 var _state: UIState = UIState.PREVIEW
 var _category_index: int = 0
 var _focus_index_by_category: Dictionary = {}
+var _page_index_by_category: Dictionary = {}
 var _menu_index: int = 0
 var _is_open: bool = false
 
@@ -221,8 +223,16 @@ func _refresh_grid() -> void:
 		child.queue_free()
 	_slot_nodes.clear()
 
-	_current_items = _gather_current_items()
+	var category_items: Array = _gather_current_items()
 	var wells: Array = _layout.get("wells", [])
+	var page_count: int = maxi(1, ceili(category_items.size() / float(ITEMS_PER_PAGE)))
+	var page_index: int = clampi(_get_page_index(), 0, page_count - 1)
+	_set_page_index(page_index)
+	_current_items.clear()
+	var page_start: int = page_index * ITEMS_PER_PAGE
+	var page_end: int = mini(page_start + ITEMS_PER_PAGE, category_items.size())
+	for i in range(page_start, page_end):
+		_current_items.append(category_items[i])
 
 	if _current_items.is_empty():
 		_grid_hint_layer.add_child(_make_grid_empty_hint(wells))
@@ -230,10 +240,12 @@ func _refresh_grid() -> void:
 
 	for i in range(_current_items.size()):
 		if i >= wells.size():
-			break  # 井位已满（20）；溢出留待分页（Open Question）
+			break
 		var rect: Rect2 = _rect_of(wells[i])
 		var slot_node := _build_item_slot(_current_items[i], rect)
 		_grid_layer.add_child(slot_node)
+	if page_count > 1:
+		_grid_hint_layer.add_child(_make_page_indicator(wells, page_index, page_count))
 
 	var focus_idx: int = clampi(_get_focus_index(), 0, mini(_current_items.size(), wells.size()) - 1)
 	_set_focus_index(focus_idx)
@@ -249,6 +261,25 @@ func _make_grid_empty_hint(wells: Array) -> Control:
 		label.size = last.position + last.size - first.position
 	else:
 		label.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	return label
+
+
+func _make_page_indicator(wells: Array, page_index: int, page_count: int) -> Label:
+	var label := Label.new()
+	label.name = "PageIndicator"
+	label.text = InventoryWidgets.STR_PAGE_FMT % [page_index + 1, page_count]
+	label.add_theme_font_size_override("font_size", 16)
+	label.add_theme_color_override("font_color", InventoryWidgets.COL_BONE)
+	label.add_theme_constant_override("outline_size", 4)
+	label.add_theme_color_override("font_outline_color", Color(0.04, 0.03, 0.02))
+	label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	if not wells.is_empty():
+		var first: Rect2 = _rect_of(wells[0])
+		var last: Rect2 = _rect_of(wells[wells.size() - 1])
+		label.position = Vector2(first.position.x, last.end.y + 6.0)
+		label.size = Vector2(last.end.x - first.position.x, 28.0)
 	return label
 
 
@@ -317,7 +348,14 @@ func _update_slot_styles() -> void:
 		overlay.add_theme_stylebox_override("panel", InventoryWidgets.make_item_slot_focus_overlay(slot_state))
 
 
-# ───────────────────────────────────────────── 焦点索引（每分类记忆）
+# ───────────────────────────────────────────── 页码与焦点索引（每分类记忆）
+
+func _get_page_index() -> int:
+	return _page_index_by_category.get(_category_index, 0)
+
+
+func _set_page_index(idx: int) -> void:
+	_page_index_by_category[_category_index] = idx
 
 func _get_focus_index() -> int:
 	return _focus_index_by_category.get(_category_index, 0)
@@ -758,16 +796,20 @@ func _handle_preview_input(keycode: Key) -> void:
 		KEY_DOWN, KEY_S:
 			_move_focus(0, 1)
 			get_viewport().set_input_as_handled()
+		KEY_Q:
+			_switch_category(-1)
+			get_viewport().set_input_as_handled()
+		KEY_E:
+			_switch_category(1)
+			get_viewport().set_input_as_handled()
 		CONFIRM_KEY:
 			_enter_action_menu()
 			get_viewport().set_input_as_handled()
 
 
-## 方向键导航：左右在网格内移动列，到边缘列切换分类；上下按行移动，不切换分类。
+## 方向键导航：左右在网格内移动列，到边缘列切页；上下按行移动。分类只由 Q/E 切换。
 func _move_focus(dx: int, dy: int) -> void:
 	if _current_items.is_empty():
-		if dx != 0:
-			_switch_category(dx)
 		return
 
 	var count: int = _current_items.size()
@@ -780,7 +822,7 @@ func _move_focus(dx: int, dy: int) -> void:
 	if dx != 0:
 		var new_col: int = col + dx
 		if new_col < 0 or new_col >= cols:
-			_switch_category(dx)
+			_switch_page(dx, row)
 			return
 		var new_idx: int = row * cols + new_col
 		if new_idx >= count:
@@ -800,6 +842,24 @@ func _move_focus(dx: int, dy: int) -> void:
 		_set_focus_index(new_idx)
 		_update_slot_styles()
 		_refresh_detail()
+
+
+func _switch_page(direction: int, row: int) -> void:
+	var category_items: Array = _gather_current_items()
+	var page_count: int = maxi(1, ceili(category_items.size() / float(ITEMS_PER_PAGE)))
+	var next_page: int = _get_page_index() + direction
+	if next_page < 0 or next_page >= page_count:
+		return
+	_set_page_index(next_page)
+	_refresh_grid()
+	if _current_items.is_empty():
+		_refresh_detail()
+		return
+	var cols: int = InventoryWidgets.GRID_COLUMNS
+	var target_col: int = 0 if direction > 0 else cols - 1
+	_set_focus_index(mini(row * cols + target_col, _current_items.size() - 1))
+	_update_slot_styles()
+	_refresh_detail()
 
 
 func _switch_category(direction: int) -> void:

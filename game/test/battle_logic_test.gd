@@ -13,6 +13,7 @@ func _ready() -> void:
 	_test_enemy_ai_targeting()
 	_test_battle_unit_clamp()
 	_test_inventory()
+	_test_inventory_pagination()
 	print("[test] 结果：%s" % ("全部通过 ✅" if _fails == 0 else "%d 项失败 ❌" % _fails))
 	get_tree().quit(_fails)
 
@@ -168,3 +169,45 @@ func _test_inventory() -> void:
 	_check("超量丢弃仍不卸装", gd.equipment.weapon == weapon_b.id)
 	_check("成功丢弃已装备物品", gd.discard_item(weapon_b.id, 1) == true)
 	_check("成功丢弃先卸装并移除", gd.equipment.weapon.is_empty() and gd.get_item_count(weapon_b.id) == 0)
+
+func _test_inventory_pagination() -> void:
+	var gd: Node = get_node("/root/GameData")
+	gd.inventory.clear()
+	gd.equipment = {"weapon": "", "armor": "", "accessory": ""}
+	for i in range(21):
+		var weapon := ItemData.new()
+		weapon.id = "page_weapon_%02d" % i
+		weapon.category = ItemData.ItemCategory.WEAPON
+		gd.add_item(weapon)
+	var armor := ItemData.new()
+	armor.id = "page_armor"
+	armor.category = ItemData.ItemCategory.ARMOR
+	gd.add_item(armor)
+
+	var inv: InventoryUI = load("res://scenes/ui/InventoryUI.tscn").instantiate()
+	add_child(inv)
+	inv._refresh_grid()
+	_check("第 1 页只显示 20 种物品", inv._current_items.size() == 20)
+	_check("多页分类显示页码", inv._grid_hint_layer.get_node_or_null("PageIndicator") != null)
+
+	inv._set_focus_index(4)
+	inv._move_focus(1, 0)
+	_check("右边缘进入下一页", inv._get_page_index() == 1 and inv._current_items.size() == 1)
+	_check("下一页焦点落在同行首格", inv._get_focus_index() == 0)
+	inv._move_focus(1, 0)
+	_check("末页右边缘不循环", inv._get_page_index() == 1 and inv._get_focus_index() == 0)
+	inv._move_focus(-1, 0)
+	_check("左边缘返回上一页同行末格", inv._get_page_index() == 0 and inv._get_focus_index() == 4)
+
+	inv._move_focus(1, 0)
+	inv._handle_preview_input(KEY_E)
+	_check("E 切换到下一分类", inv._category_index == 1)
+	inv._handle_preview_input(KEY_Q)
+	_check("Q 切换到上一分类", inv._category_index == 0)
+	_check("切换分类后恢复分类页码", inv._get_page_index() == 1)
+	_check("切换分类后恢复分类焦点", inv._get_focus_index() == 0)
+
+	gd.remove_item("page_weapon_20")
+	inv._refresh_grid()
+	_check("删除末页最后一项后页码钳制", inv._get_page_index() == 0 and inv._current_items.size() == 20)
+	inv.queue_free()

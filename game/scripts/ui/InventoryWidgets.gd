@@ -104,6 +104,7 @@ const STR_DISCARD_BODY_FMT: String = "%s ×%d？"
 const STR_DISCARD_HINT: String = "[Z] 确认　[X] 取消"
 const STR_PLACEHOLDER_ICON: String = "?"
 const STR_QUANTITY_FMT: String = "×%d"
+const STR_PAGE_FMT: String = "第 %d / %d 页"
 
 # ───────────────────────────────────────────── 切片加载（缺失回退 null）
 
