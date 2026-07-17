@@ -8,10 +8,22 @@ extends Node
 
 var _fails: int = 0
 
+class FleeBattleController:
+	extends Node
+	var party: Array = []
+	var enemies: Array = []
+
+	func get_party_units() -> Array:
+		return party
+
+	func get_enemy_units() -> Array:
+		return enemies
+
 func _ready() -> void:
 	_test_damage_calculator()
 	_test_enemy_ai_targeting()
 	_test_battle_unit_clamp()
+	_test_flee_turn_flow()
 	_test_inventory()
 	_test_equipment_battle_copy()
 	_test_inventory_pagination()
@@ -93,6 +105,44 @@ func _test_battle_unit_clamp() -> void:
 	_check("take_damage 不低于 0", u.hp == 0)
 	u.heal(999)
 	_check("heal 不超过 max_hp", u.hp == 50)
+
+func _test_flee_turn_flow() -> void:
+	var fast_actor := _make_unit(0, 0, 13)
+	fast_actor.is_player = true
+	fast_actor.display_name = "逃跑者"
+	var slow_enemy := _make_unit(0, 0, 10)
+	var controller := FleeBattleController.new()
+	controller.party = [fast_actor]
+	controller.enemies = [slow_enemy]
+	add_child(controller)
+	var sm := TurnStateMachine.new()
+	sm.battle_controller = controller
+	add_child(sm)
+	var results: Array = []
+	var finished_turns: Array = []
+	sm.action_executed.connect(func(result: Dictionary): results.append(result))
+	sm.turn_finished.connect(func(): finished_turns.append(true))
+	sm.start_turn(fast_actor)
+	sm.select_command(BattleCommands.FLEE)
+	_check("逃跑成功返回 fled 结果", results.size() == 1 and results[0].fled)
+	_check("逃跑成功不再发出 turn_finished", finished_turns.is_empty())
+	_check("逃跑成功后微观状态机停止", sm.current_state == TurnStateMachine.MicroState.IDLE)
+
+	var slow_actor := _make_unit(0, 0, 10)
+	slow_actor.is_player = true
+	slow_actor.display_name = "失败者"
+	var fast_enemy := _make_unit(0, 0, 10)
+	controller.party = [slow_actor]
+	controller.enemies = [fast_enemy]
+	results.clear()
+	finished_turns.clear()
+	sm.start_turn(slow_actor)
+	sm.select_command(BattleCommands.FLEE)
+	_check("逃跑失败返回未逃离结果", results.size() == 1 and not results[0].fled)
+	_check("逃跑失败照常消耗回合", finished_turns.size() == 1)
+	_check("逃跑失败完成行动结算", sm.current_state == TurnStateMachine.MicroState.ACTION_RESOLVE)
+	sm.free()
+	controller.free()
 
 func _test_inventory() -> void:
 	# 自动加载单例在 --script 运行下不作为全局标识符暴露，按节点取（对齐 verify_*.gd）。

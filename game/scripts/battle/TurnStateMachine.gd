@@ -86,6 +86,11 @@ func _on_action_execute() -> void:
 	Log.info("TurnState", "%s 执行行动: %s" % [_current_actor.display_name, _pending_command])
 	var result := _execute_action()
 	action_executed.emit(result)
+	if result.fled:
+		# 逃跑成功由战斗控制器立即切回野外；不能再进入结算并发出 turn_finished，
+		# 否则 Battle 会继续启动下一位单位的行动。
+		_transition_to(MicroState.IDLE)
+		return
 	_transition_to(MicroState.ACTION_RESOLVE)
 
 func _execute_action() -> Dictionary:

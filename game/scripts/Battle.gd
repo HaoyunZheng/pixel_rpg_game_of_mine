@@ -28,6 +28,7 @@ var _current_actor: BattleUnit = null
 var _enemy_key: String = DEFAULT_ENEMY_KEY   # 遭遇标识（用于胜利后标记野外敌人已击败）
 var _enemy_keys: Array[String] = []          # 本场敌方阵容 key 列表（1~N 体）
 var _battle_started: bool = false
+var _battle_exiting: bool = false
 # §B.2 战斗数据隔离：开战时快照背包，失败时回滚物品消耗
 var _inventory_snapshot: Array[Dictionary] = []
 
@@ -37,6 +38,7 @@ func _ready() -> void:
 	_macro_sm.state_changed.connect(_on_macro_state_changed)
 	_macro_sm.turn_order_calculated.connect(_on_turn_order_calculated)
 	_macro_sm.battle_ended.connect(_on_battle_ended)
+	_micro_sm.action_executed.connect(_on_action_executed)
 	# [TEST] 直接启动 Battle 场景时自动初始化测试战斗
 	call_deferred("_auto_test_init")
 
@@ -135,9 +137,24 @@ func _process_turn(actor: BattleUnit) -> void:
 	_micro_sm.start_turn(actor)
 
 func _on_turn_finished() -> void:
+	if _battle_exiting:
+		return
 	_sync_party_to_gamedata()
 	_battle_ui.refresh()
 	_start_turn_loop()
+
+func _on_action_executed(result: Dictionary) -> void:
+	if not result.get("fled", false) or _battle_exiting:
+		return
+	_battle_exiting = true
+	_sync_party_to_gamedata()
+	Log.info("Battle", "逃跑成功，立即返回野外")
+	SceneManager.change_scene(WILDERNESS_SCENE_PATH, {
+		DATA_KEY_SCENE_NAME: "Wilderness",
+		DATA_KEY_FROM: "battle",
+		"victory": false,
+		"fled": true,
+	})
 
 func _sync_party_to_gamedata() -> void:
 	for i in range(min(_party_units.size(), GameData.party_members.size())):
