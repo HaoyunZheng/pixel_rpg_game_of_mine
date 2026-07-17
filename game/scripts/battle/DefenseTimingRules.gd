@@ -4,17 +4,12 @@ extends RefCounted
 
 enum Outcome { FAILURE, SUCCESS, PERFECT }
 
-const SUCCESS_START_TICK: int = 45
-const PERFECT_START_TICK: int = 57
-const HIT_TICK: int = 60
-
-static func evaluate(
+static func evaluate_outcome(
 		stance: BattleUnit.Stance,
-		input_tick: int,
+		outcome: Outcome,
 		base_damage: int,
 		current_mp: int,
 		max_mp: int) -> Dictionary:
-	var outcome: Outcome = _outcome_for_tick(input_tick)
 	var damage: int = maxi(0, base_damage)
 	var mp_change: int = 0
 	match stance:
@@ -22,8 +17,9 @@ static func evaluate(
 			if outcome == Outcome.PERFECT:
 				damage = 0
 			elif outcome == Outcome.SUCCESS:
-				damage = maxi(1, ceili(base_damage * 0.33))
-				mp_change = -mini(current_mp, mini(2, ceili(max_mp * 0.02)))
+				damage = maxi(1, ceili(base_damage * 0.33)) if base_damage > 0 else 0
+				if base_damage > 0:
+					mp_change = -mini(current_mp, mini(2, ceili(max_mp * 0.02)))
 		BattleUnit.Stance.DODGE:
 			if outcome == Outcome.PERFECT:
 				damage = 0
@@ -36,7 +32,6 @@ static func evaluate(
 		"outcome": outcome,
 		"damage": damage,
 		"mp_change": mp_change,
-		"input_tick": input_tick,
 	}
 
 static func apply(target: BattleUnit, result: Dictionary) -> void:
@@ -47,10 +42,3 @@ static func apply(target: BattleUnit, result: Dictionary) -> void:
 		target.consume_mp(-mp_change)
 	elif mp_change > 0:
 		target.restore_mp(mp_change)
-
-static func _outcome_for_tick(input_tick: int) -> Outcome:
-	if input_tick >= PERFECT_START_TICK and input_tick <= HIT_TICK:
-		return Outcome.PERFECT
-	if input_tick >= SUCCESS_START_TICK and input_tick < PERFECT_START_TICK:
-		return Outcome.SUCCESS
-	return Outcome.FAILURE

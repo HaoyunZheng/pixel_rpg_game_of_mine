@@ -113,7 +113,11 @@ func show_battle_result(victory: bool) -> void:
 	_message_label.text = "战斗结束 — %s" % ("胜利！" if victory else "失败...")
 	_turn_label.text = ""
 
-func run_timing_check(attacker: BattleUnit, target: BattleUnit, _base_damage: int) -> int:
+func run_timing_check(
+		attacker: BattleUnit,
+		target: BattleUnit,
+		_base_damage: int,
+		intent: Dictionary = {}) -> Array:
 	_timing_active = true
 	_set_menu_visible(false)
 	_clear_target_reticles()
@@ -122,13 +126,17 @@ func run_timing_check(attacker: BattleUnit, target: BattleUnit, _base_damage: in
 	_build_timing_overlay(attacker, target)
 	var timing := DEFENSE_TIMING_SCENE.instantiate()
 	add_child(timing)
-	var key_hint: String = "Z 防御" if target.pending_stance == BattleUnit.Stance.DEFEND else "Shift 闪避"
+	var key_hint: String = "WASD 移动｜Z 弹反" if target.pending_stance == BattleUnit.Stance.DEFEND else "WASD 移动｜Shift 冲刺"
 	if target.pending_stance == BattleUnit.Stance.ATTACK:
-		key_hint = "攻击姿态：无法防御"
+		key_hint = "WASD 移动｜攻击姿态无主动防御"
 	_timing_result_label.text = "%s 攻击 %s｜%s" % [attacker.display_name, target.display_name, key_hint]
-	timing.start(target.pending_stance, _central_box.get_global_rect())
-	var input_tick: int = await timing.timing_resolved
-	return input_tick
+	timing.start(
+		target.pending_stance,
+		_central_box.get_global_rect(),
+		String(intent.get("attack_pattern", EnemyAI.PATTERN_FALLBACK_THRUST)),
+		Dictionary(intent.get("pattern_params", {})))
+	var hit_results: Array = await timing.timing_resolved
+	return hit_results
 
 func finish_timing_check(target: BattleUnit, timing_result: Dictionary) -> void:
 	if is_instance_valid(_timing_result_label):

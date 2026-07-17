@@ -125,8 +125,12 @@ func get_enemy_intent(enemy: BattleUnit) -> Dictionary:
 	var intent: Dictionary = _enemy_intents.get(enemy, {})
 	return intent.duplicate(true)
 
-func run_timing_check(attacker: BattleUnit, target: BattleUnit, base_damage: int) -> int:
-	return await _battle_ui.run_timing_check(attacker, target, base_damage)
+func run_timing_check(
+		attacker: BattleUnit,
+		target: BattleUnit,
+		base_damage: int,
+		intent: Dictionary = {}) -> Array:
+	return await _battle_ui.run_timing_check(attacker, target, base_damage, intent)
 
 func finish_timing_check(target: BattleUnit, timing_result: Dictionary) -> void:
 	await _battle_ui.finish_timing_check(target, timing_result)

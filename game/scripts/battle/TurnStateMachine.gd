@@ -25,6 +25,7 @@ var _pending_item: ItemData = null
 var _pending_target: BattleUnit = null
 var _pending_targets: Array = []
 var _pending_target_mode: String = EnemyAI.TARGET_MODE_SINGLE
+var _pending_enemy_intent: Dictionary = {}
 
 func start_turn(actor: BattleUnit) -> void:
 	_current_actor = actor
@@ -34,6 +35,7 @@ func start_turn(actor: BattleUnit) -> void:
 	_pending_target = null
 	_pending_targets.clear()
 	_pending_target_mode = EnemyAI.TARGET_MODE_SINGLE
+	_pending_enemy_intent.clear()
 	actor.power_multiplier = 1.0   # 兜底复位力度倍率，防上一回合泄漏
 	actor.pending_stance = BattleUnit.Stance.ATTACK
 
@@ -161,16 +163,49 @@ func _execute_enemy_attack() -> Dictionary:
 		return result
 	for target: BattleUnit in action_targets:
 		var base_damage: int = damage_calculator.calc_physical(_current_actor, target)
-		var input_tick: int = -1
+		var hit_results: Array = [{
+			"hit_index": 0,
+			"hit_count": 1,
+			"contact": true,
+			"outcome": TIMING_RULES.Outcome.FAILURE,
+		}]
 		if battle_controller != null and battle_controller.has_method("run_timing_check"):
-			input_tick = await battle_controller.run_timing_check(_current_actor, target, base_damage)
-		var timing_result: Dictionary = TIMING_RULES.evaluate(
-			target.pending_stance, input_tick, base_damage, target.mp, target.max_mp)
-		TIMING_RULES.apply(target, timing_result)
+			hit_results = await battle_controller.run_timing_check(
+				_current_actor, target, base_damage, _pending_enemy_intent)
+		var planned_hits: int = maxi(1, int(_pending_enemy_intent.get("pattern_params", {}).get("hit_count", 1)))
+		var summary: Dictionary = {
+			"outcome": TIMING_RULES.Outcome.PERFECT,
+			"damage": 0,
+			"mp_change": 0,
+		}
+		for hit: Dictionary in hit_results:
+			var hit_index: int = int(hit.get("hit_index", 0))
+			var hit_damage: int = floori(float(base_damage) / planned_hits)
+			if hit_index < base_damage % planned_hits:
+				hit_damage += 1
+			var timing_result: Dictionary
+			if bool(hit.get("contact", false)):
+				timing_result = TIMING_RULES.evaluate_outcome(
+					target.pending_stance,
+					hit.get("outcome", TIMING_RULES.Outcome.FAILURE),
+					hit_damage,
+					target.mp,
+					target.max_mp)
+			else:
+				timing_result = {
+					"outcome": TIMING_RULES.Outcome.SUCCESS,
+					"damage": 0,
+					"mp_change": 0,
+				}
+			TIMING_RULES.apply(target, timing_result)
+			summary.damage += timing_result.damage
+			summary.mp_change += timing_result.mp_change
+			if timing_result.outcome < summary.outcome:
+				summary.outcome = timing_result.outcome
+			result.damage += timing_result.damage
+			result.timing_results.append(timing_result.merged(hit).merged({"target": target}))
 		if battle_controller != null and battle_controller.has_method("finish_timing_check"):
-			await battle_controller.finish_timing_check(target, timing_result)
-		result.damage += timing_result.damage
-		result.timing_results.append(timing_result.merged({"target": target}))
+			await battle_controller.finish_timing_check(target, summary)
 	return result
 
 func _new_action_result(action_targets: Array) -> Dictionary:
@@ -229,6 +264,7 @@ func _run_enemy_ai() -> void:
 		intent = battle_controller.get_enemy_intent(_current_actor)
 	if intent.is_empty():
 		intent = ENEMY_AI_SCRIPT.decide_intent(_current_actor, party)
+	_pending_enemy_intent = intent.duplicate(true)
 	_pending_command = intent.get("command", BattleCommands.ATTACK)
 	_pending_skill = intent.get("skill", null)
 	_pending_target_mode = intent.get("target_mode", EnemyAI.TARGET_MODE_SINGLE)
