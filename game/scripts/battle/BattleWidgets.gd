@@ -59,8 +59,8 @@ static func make_pip(active: bool) -> Control:
 
 # ───────────────────────────────────────────── ②⑤ 敌我状态卡（头像框 + HP/MP 条）
 
-## 一个单位卡：[头像框+占位色块] | [姓名 / HP 条 / (我方)MP 条]
-static func make_unit_card(unit, is_party: bool) -> Control:
+## 我方单位卡：[头像框] | [姓名 / HP / MP]；敌方常态只保留纯立绘。
+static func make_unit_card(unit, is_party: bool, is_active: bool = false) -> Control:
 	var row := HBoxContainer.new()
 	row.add_theme_constant_override("separation", 12)
 	row.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -69,9 +69,11 @@ static func make_unit_card(unit, is_party: bool) -> Control:
 		row.modulate = Color(0.5, 0.5, 0.5)
 
 	# 头像框（avatar_frame_9p）+ 单位 sprite 正面帧（无外观时回退占位纯色块）
-	var avatar := make_avatar(unit, is_party)
+	var avatar := make_avatar(unit, is_party, 104 if is_active else 88, is_active)
 	avatar.set_meta("unit_ref", unit)
 	row.add_child(avatar)
+	if not is_party:
+		return row
 
 	var info := VBoxContainer.new()
 	info.add_theme_constant_override("separation", 4)
@@ -105,10 +107,13 @@ static func make_unit_card(unit, is_party: bool) -> Control:
 	row.add_child(info)
 	return row
 
-static func make_avatar(unit, is_party: bool) -> Control:
+static func make_avatar(
+		unit,
+		is_party: bool,
+		size_px: int = 88,
+		gold_outline: bool = false) -> Control:
 	# 头像框切片 88×88 已按屏幕尺寸烘焙（8px 黑框 + 2px 骨白 + 2px 暗缝），1:1 绘制；
 	# 内域恰为 64×64，正面帧无重采样。
-	var size_px: int = 88
 	var border_px: int = 12  # 黑框 8 + 骨白 2 + 暗缝 2
 	var holder := Control.new()
 	holder.custom_minimum_size = Vector2(size_px, size_px)
@@ -141,17 +146,27 @@ static func make_avatar(unit, is_party: bool) -> Control:
 		rect.offset_bottom = -border_px
 		rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		holder.add_child(rect)
-		return holder
-	# 无外观回退：内部占位色块（友蓝/敌红），叠在框内、内缩到描边以内，让框边可见。
-	var fill := ColorRect.new()
-	fill.color = COL_ALLY if is_party else COL_ENEMY
-	fill.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	fill.offset_left = border_px
-	fill.offset_top = border_px
-	fill.offset_right = -border_px
-	fill.offset_bottom = -border_px
-	fill.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	holder.add_child(fill)
+	else:
+		# 无外观回退：内部占位色块（友蓝/敌红），叠在粗框以内。
+		var fill := ColorRect.new()
+		fill.color = COL_ALLY if is_party else COL_ENEMY
+		fill.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+		fill.offset_left = border_px
+		fill.offset_top = border_px
+		fill.offset_right = -border_px
+		fill.offset_bottom = -border_px
+		fill.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		holder.add_child(fill)
+	if gold_outline:
+		var active_outline := Panel.new()
+		active_outline.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+		active_outline.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		var outline_style := StyleBoxFlat.new()
+		outline_style.bg_color = Color.TRANSPARENT
+		outline_style.border_color = COL_GOLD
+		outline_style.set_border_width_all(6)
+		active_outline.add_theme_stylebox_override("panel", outline_style)
+		holder.add_child(active_outline)
 	return holder
 
 ## 取单位头像纹理：stats_res 带 sprite_frames（8 向 idle）时取 idle_down 首帧，否则 null。
@@ -319,12 +334,21 @@ static func make_timing_overlay(attacker: BattleUnit) -> Dictionary:
 	overlay.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	overlay.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	overlay.z_index = 2
+	var attacker_frame := PanelContainer.new()
+	attacker_frame.name = "EnemyPerformanceFrame"
+	attacker_frame.set_anchors_preset(Control.PRESET_TOP_RIGHT)
+	attacker_frame.offset_left = -248
+	attacker_frame.offset_top = 24
+	attacker_frame.offset_right = -40
+	attacker_frame.offset_bottom = 168
+	attacker_frame.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var frame_style := StyleBoxFlat.new()
+	frame_style.bg_color = Color(0.055, 0.04, 0.055, 0.96)
+	frame_style.border_color = COL_ENEMY.darkened(0.18)
+	frame_style.set_border_width_all(6)
+	frame_style.set_content_margin_all(10)
+	attacker_frame.add_theme_stylebox_override("panel", frame_style)
 	var attacker_box := VBoxContainer.new()
-	attacker_box.set_anchors_preset(Control.PRESET_CENTER_TOP)
-	attacker_box.offset_left = -140
-	attacker_box.offset_top = 42
-	attacker_box.offset_right = 140
-	attacker_box.offset_bottom = 174
 	attacker_box.alignment = BoxContainer.ALIGNMENT_CENTER
 	attacker_box.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	var avatar := make_avatar(attacker, false)
@@ -333,9 +357,10 @@ static func make_timing_overlay(attacker: BattleUnit) -> Dictionary:
 	var name_label := Label.new()
 	name_label.text = attacker.display_name
 	name_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	name_label.add_theme_font_size_override("font_size", 24)
+	name_label.add_theme_font_size_override("font_size", 22)
 	attacker_box.add_child(name_label)
-	overlay.add_child(attacker_box)
+	attacker_frame.add_child(attacker_box)
+	overlay.add_child(attacker_frame)
 	var result_label := Label.new()
 	result_label.set_anchors_preset(Control.PRESET_CENTER_BOTTOM)
 	result_label.offset_left = -460

@@ -64,6 +64,7 @@ func _ready() -> void:
 	_test_defense_timing_rules()
 	_test_attack_duration_scale()
 	_test_impact_camera_feedback()
+	_test_battle_hud_frames()
 	await _test_defense_action_field()
 	await _test_enemy_damage_waits_for_timing()
 	_test_flee_turn_flow()
@@ -639,6 +640,37 @@ func _test_impact_camera_feedback() -> void:
 		failure_paused and feedback_amplitudes == [12.0, 16.0]
 		and is_equal_approx(parry._hit_stop_remaining, TIMING_CHECK.HIT_STOP_PARRY))
 	parry.free()
+
+func _test_battle_hud_frames() -> void:
+	var party := _make_unit(10, 5, 8)
+	party.is_player = true
+	var inactive_card: Control = BattleWidgets.make_unit_card(party, true)
+	var active_card: Control = BattleWidgets.make_unit_card(party, true, true)
+	var inactive_avatar: Control = inactive_card.get_child(0)
+	var active_avatar: Control = active_card.get_child(0)
+	var outline: Panel = active_avatar.get_child(active_avatar.get_child_count() - 1)
+	var outline_style := outline.get_theme_stylebox("panel") as StyleBoxFlat
+	_check("当前行动角色头像放大并使用金色粗框",
+		active_avatar.custom_minimum_size.x > inactive_avatar.custom_minimum_size.x
+		and outline_style.get_border_width(SIDE_LEFT) == 6
+		and outline_style.border_color == BattleWidgets.COL_GOLD)
+	inactive_card.free()
+	active_card.free()
+
+	var enemy := _make_unit(10, 5, 8)
+	enemy.is_player = false
+	var enemy_card: Control = BattleWidgets.make_unit_card(enemy, false)
+	_check("常态敌方区域只显示纯立绘", enemy_card.get_child_count() == 1)
+	enemy_card.free()
+
+	var overlay_parts: Dictionary = BattleWidgets.make_timing_overlay(enemy)
+	var overlay: Control = overlay_parts.overlay
+	var performance_frame: Control = overlay.get_node("EnemyPerformanceFrame")
+	_check("受击演出敌方形象框固定在右侧",
+		performance_frame.anchor_left == 1.0
+		and performance_frame.anchor_right == 1.0
+		and performance_frame.offset_right < 0.0)
+	overlay.free()
 
 func _test_enemy_damage_waits_for_timing() -> void:
 	var enemy := _make_unit(20, 0, 10)

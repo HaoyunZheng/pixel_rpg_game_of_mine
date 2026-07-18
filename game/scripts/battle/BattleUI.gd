@@ -98,6 +98,7 @@ func show_actor_turn(actor) -> void:
 	_turn_label.text = "✦ 轮到 %s" % actor.display_name
 	_is_selecting_target = false
 	_clear_target_reticles()
+	_refresh_display()
 	_rebuild_turn_order_bar(actor)
 	if actor.is_player and not actor.is_dead():
 		_build_command_menu()
@@ -188,7 +189,8 @@ func _refresh_display() -> void:
 	for child in _party_container.get_children():
 		child.queue_free()
 	for member in _party_units:
-		_party_container.add_child(BattleWidgets.make_unit_card(member, true))
+		_party_container.add_child(BattleWidgets.make_unit_card(
+			member, true, member == _current_actor))
 	_schedule_intent_marker_refresh()
 
 # ───────────────────────────────────────────── ④ 命令栏四格（固定）
@@ -550,8 +552,10 @@ func _set_timing_layout(expanded: bool) -> void:
 	_timing_tween.set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN_OUT)
 	_timing_tween.tween_property(_central_box, "position", target_rect.position, TIMING_TWEEN_SECONDS)
 	_timing_tween.tween_property(_central_box, "size", target_rect.size, TIMING_TWEEN_SECONDS)
-	for hud: CanvasItem in [_turn_order_bar, _enemy_container, _party_panel, _reticle_layer, _turn_label]:
+	for hud: CanvasItem in [_turn_order_bar, _enemy_container, _reticle_layer, _turn_label]:
 		_timing_tween.tween_property(hud, "modulate:a", hud_alpha, TIMING_TWEEN_SECONDS)
+	# ponytail: 左下状态列始终可读；若未来遮挡弹幕，再缩小而不是淡出。
+	_timing_tween.tween_property(_party_panel, "modulate:a", 1.0, TIMING_TWEEN_SECONDS)
 	await _timing_tween.finished
 
 func _build_timing_overlay(attacker: BattleUnit, _target: BattleUnit) -> void:
