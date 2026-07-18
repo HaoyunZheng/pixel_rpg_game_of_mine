@@ -880,11 +880,20 @@ func _test_reticle_animations() -> void:
 	var picked: Array = []
 	ui._start_target_select(BattleUI.TARGET_GROUP_ENEMY, func(target): picked.append(target))
 	var entering_marker: Control = ui.get("_target_reticle")
-	_check("准星以一圈旋转和淡入开始入场",
-		is_equal_approx(entering_marker.rotation, -TAU)
-		and is_zero_approx(entering_marker.modulate.a))
-	await get_tree().create_timer(0.21).timeout
+	var first_avatar: Control = ui._find_avatar_for_unit(enemy_a)
+	_check("准星按分辨率缩放且以一圈旋转、缩放和淡入开始入场",
+		BattleUI.calculate_target_reticle_size(1.0) == 96
+		and BattleUI.calculate_target_reticle_size(2.0 / 3.0) == 64
+		and entering_marker.size == Vector2(96, 96)
+		and is_equal_approx(entering_marker.rotation, -TAU)
+		and is_zero_approx(entering_marker.modulate.a)
+		and entering_marker.scale == Vector2.ONE * BattleUI.TARGET_RETICLE_ENTER_SCALE
+		and entering_marker.position.is_equal_approx(BattleUI.calculate_target_reticle_position(
+			first_avatar.get_global_rect(), entering_marker.size)))
+	await get_tree().create_timer(0.29).timeout
 	var marker: Control = ui.get("_target_reticle")
+	_check("准星入场 0.28 秒后恢复原尺寸与完全不透明",
+		marker.scale == Vector2.ONE and is_equal_approx(marker.modulate.a, 1.0))
 	var marker_id: int = marker.get_instance_id()
 	var first_position: Vector2 = marker.position
 	ui._move_target_selection(1)
@@ -898,15 +907,20 @@ func _test_reticle_animations() -> void:
 	var avatar_b: Control = ui._find_avatar_for_unit(enemy_b)
 	_check("准星滑到新目标并切换敌方立绘明暗",
 		marker.position != first_position
+		and marker.position.is_equal_approx(BattleUI.calculate_target_reticle_position(
+			avatar_b.get_global_rect(), marker.size))
 		and avatar_a.modulate.r < 0.5 and avatar_b.modulate == Color.WHITE)
 
 	ui._pick_selected_target()
-	await get_tree().create_timer(0.18).timeout
+	await get_tree().create_timer(0.22).timeout
 	_check("确认脉冲开始即封锁输入且尚未执行回调",
 		ui.get("_target_confirming") and not ui.get("_is_selecting_target") and picked.is_empty()
 		and ui.get_node("ReticleLayer").get_children().any(
 			func(child): return child.has_meta("target_pulse")))
-	await get_tree().create_timer(0.27).timeout
+	await get_tree().create_timer(0.36).timeout
+	_check("外扩环完整播放前不提交目标回调",
+		ui.get("_target_confirming") and picked.is_empty())
+	await get_tree().create_timer(0.08).timeout
 	await get_tree().process_frame
 	_check("准星完整脉冲结束后才执行目标回调", picked == [enemy_b])
 
@@ -939,6 +953,10 @@ func _test_reticle_animations() -> void:
 	var count_labels: Array = base_markers[0].find_children("*", "Label", true, false)
 	_check("多敌锁定保留单一基础红环和 ×N 数量",
 		base_markers.size() == 1 and count_labels[0].text == "×2")
+	var party_avatar: Control = ui._find_avatar_for_unit(party)
+	_check("红色准星始终围绕角色圆形头像中心",
+		base_markers[0].get_global_rect().get_center().is_equal_approx(
+			party_avatar.get_global_rect().get_center()))
 	_check("同目标多敌意图使用错峰临时脉冲副本",
 		ui.get("_intent_preview_active") and pulse_markers.size() == 2)
 	await get_tree().create_timer(0.42).timeout

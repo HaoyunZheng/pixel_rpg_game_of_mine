@@ -35,10 +35,18 @@ const MENU_MODE_SKILL: String = "skill"
 const MENU_MODE_ITEM: String = "item"
 const TIMING_TWEEN_SECONDS: float = 0.3
 const DESIGN_SIZE: Vector2 = Vector2(480.0, 270.0)
-const RETICLE_MOVE_SECONDS: float = 0.2
-const RETICLE_PRESS_SECONDS: float = 0.08
-const RETICLE_PULSE_SECONDS: float = 0.25
-const RETICLE_CANCEL_SECONDS: float = 0.12
+const TARGET_RETICLE_SIZE_1080P: int = 96
+const TARGET_RETICLE_HEAD_RATIO: float = 0.22
+const TARGET_RETICLE_ENTER_SCALE: float = 0.72
+const TARGET_RETICLE_PRESS_SCALE: float = 0.82
+const TARGET_RETICLE_PULSE_SCALE: float = 1.85
+const TARGET_RETICLE_ENTER_SECONDS: float = 0.28
+const TARGET_RETICLE_MOVE_SECONDS: float = 0.2
+const TARGET_RETICLE_PRESS_SECONDS: float = 0.1
+const TARGET_RETICLE_PULSE_SECONDS: float = 0.42
+const TARGET_RETICLE_CANCEL_SECONDS: float = 0.12
+const INTENT_PRESS_SECONDS: float = 0.08
+const INTENT_PULSE_SECONDS: float = 0.25
 const INTENT_STAGGER_SECONDS: float = 0.1
 
 # ── 攻击力度转盘（纯代码自绘，攻击流中实例化叠加在中央框上）──
@@ -209,7 +217,7 @@ func show_enemy_intents(intents: Dictionary, turn_order: Array = []) -> void:
 			_intent_preview_tween.tween_interval(INTENT_STAGGER_SECONDS)
 		_intent_preview_tween.tween_callback(_pulse_intent_targets.bind(telegraphs[index]))
 	_intent_preview_tween.tween_interval(
-		RETICLE_PRESS_SECONDS * 2.0 + RETICLE_PULSE_SECONDS)
+		INTENT_PRESS_SECONDS * 2.0 + INTENT_PULSE_SECONDS)
 	await _intent_preview_tween.finished
 	_intent_preview_tween = null
 	_show_all_intent_markers()
@@ -541,33 +549,45 @@ func _update_target_reticle() -> void:
 	var anchor: Control = _find_avatar_for_unit(target)
 	if anchor == null:
 		return
-	var center := _avatar_screen_center(anchor)
+	var marker_size := Vector2.ONE * calculate_target_reticle_size(_hud_scale)
+	var target_position := calculate_target_reticle_position(anchor.get_global_rect(), marker_size)
 	_set_target_brightness(target)
 	if _target_reticle_tween != null and _target_reticle_tween.is_valid():
 		_target_reticle_tween.kill()
 	if not is_instance_valid(_target_reticle):
 		var tex: Texture2D = BattleWidgets.load_tex(BattleWidgets.TEX_RETICLE)
-		_target_reticle = BattleWidgets.make_overlay_marker(tex, 16, BattleWidgets.COL_GOLD)
+		_target_reticle = BattleWidgets.make_overlay_marker(
+			tex, roundi(marker_size.x), BattleWidgets.COL_GOLD)
 		_target_reticle.set_meta("target_marker", true)
 		_reticle_layer.add_child(_target_reticle)
 		_target_reticle.pivot_offset = _target_reticle.size * 0.5
-		_target_reticle.position = center - _target_reticle.size * 0.5 - Vector2(0, anchor.size.y * 0.6)
+		_target_reticle.position = target_position
 		_target_reticle.rotation = -TAU
 		_target_reticle.modulate.a = 0.0
+		_target_reticle.scale = Vector2.ONE * TARGET_RETICLE_ENTER_SCALE
 		_target_reticle_tween = create_tween().set_parallel(true)
 		_target_reticle_tween.set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
-		_target_reticle_tween.tween_property(_target_reticle, "rotation", 0.0, RETICLE_MOVE_SECONDS)
-		_target_reticle_tween.tween_property(_target_reticle, "modulate:a", 1.0, RETICLE_MOVE_SECONDS)
+		_target_reticle_tween.tween_property(
+			_target_reticle, "rotation", 0.0, TARGET_RETICLE_ENTER_SECONDS)
+		_target_reticle_tween.tween_property(
+			_target_reticle, "modulate:a", 1.0, TARGET_RETICLE_ENTER_SECONDS)
+		_target_reticle_tween.tween_property(
+			_target_reticle, "scale", Vector2.ONE, TARGET_RETICLE_ENTER_SECONDS)
 		return
+	_target_reticle.custom_minimum_size = marker_size
+	_target_reticle.size = marker_size
+	_target_reticle.pivot_offset = marker_size * 0.5
 	_target_reticle_tween = create_tween().set_parallel(true)
 	_target_reticle_tween.set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_IN_OUT)
 	_target_reticle_tween.tween_property(
-		_target_reticle, "position",
-		center - _target_reticle.size * 0.5 - Vector2(0, anchor.size.y * 0.6),
-		RETICLE_MOVE_SECONDS)
+		_target_reticle, "position", target_position, TARGET_RETICLE_MOVE_SECONDS)
 	_target_reticle_tween.tween_property(
-		_target_reticle, "rotation", _target_reticle.rotation + TAU, RETICLE_MOVE_SECONDS)
-	_target_reticle_tween.tween_property(_target_reticle, "modulate:a", 1.0, RETICLE_MOVE_SECONDS)
+		_target_reticle, "rotation",
+		_target_reticle.rotation + TAU, TARGET_RETICLE_MOVE_SECONDS)
+	_target_reticle_tween.tween_property(
+		_target_reticle, "modulate:a", 1.0, TARGET_RETICLE_MOVE_SECONDS)
+	_target_reticle_tween.tween_property(
+		_target_reticle, "scale", Vector2.ONE, TARGET_RETICLE_MOVE_SECONDS)
 
 func _clear_target_reticles() -> void:
 	if not is_instance_valid(_reticle_layer):
@@ -590,7 +610,7 @@ func _fade_out_target_reticle() -> void:
 	_target_reticle_tween = create_tween()
 	_target_reticle_tween.set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
 	_target_reticle_tween.tween_property(
-		_target_reticle, "modulate:a", 0.0, RETICLE_CANCEL_SECONDS)
+		_target_reticle, "modulate:a", 0.0, TARGET_RETICLE_CANCEL_SECONDS)
 	await _target_reticle_tween.finished
 	_clear_target_reticles()
 
@@ -602,9 +622,10 @@ func _play_target_confirm_pulse() -> void:
 	_target_reticle_tween = create_tween()
 	_target_reticle_tween.set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
 	_target_reticle_tween.tween_property(
-		_target_reticle, "scale", Vector2.ONE * 0.85, RETICLE_PRESS_SECONDS)
+		_target_reticle, "scale",
+		Vector2.ONE * TARGET_RETICLE_PRESS_SCALE, TARGET_RETICLE_PRESS_SECONDS)
 	_target_reticle_tween.tween_property(
-		_target_reticle, "scale", Vector2.ONE, RETICLE_PRESS_SECONDS)
+		_target_reticle, "scale", Vector2.ONE, TARGET_RETICLE_PRESS_SECONDS)
 	await _target_reticle_tween.finished
 	_target_reticle_tween = null
 	var pulse := _target_reticle.duplicate() as Control
@@ -616,8 +637,10 @@ func _play_target_confirm_pulse() -> void:
 	pulse.modulate.a = 1.0
 	var pulse_tween := create_tween()
 	pulse_tween.set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
-	pulse_tween.tween_property(pulse, "scale", Vector2.ONE * 1.5, RETICLE_PULSE_SECONDS)
-	pulse_tween.parallel().tween_property(pulse, "modulate:a", 0.0, RETICLE_PULSE_SECONDS)
+	pulse_tween.tween_property(
+		pulse, "scale", Vector2.ONE * TARGET_RETICLE_PULSE_SCALE, TARGET_RETICLE_PULSE_SECONDS)
+	pulse_tween.parallel().tween_property(
+		pulse, "modulate:a", 0.0, TARGET_RETICLE_PULSE_SECONDS)
 	pulse_tween.tween_callback(pulse.queue_free)
 	await pulse_tween.finished
 
@@ -701,10 +724,10 @@ func _pulse_intent_targets(targets: Array) -> void:
 		pulse.modulate.a = 1.0
 		var pulse_tween := create_tween()
 		pulse_tween.set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
-		pulse_tween.tween_property(pulse, "scale", Vector2.ONE * 0.85, RETICLE_PRESS_SECONDS)
-		pulse_tween.tween_property(pulse, "scale", Vector2.ONE, RETICLE_PRESS_SECONDS)
-		pulse_tween.tween_property(pulse, "scale", Vector2.ONE * 1.5, RETICLE_PULSE_SECONDS)
-		pulse_tween.parallel().tween_property(pulse, "modulate:a", 0.0, RETICLE_PULSE_SECONDS)
+		pulse_tween.tween_property(pulse, "scale", Vector2.ONE * 0.85, INTENT_PRESS_SECONDS)
+		pulse_tween.tween_property(pulse, "scale", Vector2.ONE, INTENT_PRESS_SECONDS)
+		pulse_tween.tween_property(pulse, "scale", Vector2.ONE * 1.5, INTENT_PULSE_SECONDS)
+		pulse_tween.parallel().tween_property(pulse, "modulate:a", 0.0, INTENT_PULSE_SECONDS)
 		pulse_tween.tween_callback(pulse.queue_free)
 
 func _show_all_intent_markers() -> void:
@@ -772,6 +795,14 @@ static func calculate_party_avatar_size(
 	var separation: float = 12.0 * hud_scale
 	var available_height: float = (panel_height - separation * (count - 1)) / count
 	return maxi(1, floori(minf(120.0 * hud_scale, available_height)))
+
+static func calculate_target_reticle_size(hud_scale: float) -> int:
+	return maxi(1, roundi(TARGET_RETICLE_SIZE_1080P * hud_scale))
+
+static func calculate_target_reticle_position(anchor_rect: Rect2, marker_size: Vector2) -> Vector2:
+	var head_center := anchor_rect.position + Vector2(
+		anchor_rect.size.x * 0.5, anchor_rect.size.y * TARGET_RETICLE_HEAD_RATIO)
+	return head_center - marker_size * 0.5
 
 func _apply_layout() -> void:
 	var normal: Dictionary = calculate_layout(get_viewport_rect().size, false)
@@ -870,9 +901,6 @@ func _find_avatar_for_unit(unit) -> Control:
 				if sub is Control and sub.has_meta("unit_ref") and sub.get_meta("unit_ref") == unit:
 					return sub
 	return null
-
-func _avatar_screen_center(avatar: Control) -> Vector2:
-	return avatar.get_global_rect().get_center()
 
 # ───────────────────────────────────────────── 输入（键盘闭环，沿用旧规则）
 

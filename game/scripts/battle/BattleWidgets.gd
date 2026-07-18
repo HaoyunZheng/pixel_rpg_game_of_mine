@@ -25,7 +25,7 @@ const COL_HP: Color = Color(0.46, 0.12, 0.15)            # HP >50%：暗血红
 const COL_HP_MID: Color = Color(0.82, 0.34, 0.12)        # HP 26%~50%：余烬橙
 const COL_HP_LOW: Color = Color(0.95, 0.10, 0.12)        # HP <=25%：亮血红
 const COL_MP: Color = Color(0.31, 0.52, 0.66)            # MP 法力蓝
-const PIXEL_SCALE: int = 4                                # 480×270 基准 ×4 → 1080p（准星/锁定标记等小件仍按此放大；面板/条/pip 切片已按屏幕尺寸烘焙、1:1 绘制）
+const PIXEL_SCALE: int = 4                                # 480×270 设计倍率换算为 1080p HUD 倍率。
 const CIRCLE_SHADER_CODE: String = """
 shader_type canvas_item;
 void fragment() {
@@ -325,31 +325,31 @@ static func make_cmd_cell_style() -> StyleBox:
 
 # ───────────────────────────────────────────── ⑥ 准星 / 锁敌叠加标记
 
-static func make_overlay_marker(tex: Texture2D, base_px: int, fallback_col: Color) -> Control:
+static func make_overlay_marker(tex: Texture2D, size_px: int, fallback_col: Color) -> Control:
+	var target_size := Vector2.ONE * maxi(1, size_px)
 	if tex != null:
 		var rect := TextureRect.new()
 		rect.texture = tex
-		# 必须真把纹理放大到 ×4 盒子：STRETCH_KEEP 只按原生 16px 画在盒子左上角（又小又偏位）
 		rect.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 		rect.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
-		rect.custom_minimum_size = tex.get_size() * PIXEL_SCALE
-		rect.size = rect.custom_minimum_size
+		rect.custom_minimum_size = target_size
+		rect.size = target_size
 		rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		return rect
 	var dot := ColorRect.new()
-	var px: int = base_px * PIXEL_SCALE
-	dot.custom_minimum_size = Vector2(px, px)
-	dot.size = dot.custom_minimum_size
+	dot.custom_minimum_size = target_size
+	dot.size = target_size
 	dot.color = fallback_col
 	dot.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	return dot
 
 static func make_intent_marker(avatar: Control, lock_count: int) -> Control:
-	var marker := make_overlay_marker(load_tex(TEX_MARKER_LOCKED), 24, COL_ENEMY)
+	var avatar_size: float = maxf(avatar.size.x, avatar.size.y)
+	var padding: int = maxi(8, roundi(avatar_size * 16.0 / 120.0))
+	var marker := make_overlay_marker(
+		load_tex(TEX_MARKER_LOCKED), roundi(avatar_size) + padding, COL_ENEMY)
 	marker.set_meta("intent_marker", true)
 	marker.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	marker.size = avatar.size + Vector2(16, 16)
-	marker.custom_minimum_size = marker.size
 	marker.position = avatar.get_global_rect().get_center() - marker.size * 0.5
 	marker.pivot_offset = marker.size * 0.5
 	var label := Label.new()
