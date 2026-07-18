@@ -8,15 +8,6 @@ const SLOT_SIZES: Array[float] = [72.0, 56.0, 44.0, 32.0]
 const SLOT_SPACING: float = 96.0
 const ARC_TOP: float = 32.0
 const ARC_CURVE: float = 5.5
-const CIRCLE_SHADER_CODE: String = """
-shader_type canvas_item;
-void fragment() {
-	vec4 color = texture(TEXTURE, UV);
-	color.a *= 1.0 - step(0.5, length(UV - vec2(0.5)));
-	COLOR = color;
-}
-"""
-
 var _orbs: Dictionary = {}
 var _roll_tween: Tween = null
 var _flash_tween: Tween = null
@@ -130,11 +121,7 @@ func _make_orb(unit) -> Control:
 		portrait_rect.offset_right = -4
 		portrait_rect.offset_bottom = -4
 		portrait_rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		var shader := Shader.new()
-		shader.code = CIRCLE_SHADER_CODE
-		var circle_material := ShaderMaterial.new()
-		circle_material.shader = shader
-		portrait_rect.material = circle_material
+		portrait_rect.material = BattleWidgets.make_circle_material()
 		orb.add_child(portrait_rect)
 
 	var border := Panel.new()

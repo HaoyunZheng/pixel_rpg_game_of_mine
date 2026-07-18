@@ -86,6 +86,9 @@ var _target_confirming: bool = false
 var _intent_preview_active: bool = false
 var _intent_preview_tween: Tween = null
 var _intent_marker_by_unit: Dictionary = {}
+var _hud_scale: float = 1.0
+var _party_avatar_size: int = 120
+var _enemy_sprite_size: int = 192
 
 # ───────────────────────────────────────────── 生命周期 / 对外接口
 
@@ -99,7 +102,7 @@ func setup(party: Array, enemies: Array, controller: Node = null, turn_state_mac
 	_party_units = party
 	_enemy_units = enemies
 	_build_command_cells()
-	_refresh_display()
+	_apply_layout()
 	_clear_menu_highlight()
 	_set_menu_visible(false)
 	_message_label.text = "战斗开始！"
@@ -235,7 +238,8 @@ func _refresh_display() -> void:
 		_enemy_container.remove_child(child)
 		child.queue_free()
 	for enemy in _enemy_units:
-		_enemy_container.add_child(BattleWidgets.make_unit_card(enemy, false))
+		_enemy_container.add_child(BattleWidgets.make_unit_card(
+			enemy, false, false, _enemy_sprite_size, _hud_scale))
 	# ⑤ 我方
 	_party_anchor_by_unit.clear()
 	for child in _party_container.get_children():
@@ -243,7 +247,7 @@ func _refresh_display() -> void:
 		child.queue_free()
 	for member in _party_units:
 		_party_container.add_child(BattleWidgets.make_unit_card(
-			member, true, member == _current_actor))
+			member, true, member == _current_actor, _party_avatar_size, _hud_scale))
 	_schedule_intent_marker_refresh()
 
 # ───────────────────────────────────────────── ④ 命令栏四格（固定）
@@ -719,12 +723,32 @@ static func calculate_layout(viewport_size: Vector2, expanded: bool) -> Dictiona
 	var bottom: float = (262.0 if expanded else 234.0) * ui_scale
 	return {
 		"scale": ui_scale,
+		"enemy": Rect2(viewport_size.x * 0.5 - 105.0 * ui_scale, 47.5 * ui_scale,
+			210.0 * ui_scale, 55.0 * ui_scale),
 		"central": Rect2(central_left, top, stage_left - 6.0 * ui_scale - central_left, bottom - top),
 		"stage": Rect2(stage_left, top, 92.0 * ui_scale, (262.0 * ui_scale) - top),
 		"command": Rect2(98.0 * ui_scale, 240.0 * ui_scale,
 			stage_left - 104.0 * ui_scale, 22.0 * ui_scale),
 		"party": Rect2(6.0 * ui_scale, 152.0 * ui_scale, 86.0 * ui_scale, 110.0 * ui_scale),
 	}
+
+static func calculate_enemy_sprite_size(
+		container_size: Vector2,
+		enemy_count: int,
+		separation: float,
+		hud_scale: float) -> int:
+	var count: int = maxi(1, enemy_count)
+	var available_width: float = (container_size.x - separation * (count - 1)) / count
+	return maxi(1, floori(minf(192.0 * hud_scale, minf(container_size.y * 0.88, available_width))))
+
+static func calculate_party_avatar_size(
+		panel_height: float,
+		party_count: int,
+		hud_scale: float) -> int:
+	var count: int = maxi(1, party_count)
+	var separation: float = 12.0 * hud_scale
+	var available_height: float = (panel_height - separation * (count - 1)) / count
+	return maxi(1, floori(minf(120.0 * hud_scale, available_height)))
 
 func _apply_layout() -> void:
 	var normal: Dictionary = calculate_layout(get_viewport_rect().size, false)
@@ -735,9 +759,21 @@ func _apply_layout() -> void:
 	_stage_box.size = current.stage.size
 	_command_bar.position = normal.command.position
 	_command_bar.size = normal.command.size
+	_enemy_container.position = normal.enemy.position
+	_enemy_container.size = normal.enemy.size
 	_party_panel.position = normal.party.position
 	_party_panel.size = normal.party.size
+	_hud_scale = normal.scale / BattleWidgets.PIXEL_SCALE
+	var enemy_separation: int = roundi(20.0 * normal.scale)
+	_enemy_container.add_theme_constant_override("separation", enemy_separation)
+	_party_container.add_theme_constant_override("separation", roundi(3.0 * normal.scale))
+	_enemy_sprite_size = calculate_enemy_sprite_size(
+		_enemy_container.size, _enemy_units.size(), enemy_separation, _hud_scale)
+	_party_avatar_size = calculate_party_avatar_size(
+		_party_panel.size.y, _party_units.size(), _hud_scale)
 	_timing_normal_rect = normal.central
+	if not _party_units.is_empty() or not _enemy_units.is_empty():
+		_refresh_display()
 
 func _set_timing_layout(expanded: bool) -> void:
 	if _timing_tween != null and _timing_tween.is_valid():

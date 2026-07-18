@@ -690,8 +690,10 @@ func _test_battle_hud_frames() -> void:
 	var central: NinePatchRect = ui.get_node("CentralBox")
 	var stage: NinePatchRect = ui.get_node("StageBox")
 	var message: Label = central.get_node("MessageLabel")
+	var party_panel: NinePatchRect = ui.get_node("PartyPanel")
 	_check("StageBox 是中央框右侧的同级框",
 		stage.get_parent() == central.get_parent() and stage.texture == central.texture)
+	_check("我方状态列保留布局锚点但移除大外框", party_panel.texture == null)
 	_check("中央战况文字固定左上并限制三行",
 		message.vertical_alignment == VERTICAL_ALIGNMENT_TOP
 		and message.horizontal_alignment == HORIZONTAL_ALIGNMENT_LEFT
@@ -701,26 +703,42 @@ func _test_battle_hud_frames() -> void:
 	_check("常态双框与命令栏符合 480×270 基准",
 		normal.central == Rect2(392, 608, 1040, 328)
 		and normal.stage == Rect2(1456, 608, 368, 440)
-		and normal.command == Rect2(392, 960, 1040, 88))
+		and normal.command == Rect2(392, 960, 1040, 88)
+		and normal.enemy == Rect2(540, 190, 840, 220))
 	_check("演出态中央框覆盖状态列并止于右侧框",
 		expanded.central == Rect2(24, 112, 1408, 936)
 		and expanded.stage == Rect2(1456, 112, 368, 936)
 		and expanded.central.intersects(expanded.party)
 		and is_equal_approx(expanded.stage.position.x - expanded.central.end.x, 24.0))
+	_check("敌方立绘按容器高度、均分宽度和上限自适应",
+		BattleUI.calculate_enemy_sprite_size(normal.enemy.size, 1, 80.0, 1.0) == 192
+		and BattleUI.calculate_enemy_sprite_size(normal.enemy.size, 2, 80.0, 1.0) == 192
+		and BattleUI.calculate_enemy_sprite_size(normal.enemy.size, 4, 80.0, 1.0) == 150
+		and BattleUI.calculate_enemy_sprite_size(Vector2(560, 146.6667), 4, 53.3333, 2.0 / 3.0) == 100)
+	_check("队伍头像在 1080p 与 720p 下按人数缩放且不越界",
+		BattleUI.calculate_party_avatar_size(normal.party.size.y, 1, 1.0) == 120
+		and BattleUI.calculate_party_avatar_size(normal.party.size.y, 3, 1.0) == 120
+		and BattleUI.calculate_party_avatar_size(normal.party.size.y, 4, 1.0) == 101
+		and BattleUI.calculate_party_avatar_size(293.3333, 4, 2.0 / 3.0) == 67)
 	battle_scene.free()
 
 	var party := _make_unit(10, 5, 8)
 	party.is_player = true
 	party.mp = 20
 	party.max_mp = 40
-	var inactive_card: Control = BattleWidgets.make_unit_card(party, true)
-	var active_card: Control = BattleWidgets.make_unit_card(party, true, true)
+	var inactive_card: Control = BattleWidgets.make_unit_card(party, true, false, 120, 1.0)
+	var active_card: Control = BattleWidgets.make_unit_card(party, true, true, 120, 1.0)
 	var inactive_avatar: Control = inactive_card.get_child(0)
 	var active_avatar: Control = active_card.get_child(0)
+	var inactive_visual: Control = inactive_avatar.get_child(1)
 	var outline: Panel = active_avatar.get_child(active_avatar.get_child_count() - 1)
 	var outline_style := outline.get_theme_stylebox("panel") as StyleBoxFlat
-	_check("当前行动角色头像放大并使用金色粗框",
-		active_avatar.custom_minimum_size.x > inactive_avatar.custom_minimum_size.x
+	_check("角色卡只保留圆形头像与 HP/MP 状态条",
+		inactive_card.get_child_count() == 2
+		and inactive_card.get_child(1).get_child_count() == 2
+		and inactive_visual.get_child(0).material is ShaderMaterial)
+	_check("当前行动角色保持行高并使用圆形金色粗框",
+		active_avatar.custom_minimum_size == inactive_avatar.custom_minimum_size
 		and outline_style.get_border_width(SIDE_LEFT) == 6
 		and outline_style.border_color == BattleWidgets.COL_GOLD)
 	inactive_card.free()
@@ -739,12 +757,16 @@ func _test_battle_hud_frames() -> void:
 	hp_mid.free()
 	hp_low.free()
 	var player_stats := load("res://assets/data/characters/char_player.tres") as CharacterStats
-	_check("主角数据引用已有兜帽角色外观", player_stats.sprite_frames != null)
+	_check("角色数据提供可选战斗头像且不影响原外观",
+		(player_stats.battle_portrait == null or player_stats.battle_portrait is Texture2D)
+		and player_stats.sprite_frames != null)
 
 	var enemy := _make_unit(10, 5, 8)
 	enemy.is_player = false
-	var enemy_card: Control = BattleWidgets.make_unit_card(enemy, false)
-	_check("常态敌方区域只显示纯立绘", enemy_card.get_child_count() == 1)
+	var enemy_card: Control = BattleWidgets.make_unit_card(enemy, false, false, 192, 1.0)
+	_check("常态敌方区域只显示指定尺寸的纯立绘",
+		enemy_card.get_child_count() == 1
+		and enemy_card.get_child(0).custom_minimum_size == Vector2(192, 192))
 	enemy_card.free()
 
 	var overlay_parts: Dictionary = BattleWidgets.make_timing_overlay()
