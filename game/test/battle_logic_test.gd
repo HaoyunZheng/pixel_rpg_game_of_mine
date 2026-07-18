@@ -23,6 +23,7 @@ class FleeBattleController:
 	var wait_for_timing: bool = false
 	var wait_for_intent_preview: bool = false
 	var last_frozen_order: Array = []
+	var timing_summaries: Array[Dictionary] = []
 
 	func get_party_units() -> Array:
 		return party
@@ -57,6 +58,9 @@ class FleeBattleController:
 			"contact": true,
 			"outcome": DefenseTimingRules.Outcome.FAILURE,
 		}]
+
+	func finish_timing_check(_target: BattleUnit, timing_result: Dictionary) -> void:
+		timing_summaries.append(timing_result.duplicate(true))
 
 func _ready() -> void:
 	_test_damage_calculator()
@@ -551,11 +555,25 @@ func _test_defense_action_field() -> void:
 		is_equal_approx(buffered._reaction_started_at, 0.25))
 	buffered.free()
 
+	var paused_buffer := TIMING_CHECK.new()
+	add_child(paused_buffer)
+	paused_buffer.start(BattleUnit.Stance.DEFEND, Rect2(0, 0, 960, 540))
+	paused_buffer.set_physics_process(false)
+	paused_buffer._hit_stop_remaining = 0.20
+	paused_buffer._input(parry_event)
+	await get_tree().create_timer(TIMING_CHECK.INPUT_BUFFER_SECONDS + 0.02).timeout
+	paused_buffer._hit_stop_remaining = 0.0
+	paused_buffer._try_consume_reaction_buffer()
+	_check("污染兽受击停顿不消耗动作场输入缓冲",
+		is_equal_approx(paused_buffer._total_elapsed, 0.0)
+		and is_equal_approx(paused_buffer._reaction_started_at, 0.0))
+	paused_buffer.free()
+
 	var expired := TIMING_CHECK.new()
 	add_child(expired)
 	expired.start(BattleUnit.Stance.DEFEND, Rect2(0, 0, 960, 540))
 	expired._buffer_reaction(TIMING_CHECK.PARRY_ACTION, Vector2.DOWN)
-	expired._buffered_until_usec = Time.get_ticks_usec() - 1
+	expired._buffered_until_elapsed = expired._total_elapsed - 0.01
 	expired._try_consume_reaction_buffer()
 	_check("过期输入缓冲不会触发动作", expired._reaction_started_at < 0.0
 		and expired._buffered_action == &"")
@@ -613,6 +631,24 @@ func _test_defense_action_field() -> void:
 	_check("横扫在大 delta 下仍命中经过的玩家", not sweep._hit_results.is_empty()
 		and sweep._hit_results[0].contact)
 	sweep.queue_free()
+
+	var sweep_parry := TIMING_CHECK.new()
+	add_child(sweep_parry)
+	sweep_parry.start(BattleUnit.Stance.DEFEND, Rect2(0, 0, 960, 540),
+		EnemyAI.PATTERN_MUTANT_SWEEP, {
+			"hit_count": 2, "telegraph": 0.8, "active": 0.5, "gap": 0.2,
+			"arc_degrees": 140.0, "width": 56.0, "clockwise": true,
+		})
+	sweep_parry.set_physics_process(false)
+	sweep_parry._reaction_started_at = 0.0
+	sweep_parry._reaction_ends_at = TIMING_CHECK.PARRY_DURATION
+	sweep_parry._total_elapsed = 0.12
+	sweep_parry._resolve_contact()
+	_check("污染兽横扫接触时有效弹反稳定判定成功",
+		sweep_parry._hit_results.size() == 1
+		and sweep_parry._hit_results[0].contact
+		and sweep_parry._hit_results[0].outcome == TIMING_RULES.Outcome.SUCCESS)
+	sweep_parry.free()
 
 	var timing := TIMING_CHECK.new()
 	add_child(timing)
@@ -1003,8 +1039,8 @@ func _test_enemy_damage_waits_for_timing() -> void:
 		"target_side": EnemyAI.TARGET_SIDE_PARTY,
 		"target_mode": EnemyAI.TARGET_MODE_SINGLE,
 		"targets": [target],
-		"attack_pattern": EnemyAI.PATTERN_HUNTER_CROSS_THRUST,
-		"pattern_params": {"hit_count": 2},
+		"attack_pattern": EnemyAI.PATTERN_MUTANT_CLEAVE,
+		"pattern_params": {"hit_count": 3},
 	}
 	add_child(controller)
 	var sm := TurnStateMachine.new()
@@ -1014,11 +1050,27 @@ func _test_enemy_damage_waits_for_timing() -> void:
 	sm.start_turn(enemy)
 	_check("敌方伤害等待判定完成", target.hp == 30 and target.mp == 5)
 	controller.timing_submitted.emit([
-		{"hit_index": 0, "hit_count": 2, "contact": true, "outcome": TIMING_RULES.Outcome.SUCCESS},
-		{"hit_index": 1, "hit_count": 2, "contact": true, "outcome": TIMING_RULES.Outcome.SUCCESS},
+		{"hit_index": 0, "hit_count": 3, "contact": true, "outcome": TIMING_RULES.Outcome.SUCCESS},
+		{"hit_index": 1, "hit_count": 3, "contact": true, "outcome": TIMING_RULES.Outcome.FAILURE},
+		{"hit_index": 2, "hit_count": 3, "contact": true, "outcome": TIMING_RULES.Outcome.PERFECT},
 	])
 	await get_tree().process_frame
-	_check("多段判定完成后逐段应用伤害和 MP", target.hp == 24 and target.mp == 1)
+	var summary: Dictionary = controller.timing_summaries[0] \
+		if not controller.timing_summaries.is_empty() else {}
+	_check("污染兽重劈三段依次应用实际伤害和 MP", target.hp == 23 and target.mp == 3)
+	_check("混合成功失败汇总保留三段完整计数",
+		summary.get("hit_count", 0) == 3
+		and summary.get("success_count", 0) == 2
+		and summary.get("failure_count", 0) == 1
+		and summary.get("outcome", TIMING_RULES.Outcome.PERFECT) == TIMING_RULES.Outcome.FAILURE
+		and summary.get("damage", 0) == 7
+		and summary.get("mp_change", 0) == -2)
+	var result_ui := BattleUI.new()
+	target.display_name = "主角"
+	_check("混合多段结果显示部分成功与实际伤害",
+		result_ui._format_timing_result(target, summary)
+		== "主角 部分成功 2/3｜7 伤害｜MP -2")
+	result_ui.free()
 	sm.free()
 	controller.free()
 

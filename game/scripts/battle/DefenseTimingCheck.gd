@@ -41,10 +41,10 @@ var _active_progress: float = 0.0
 var _total_elapsed: float = 0.0
 var _reaction_started_at: float = -1.0
 var _reaction_ends_at: float = -1.0
-# ponytail: 单槽覆盖足够处理停顿/动作尾端抢输入；需要连招序列时再升级队列。
+# ponytail: 单槽覆盖足够处理停顿/动作尾端抢输入；期限与锁定共用动作场时钟。
 var _buffered_action: StringName = &""
 var _buffered_direction: Vector2 = Vector2.ZERO
-var _buffered_until_usec: int = 0
+var _buffered_until_elapsed: float = 0.0
 var _last_physics_tick_usec: int = 0
 var _last_physics_delta: float = 1.0 / 60.0
 var _hit_invulnerable_until: float = -1.0
@@ -56,7 +56,6 @@ var _hazard_draw_from: Vector2 = Vector2.ZERO
 var _hazard_draw_to: Vector2 = Vector2.ZERO
 var _hazard_draw_center: Vector2 = Vector2.ZERO
 var _hazard_draw_radius: float = 0.0
-var _hazard_guide_to: Vector2 = Vector2.ZERO
 var _pattern_label: String = "直线突击"
 var _attack_color: Color = Color(1.0, 0.38, 0.22)
 var _feedback_text: String = ""
@@ -212,12 +211,12 @@ func _reaction_active() -> bool:
 func _buffer_reaction(action: StringName, direction: Vector2) -> void:
 	_buffered_action = action
 	_buffered_direction = direction
-	_buffered_until_usec = Time.get_ticks_usec() + int(INPUT_BUFFER_SECONDS * 1_000_000.0)
+	_buffered_until_elapsed = _total_elapsed + INPUT_BUFFER_SECONDS
 
 func _try_consume_reaction_buffer() -> void:
 	if _buffered_action == &"":
 		return
-	if Time.get_ticks_usec() > _buffered_until_usec:
+	if _total_elapsed > _buffered_until_elapsed:
 		_clear_reaction_buffer()
 		return
 	if _hit_stop_remaining > 0.0 or _reaction_locked():
@@ -230,7 +229,7 @@ func _try_consume_reaction_buffer() -> void:
 func _clear_reaction_buffer() -> void:
 	_buffered_action = &""
 	_buffered_direction = Vector2.ZERO
-	_buffered_until_usec = 0
+	_buffered_until_elapsed = 0.0
 
 func _begin_reaction(action: StringName, direction: Vector2, started_at: float) -> void:
 	_reaction_started_at = started_at
@@ -296,7 +295,6 @@ func _prepare_stage() -> void:
 	_stage_contact_resolved = false
 	_stage_start = Vector2(stage.origin)
 	_stage_end = Vector2(_arena_rect.position.x, _enemy_origin.y)
-	_hazard_guide_to = _stage_end
 	match stage.kind:
 		"aimed":
 			var target: Vector2 = _player_position + Vector2(stage.offset)
@@ -307,23 +305,18 @@ func _prepare_stage() -> void:
 			if direction == Vector2.ZERO:
 				direction = Vector2.LEFT
 			_stage_end = _enemy_origin + direction * _distance_to_arena_edge(_enemy_origin, direction)
-			_hazard_guide_to = target
 		"cross":
 			var direction := Vector2.LEFT.rotated(float(stage.angle))
 			_stage_end = _enemy_origin + direction * _distance_to_arena_edge(_enemy_origin, direction)
-			_hazard_guide_to = _stage_end
 		"cleave":
 			_stage_start = Vector2(float(stage.x), _arena_rect.position.y)
 			_stage_end = Vector2(float(stage.x), _arena_rect.end.y)
-			_hazard_guide_to = Vector2(float(stage.x), _arena_rect.get_center().y)
 		"sweep":
 			var direction := Vector2.from_angle(float(stage.angle_from))
 			_stage_end = _enemy_origin + direction * _distance_to_arena_edge(_enemy_origin, direction)
-			_hazard_guide_to = _stage_end
 		"area":
 			_hazard_draw_center = Vector2(stage.center)
 			_hazard_draw_radius = float(stage.radius)
-			_hazard_guide_to = _hazard_draw_center
 		"barrage":
 			_prepare_barrage(stage)
 	_hazard_area.position = Vector2(-10000.0, -10000.0)
@@ -396,7 +389,6 @@ func _prepare_barrage(stage: Dictionary) -> void:
 	_bullet_wander_speed = maxf(0.0, float(stage.wander_vertical_speed))
 	_barrage_hit_count = clampi(int(stage.hit_count), 1, 3)
 	_barrage_results_recorded = 0
-	_hazard_guide_to = Vector2(_arena_rect.position.x, _enemy_origin.y)
 
 func _clear_barrage() -> void:
 	_bullet_positions.clear()
@@ -671,8 +663,6 @@ func _draw() -> void:
 	if _running and _stage_index < _stages.size():
 		var stage: Dictionary = _stages[_stage_index]
 		if _phase == Phase.TELEGRAPH:
-			draw_dashed_line(_enemy_origin, _hazard_guide_to, Color(_attack_color, 0.46),
-				3.0, 16.0, true)
 			if stage.kind == "barrage":
 				for lane in range(5):
 					var lane_y: float = lerpf(

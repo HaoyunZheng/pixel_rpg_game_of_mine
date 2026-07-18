@@ -882,11 +882,17 @@ func _first_living_party():
 
 func _format_timing_result(target: BattleUnit, result: Dictionary) -> String:
 	var outcome_text: String = "失败"
-	match result.get("outcome", DefenseTimingRules.Outcome.FAILURE):
-		DefenseTimingRules.Outcome.PERFECT:
-			outcome_text = "完美"
-		DefenseTimingRules.Outcome.SUCCESS:
-			outcome_text = "成功"
+	var hit_count: int = int(result.get("hit_count", 0))
+	var success_count: int = int(result.get("success_count", 0))
+	var failure_count: int = int(result.get("failure_count", 0))
+	if hit_count > 1 and success_count > 0 and failure_count > 0:
+		outcome_text = "部分成功 %d/%d" % [success_count, hit_count]
+	else:
+		match result.get("outcome", DefenseTimingRules.Outcome.FAILURE):
+			DefenseTimingRules.Outcome.PERFECT:
+				outcome_text = "完美"
+			DefenseTimingRules.Outcome.SUCCESS:
+				outcome_text = "成功"
 	var mp_change: int = result.get("mp_change", 0)
 	var mp_text: String = ""
 	if mp_change != 0:
