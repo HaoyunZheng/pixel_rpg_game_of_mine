@@ -14,12 +14,15 @@ const TIMING_CHECK := preload("res://scripts/battle/DefenseTimingCheck.gd")
 class FleeBattleController:
 	extends Node
 	signal timing_submitted(hit_results: Array)
+	signal intent_preview_released
 
 	var party: Array = []
 	var enemies: Array = []
 	var intents: Dictionary = {}
 	var freeze_count: int = 0
 	var wait_for_timing: bool = false
+	var wait_for_intent_preview: bool = false
+	var last_frozen_order: Array = []
 
 	func get_party_units() -> Array:
 		return party
@@ -32,8 +35,11 @@ class FleeBattleController:
 		units.append_array(enemies)
 		return units
 
-	func freeze_enemy_intents() -> void:
+	func freeze_enemy_intents(turn_order: Array) -> void:
 		freeze_count += 1
+		last_frozen_order = turn_order.duplicate()
+		if wait_for_intent_preview:
+			await intent_preview_released
 
 	func get_enemy_intent(enemy: BattleUnit) -> Dictionary:
 		return intents.get(enemy, {}).duplicate(true)
@@ -57,7 +63,7 @@ func _ready() -> void:
 	_test_enemy_ai_targeting()
 	_test_enemy_attack_patterns()
 	_test_right_side_attack_origins_and_barrage()
-	_test_round_start_intents()
+	await _test_round_start_intents()
 	_test_enemy_intent_execution()
 	_test_battle_unit_clamp()
 	_test_stance_lifecycle()
@@ -66,6 +72,7 @@ func _ready() -> void:
 	_test_impact_camera_feedback()
 	_test_battle_hud_frames()
 	await _test_turn_arc_bar()
+	await _test_reticle_animations()
 	await _test_defense_action_field()
 	await _test_enemy_damage_waits_for_timing()
 	_test_flee_turn_flow()
@@ -326,12 +333,27 @@ func _test_right_side_attack_origins_and_barrage() -> void:
 
 func _test_round_start_intents() -> void:
 	var controller := FleeBattleController.new()
+	var party := _make_unit(10, 5, 8)
+	party.is_player = true
+	var enemy := _make_unit(10, 5, 9)
+	enemy.is_player = false
+	controller.party = [party]
+	controller.enemies = [enemy]
+	controller.wait_for_intent_preview = true
 	add_child(controller)
 	var macro_sm := BattleStateMachine.new()
 	macro_sm.setup(controller)
 	add_child(macro_sm)
 	macro_sm.start_battle()
-	_check("RoundStart 每轮只冻结一次敌方意图", controller.freeze_count == 1)
+	_check("RoundStart 先计算行动顺序再冻结敌方意图",
+		controller.freeze_count == 1 and controller.last_frozen_order == [enemy, party])
+	_check("红环预告完成前保持 ROUND_START",
+		macro_sm.current_state == BattleStateMachine.MacroState.ROUND_START)
+	controller.wait_for_intent_preview = false
+	controller.intent_preview_released.emit()
+	await get_tree().process_frame
+	_check("红环预告完成后才进入 TURN_LOOP",
+		macro_sm.current_state == BattleStateMachine.MacroState.TURN_LOOP)
 	macro_sm.request_next_turn()
 	_check("下一 RoundStart 重新冻结一次意图", controller.freeze_count == 2)
 	macro_sm.free()
@@ -768,6 +790,107 @@ func _test_turn_arc_bar() -> void:
 		not has_left_exit and has_right_entry
 		and new_active != null and new_active.get_node("Indicator").visible)
 	bar.queue_free()
+
+func _test_reticle_animations() -> void:
+	var battle_scene: Node = load("res://scenes/Battle.tscn").instantiate()
+	battle_scene.set("_battle_started", true)
+	add_child(battle_scene)
+	await get_tree().process_frame
+	var ui = battle_scene.get_node("UI/BattleUI")
+	var party := _make_unit(10, 5, 8)
+	party.is_player = true
+	party.display_name = "我方"
+	var enemy_a := _make_unit(10, 5, 10)
+	enemy_a.is_player = false
+	enemy_a.display_name = "敌A"
+	var enemy_b := _make_unit(10, 5, 6)
+	enemy_b.is_player = false
+	enemy_b.display_name = "敌B"
+	var controller := FleeBattleController.new()
+	controller.party = [party]
+	controller.enemies = [enemy_a, enemy_b]
+	add_child(controller)
+	ui.setup([party], [enemy_a, enemy_b], controller, null)
+	await get_tree().process_frame
+	await get_tree().process_frame
+	ui.show_actor_turn(party)
+
+	var picked: Array = []
+	ui._start_target_select(BattleUI.TARGET_GROUP_ENEMY, func(target): picked.append(target))
+	var entering_marker: Control = ui.get("_target_reticle")
+	_check("准星以一圈旋转和淡入开始入场",
+		is_equal_approx(entering_marker.rotation, -TAU)
+		and is_zero_approx(entering_marker.modulate.a))
+	await get_tree().create_timer(0.21).timeout
+	var marker: Control = ui.get("_target_reticle")
+	var marker_id: int = marker.get_instance_id()
+	var first_position: Vector2 = marker.position
+	ui._move_target_selection(1)
+	var marker_after_switch: Control = ui.get("_target_reticle")
+	_check("准星切换复用同一节点且保持唯一金色焦点",
+		marker_after_switch.get_instance_id() == marker_id
+		and ui.get_node("ReticleLayer").get_children().filter(
+			func(child): return child.has_meta("target_marker")).size() == 1)
+	await get_tree().create_timer(0.21).timeout
+	var avatar_a: Control = ui._find_avatar_for_unit(enemy_a)
+	var avatar_b: Control = ui._find_avatar_for_unit(enemy_b)
+	_check("准星滑到新目标并切换敌方立绘明暗",
+		marker.position != first_position
+		and avatar_a.modulate.r < 0.5 and avatar_b.modulate == Color.WHITE)
+
+	ui._pick_selected_target()
+	await get_tree().create_timer(0.18).timeout
+	_check("确认脉冲开始即封锁输入且尚未执行回调",
+		ui.get("_target_confirming") and not ui.get("_is_selecting_target") and picked.is_empty()
+		and ui.get_node("ReticleLayer").get_children().any(
+			func(child): return child.has_meta("target_pulse")))
+	await get_tree().create_timer(0.27).timeout
+	await get_tree().process_frame
+	_check("准星完整脉冲结束后才执行目标回调", picked == [enemy_b])
+
+	ui._start_target_select(BattleUI.TARGET_GROUP_ENEMY, func(_target): pass)
+	await get_tree().create_timer(0.21).timeout
+	ui._move_target_selection(1)
+	ui._cancel_target_select()
+	await get_tree().create_timer(0.13).timeout
+	await get_tree().process_frame
+	_check("X 淡出准星并恢复所有敌人亮度",
+		ui.get("_target_reticle") == null
+		and ui._find_avatar_for_unit(enemy_a).modulate == Color.WHITE
+		and ui._find_avatar_for_unit(enemy_b).modulate == Color.WHITE)
+
+	var intents: Dictionary = {
+		enemy_a: {"targets": [party]},
+		enemy_b: {"targets": [party]},
+	}
+	ui.show_enemy_intents(intents, [enemy_a, party, enemy_b])
+	await get_tree().process_frame
+	await get_tree().create_timer(0.12).timeout
+	var intent_layer: Control = ui.get_node("ReticleLayer")
+	var base_markers: Array = intent_layer.get_children().filter(
+		func(child): return child.has_meta("intent_marker") and not child.has_meta("intent_pulse"))
+	var pulse_markers: Array = intent_layer.get_children().filter(
+		func(child): return child.has_meta("intent_pulse"))
+	var count_labels: Array = base_markers[0].find_children("*", "Label", true, false)
+	_check("多敌锁定保留单一基础红环和 ×N 数量",
+		base_markers.size() == 1 and count_labels[0].text == "×2")
+	_check("同目标多敌意图使用错峰临时脉冲副本",
+		ui.get("_intent_preview_active") and pulse_markers.size() == 2)
+	await get_tree().create_timer(0.42).timeout
+	await get_tree().process_frame
+	_check("红环预告结束后只保留基础环",
+		not ui.get("_intent_preview_active")
+		and intent_layer.get_children().filter(
+			func(child): return child.has_meta("intent_pulse")).is_empty())
+	ui.show_actor_turn(enemy_a)
+	ui.refresh()
+	await get_tree().create_timer(0.05).timeout
+	_check("敌人实际行动时不重播锁定脉冲",
+		intent_layer.get_children().filter(
+			func(child): return child.has_meta("intent_pulse")).is_empty())
+	battle_scene.queue_free()
+	controller.queue_free()
+	await get_tree().process_frame
 
 func _test_enemy_damage_waits_for_timing() -> void:
 	var enemy := _make_unit(20, 0, 10)

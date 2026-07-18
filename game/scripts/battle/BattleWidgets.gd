@@ -311,21 +311,18 @@ static func make_overlay_marker(tex: Texture2D, base_px: int, fallback_col: Colo
 	dot.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	return dot
 
-static func make_intent_marker(avatar: Control, lock_count: int) -> Panel:
-	var marker := Panel.new()
+static func make_intent_marker(avatar: Control, lock_count: int) -> Control:
+	var marker := make_overlay_marker(load_tex(TEX_MARKER_LOCKED), 24, COL_ENEMY)
 	marker.set_meta("intent_marker", true)
 	marker.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	marker.size = avatar.size + Vector2(16, 16)
+	marker.custom_minimum_size = marker.size
 	marker.position = avatar.get_global_rect().get_center() - marker.size * 0.5
-	var outline := StyleBoxFlat.new()
-	outline.bg_color = Color(0, 0, 0, 0)
-	outline.border_color = COL_ENEMY
-	outline.set_border_width_all(4)
-	marker.add_theme_stylebox_override("panel", outline)
+	marker.pivot_offset = marker.size * 0.5
 	var label := Label.new()
-	label.text = "锁定 ×%d" % lock_count
-	label.position = Vector2(-12, -34)
-	label.size = Vector2(marker.size.x + 24, 30)
+	label.text = "×%d" % lock_count
+	label.position = Vector2(marker.size.x - 48, marker.size.y - 30)
+	label.size = Vector2(52, 32)
 	label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	label.add_theme_font_size_override("font_size", 18)
 	label.add_theme_color_override("font_color", COL_ENEMY.lightened(0.25))

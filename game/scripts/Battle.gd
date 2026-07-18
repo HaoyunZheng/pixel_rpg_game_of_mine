@@ -115,14 +115,14 @@ func get_enemy_units() -> Array:
 func get_turn_order() -> Array:
 	return _turn_order.duplicate()
 
-func freeze_enemy_intents() -> void:
+func freeze_enemy_intents(turn_order: Array) -> void:
 	_enemy_intents.clear()
 	for enemy in _enemy_units:
 		if enemy.is_dead():
 			continue
 		_enemy_intents[enemy] = EnemyAI.decide_intent(enemy, _party_units)
-	_battle_ui.show_enemy_intents(_enemy_intents)
 	Log.info("Battle", "本轮敌方意图已冻结: %d" % _enemy_intents.size())
+	await _battle_ui.show_enemy_intents(_enemy_intents, turn_order)
 
 func get_enemy_intent(enemy: BattleUnit) -> Dictionary:
 	var intent: Dictionary = _enemy_intents.get(enemy, {})

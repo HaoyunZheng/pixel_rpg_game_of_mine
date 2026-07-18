@@ -35,6 +35,11 @@ const MENU_MODE_SKILL: String = "skill"
 const MENU_MODE_ITEM: String = "item"
 const TIMING_TWEEN_SECONDS: float = 0.3
 const DESIGN_SIZE: Vector2 = Vector2(480.0, 270.0)
+const RETICLE_MOVE_SECONDS: float = 0.2
+const RETICLE_PRESS_SECONDS: float = 0.08
+const RETICLE_PULSE_SECONDS: float = 0.25
+const RETICLE_CANCEL_SECONDS: float = 0.12
+const INTENT_STAGGER_SECONDS: float = 0.1
 
 # ── 攻击力度转盘（纯代码自绘，攻击流中实例化叠加在中央框上）──
 const ATTACK_WHEEL_SCENE: PackedScene = preload("res://scenes/battle/AttackPowerWheel.tscn")
@@ -75,6 +80,12 @@ var _timing_result_label: Label = null
 var _timing_tween: Tween = null
 var _intent_refresh_pending: bool = false
 var _stage_party_actor = null
+var _target_reticle: Control = null
+var _target_reticle_tween: Tween = null
+var _target_confirming: bool = false
+var _intent_preview_active: bool = false
+var _intent_preview_tween: Tween = null
+var _intent_marker_by_unit: Dictionary = {}
 
 # ───────────────────────────────────────────── 生命周期 / 对外接口
 
@@ -162,9 +173,44 @@ func finish_timing_check(target: BattleUnit, timing_result: Dictionary) -> void:
 	_message_label.visible = true
 	_timing_active = false
 
-func show_enemy_intents(intents: Dictionary) -> void:
+func show_enemy_intents(intents: Dictionary, turn_order: Array = []) -> void:
 	_enemy_intents = intents.duplicate(true)
-	_schedule_intent_marker_refresh()
+	_intent_preview_active = true
+	_is_selecting_target = false
+	_clear_target_reticles()
+	_clear_menu_highlight()
+	_set_menu_visible(false)
+	await get_tree().process_frame
+	_clear_intent_markers()
+	_rebuild_intent_markers(false)
+	var ordered_units: Array = turn_order if not turn_order.is_empty() else _enemy_intents.keys()
+	for unit in ordered_units:
+		if unit != null and not unit.is_dead():
+			_turn_order_bar.show_order(ordered_units, unit)
+			break
+	var telegraphs: Array = []
+	for unit in ordered_units:
+		if not _enemy_intents.has(unit):
+			continue
+		var targets: Array = _enemy_intents[unit].get("targets", []).filter(
+			func(target): return _intent_marker_by_unit.has(target))
+		if not targets.is_empty():
+			telegraphs.append(targets)
+	if telegraphs.is_empty():
+		_show_all_intent_markers()
+		_intent_preview_active = false
+		return
+	_intent_preview_tween = create_tween()
+	for index in range(telegraphs.size()):
+		if index > 0:
+			_intent_preview_tween.tween_interval(INTENT_STAGGER_SECONDS)
+		_intent_preview_tween.tween_callback(_pulse_intent_targets.bind(telegraphs[index]))
+	_intent_preview_tween.tween_interval(
+		RETICLE_PRESS_SECONDS * 2.0 + RETICLE_PULSE_SECONDS)
+	await _intent_preview_tween.finished
+	_intent_preview_tween = null
+	_show_all_intent_markers()
+	_intent_preview_active = false
 
 # ───────────────────────────────────────────── ① 顶部弧线行动顺序条
 
@@ -433,27 +479,26 @@ func _update_target_message() -> void:
 		_message_label.text = "没有可选目标，X返回"
 		return
 	var target = _valid_targets[_selected_target_index]
-	_message_label.text = "选择目标（方向键 / Z确认 / X返回）：%s  %d/%d" % [
-		target.display_name,
-		_selected_target_index + 1,
-		_valid_targets.size(),
-	]
+	_message_label.text = "▶ %s" % target.display_name
 
 func _pick_selected_target() -> void:
-	if _valid_targets.is_empty():
+	if _valid_targets.is_empty() or _target_confirming:
 		return
 	var target = _valid_targets[_selected_target_index]
+	_target_confirming = true
 	_is_selecting_target = false
+	await _play_target_confirm_pulse()
 	_valid_targets.clear()
 	_clear_target_reticles()
 	_message_label.text = ""
+	_target_confirming = false
 	if _on_target_picked.is_valid():
 		_on_target_picked.call(target)
 
 func _cancel_target_select() -> void:
 	_is_selecting_target = false
+	await _fade_out_target_reticle()
 	_valid_targets.clear()
-	_clear_target_reticles()
 	if _turn_state_machine != null:
 		_turn_state_machine.cancel_command()
 	if _menu_mode == MENU_MODE_SKILL:
@@ -470,40 +515,129 @@ func _cancel_target_select() -> void:
 
 ## 我锁敌：金色准星浮于当前合法敌方目标头像上方。
 func _update_target_reticle() -> void:
-	_clear_target_reticles()
 	if _valid_targets.is_empty():
 		return
 	var target = _valid_targets[_selected_target_index]
 	var anchor: Control = _find_avatar_for_unit(target)
 	if anchor == null:
 		return
-	var tex: Texture2D = BattleWidgets.load_tex(BattleWidgets.TEX_RETICLE)
-	var marker := BattleWidgets.make_overlay_marker(tex, 16, BattleWidgets.COL_GOLD)
-	marker.set_meta("target_marker", true)
-	_reticle_layer.add_child(marker)
-	# 浮于头像上方居中
 	var center := _avatar_screen_center(anchor)
-	marker.position = center - marker.custom_minimum_size * 0.5 - Vector2(0, anchor.size.y * 0.6)
+	_set_target_brightness(target)
+	if _target_reticle_tween != null and _target_reticle_tween.is_valid():
+		_target_reticle_tween.kill()
+	if not is_instance_valid(_target_reticle):
+		var tex: Texture2D = BattleWidgets.load_tex(BattleWidgets.TEX_RETICLE)
+		_target_reticle = BattleWidgets.make_overlay_marker(tex, 16, BattleWidgets.COL_GOLD)
+		_target_reticle.set_meta("target_marker", true)
+		_reticle_layer.add_child(_target_reticle)
+		_target_reticle.pivot_offset = _target_reticle.size * 0.5
+		_target_reticle.position = center - _target_reticle.size * 0.5 - Vector2(0, anchor.size.y * 0.6)
+		_target_reticle.rotation = -TAU
+		_target_reticle.modulate.a = 0.0
+		_target_reticle_tween = create_tween().set_parallel(true)
+		_target_reticle_tween.set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
+		_target_reticle_tween.tween_property(_target_reticle, "rotation", 0.0, RETICLE_MOVE_SECONDS)
+		_target_reticle_tween.tween_property(_target_reticle, "modulate:a", 1.0, RETICLE_MOVE_SECONDS)
+		return
+	_target_reticle_tween = create_tween().set_parallel(true)
+	_target_reticle_tween.set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_IN_OUT)
+	_target_reticle_tween.tween_property(
+		_target_reticle, "position",
+		center - _target_reticle.size * 0.5 - Vector2(0, anchor.size.y * 0.6),
+		RETICLE_MOVE_SECONDS)
+	_target_reticle_tween.tween_property(
+		_target_reticle, "rotation", _target_reticle.rotation + TAU, RETICLE_MOVE_SECONDS)
+	_target_reticle_tween.tween_property(_target_reticle, "modulate:a", 1.0, RETICLE_MOVE_SECONDS)
 
 func _clear_target_reticles() -> void:
 	if not is_instance_valid(_reticle_layer):
 		return
+	if _target_reticle_tween != null and _target_reticle_tween.is_valid():
+		_target_reticle_tween.kill()
+	_target_reticle_tween = null
 	for child in _reticle_layer.get_children():
 		if child.has_meta("target_marker"):
 			child.queue_free()
+	_target_reticle = null
+	_restore_target_brightness()
+
+func _fade_out_target_reticle() -> void:
+	if not is_instance_valid(_target_reticle):
+		_restore_target_brightness()
+		return
+	if _target_reticle_tween != null and _target_reticle_tween.is_valid():
+		_target_reticle_tween.kill()
+	_target_reticle_tween = create_tween()
+	_target_reticle_tween.set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
+	_target_reticle_tween.tween_property(
+		_target_reticle, "modulate:a", 0.0, RETICLE_CANCEL_SECONDS)
+	await _target_reticle_tween.finished
+	_clear_target_reticles()
+
+func _play_target_confirm_pulse() -> void:
+	if not is_instance_valid(_target_reticle):
+		return
+	if _target_reticle_tween != null and _target_reticle_tween.is_valid():
+		_target_reticle_tween.kill()
+	_target_reticle_tween = create_tween()
+	_target_reticle_tween.set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
+	_target_reticle_tween.tween_property(
+		_target_reticle, "scale", Vector2.ONE * 0.85, RETICLE_PRESS_SECONDS)
+	_target_reticle_tween.tween_property(
+		_target_reticle, "scale", Vector2.ONE, RETICLE_PRESS_SECONDS)
+	await _target_reticle_tween.finished
+	_target_reticle_tween = null
+	var pulse := _target_reticle.duplicate() as Control
+	pulse.set_meta("target_pulse", true)
+	_reticle_layer.add_child(pulse)
+	pulse.position = _target_reticle.position
+	pulse.pivot_offset = pulse.size * 0.5
+	pulse.scale = Vector2.ONE
+	pulse.modulate.a = 1.0
+	var pulse_tween := create_tween()
+	pulse_tween.set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
+	pulse_tween.tween_property(pulse, "scale", Vector2.ONE * 1.5, RETICLE_PULSE_SECONDS)
+	pulse_tween.parallel().tween_property(pulse, "modulate:a", 0.0, RETICLE_PULSE_SECONDS)
+	pulse_tween.tween_callback(pulse.queue_free)
+	await pulse_tween.finished
+
+func _set_target_brightness(selected) -> void:
+	for unit in _valid_targets:
+		var avatar: Control = _find_avatar_for_unit(unit)
+		if avatar != null:
+			avatar.modulate = Color.WHITE if unit == selected else Color(0.42, 0.42, 0.42, 1.0)
+
+func _restore_target_brightness() -> void:
+	for unit in _party_units + _enemy_units:
+		var avatar: Control = _find_avatar_for_unit(unit)
+		if avatar != null:
+			avatar.modulate = Color.WHITE
 
 func _clear_intent_markers() -> void:
 	if not is_instance_valid(_reticle_layer):
 		return
+	if _intent_preview_tween != null and _intent_preview_tween.is_valid():
+		_intent_preview_tween.kill()
+	_intent_preview_tween = null
 	for child in _reticle_layer.get_children():
 		if child.has_meta("intent_marker"):
 			child.queue_free()
+	_intent_marker_by_unit.clear()
 
 func _clear_all_reticles() -> void:
 	if not is_instance_valid(_reticle_layer):
 		return
+	if _target_reticle_tween != null and _target_reticle_tween.is_valid():
+		_target_reticle_tween.kill()
+	if _intent_preview_tween != null and _intent_preview_tween.is_valid():
+		_intent_preview_tween.kill()
 	for child in _reticle_layer.get_children():
 		child.queue_free()
+	_target_reticle = null
+	_target_reticle_tween = null
+	_intent_preview_tween = null
+	_intent_marker_by_unit.clear()
+	_restore_target_brightness()
 
 func _schedule_intent_marker_refresh() -> void:
 	if _intent_refresh_pending:
@@ -514,7 +648,12 @@ func _schedule_intent_marker_refresh() -> void:
 func _update_intent_markers_after_layout() -> void:
 	await get_tree().process_frame
 	_intent_refresh_pending = false
+	if _intent_preview_active:
+		return
 	_clear_intent_markers()
+	_rebuild_intent_markers(true)
+
+func _rebuild_intent_markers(show_now: bool) -> void:
 	for member in _party_units:
 		var lock_count: int = _intent_count_for(member)
 		if lock_count <= 0 or member.is_dead():
@@ -522,7 +661,35 @@ func _update_intent_markers_after_layout() -> void:
 		var avatar: Control = _find_avatar_for_unit(member)
 		if avatar == null:
 			continue
-		_reticle_layer.add_child(BattleWidgets.make_intent_marker(avatar, lock_count))
+		var marker: Control = BattleWidgets.make_intent_marker(avatar, lock_count)
+		marker.modulate.a = 1.0 if show_now else 0.0
+		_reticle_layer.add_child(marker)
+		_intent_marker_by_unit[member] = marker
+
+func _pulse_intent_targets(targets: Array) -> void:
+	for target in targets:
+		var marker: Control = _intent_marker_by_unit.get(target)
+		if marker == null:
+			continue
+		marker.modulate.a = 1.0
+		var pulse := marker.duplicate() as Control
+		pulse.set_meta("intent_pulse", true)
+		_reticle_layer.add_child(pulse)
+		pulse.position = marker.position
+		pulse.pivot_offset = pulse.size * 0.5
+		pulse.scale = Vector2.ONE
+		pulse.modulate.a = 1.0
+		var pulse_tween := create_tween()
+		pulse_tween.set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
+		pulse_tween.tween_property(pulse, "scale", Vector2.ONE * 0.85, RETICLE_PRESS_SECONDS)
+		pulse_tween.tween_property(pulse, "scale", Vector2.ONE, RETICLE_PRESS_SECONDS)
+		pulse_tween.tween_property(pulse, "scale", Vector2.ONE * 1.5, RETICLE_PULSE_SECONDS)
+		pulse_tween.parallel().tween_property(pulse, "modulate:a", 0.0, RETICLE_PULSE_SECONDS)
+		pulse_tween.tween_callback(pulse.queue_free)
+
+func _show_all_intent_markers() -> void:
+	for marker: Control in _intent_marker_by_unit.values():
+		marker.modulate.a = 1.0
 
 func _intent_count_for(unit) -> int:
 	var count: int = 0
@@ -650,7 +817,7 @@ func _input(event: InputEvent) -> void:
 		return
 	if _wheel_active:
 		return   # 转盘阶段：输入交给转盘自身处理（仅 Z 定格，X 不响应）
-	if _timing_active:
+	if _timing_active or _target_confirming or _intent_preview_active:
 		return
 	if _is_selecting_target:
 		_handle_target_input(event.keycode)
