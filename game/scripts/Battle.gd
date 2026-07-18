@@ -27,7 +27,9 @@ var _turn_index: int = 0
 var _current_actor: BattleUnit = null
 var _enemy_key: String = DEFAULT_ENEMY_KEY   # 遭遇标识（用于胜利后标记野外敌人已击败）
 var _enemy_keys: Array[String] = []          # 本场敌方阵容 key 列表（1~N 体）
+var _enemy_intents: Dictionary = {}
 var _battle_started: bool = false
+var _battle_exiting: bool = false
 # §B.2 战斗数据隔离：开战时快照背包，失败时回滚物品消耗
 var _inventory_snapshot: Array[Dictionary] = []
 
@@ -37,6 +39,7 @@ func _ready() -> void:
 	_macro_sm.state_changed.connect(_on_macro_state_changed)
 	_macro_sm.turn_order_calculated.connect(_on_turn_order_calculated)
 	_macro_sm.battle_ended.connect(_on_battle_ended)
+	_micro_sm.action_executed.connect(_on_action_executed)
 	# [TEST] 直接启动 Battle 场景时自动初始化测试战斗
 	call_deferred("_auto_test_init")
 
@@ -62,10 +65,14 @@ func _init_battle() -> void:
 	_turn_order.clear()
 	_inventory_snapshot = GameData.duplicate_inventory()
 	_party_units.clear()
-	for member in GameData.party_members:
-		_party_units.append(BATTLE_UNIT_SCRIPT.from_party_member(member))
+	var equipment_bonuses: Dictionary = GameData.get_equipment_bonuses()
+	for i in range(GameData.party_members.size()):
+		var combat_bonuses: Dictionary = equipment_bonuses if i == 0 else {}
+		_party_units.append(BATTLE_UNIT_SCRIPT.from_party_member(
+			GameData.party_members[i], combat_bonuses))
 
 	_enemy_units.clear()
+	_enemy_intents.clear()
 	for key in _enemy_keys:
 		var enemy_stats = _lookup_enemy_stats(key)
 		if enemy_stats:
@@ -105,6 +112,32 @@ func get_party_units() -> Array:
 func get_enemy_units() -> Array:
 	return _enemy_units
 
+func get_turn_order() -> Array:
+	return _turn_order.duplicate()
+
+func freeze_enemy_intents(turn_order: Array) -> void:
+	_enemy_intents.clear()
+	for enemy in _enemy_units:
+		if enemy.is_dead():
+			continue
+		_enemy_intents[enemy] = EnemyAI.decide_intent(enemy, _party_units)
+	Log.info("Battle", "本轮敌方意图已冻结: %d" % _enemy_intents.size())
+	await _battle_ui.show_enemy_intents(_enemy_intents, turn_order)
+
+func get_enemy_intent(enemy: BattleUnit) -> Dictionary:
+	var intent: Dictionary = _enemy_intents.get(enemy, {})
+	return intent.duplicate(true)
+
+func run_timing_check(
+		attacker: BattleUnit,
+		target: BattleUnit,
+		base_damage: int,
+		intent: Dictionary = {}) -> Array:
+	return await _battle_ui.run_timing_check(attacker, target, base_damage, intent)
+
+func finish_timing_check(target: BattleUnit, timing_result: Dictionary) -> void:
+	await _battle_ui.finish_timing_check(target, timing_result)
+
 func _on_turn_order_calculated(order: Array) -> void:
 	_turn_order = order.duplicate()
 	_turn_index = 0
@@ -130,11 +163,27 @@ func _process_turn(actor: BattleUnit) -> void:
 	if not _micro_sm.turn_finished.is_connected(_on_turn_finished):
 		_micro_sm.turn_finished.connect(_on_turn_finished, CONNECT_ONE_SHOT)
 	_micro_sm.start_turn(actor)
+	_battle_ui.call_deferred("refresh")
 
 func _on_turn_finished() -> void:
+	if _battle_exiting:
+		return
 	_sync_party_to_gamedata()
 	_battle_ui.refresh()
 	_start_turn_loop()
+
+func _on_action_executed(result: Dictionary) -> void:
+	if not result.get("fled", false) or _battle_exiting:
+		return
+	_battle_exiting = true
+	_sync_party_to_gamedata()
+	Log.info("Battle", "逃跑成功，立即返回野外")
+	SceneManager.change_scene(WILDERNESS_SCENE_PATH, {
+		DATA_KEY_SCENE_NAME: "Wilderness",
+		DATA_KEY_FROM: "battle",
+		"victory": false,
+		"fled": true,
+	})
 
 func _sync_party_to_gamedata() -> void:
 	for i in range(min(_party_units.size(), GameData.party_members.size())):

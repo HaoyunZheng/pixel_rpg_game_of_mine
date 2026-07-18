@@ -103,15 +103,20 @@ func get_bond(character_id: String) -> int:
 
 # ── 背包接口 ──
 
-func add_item(item: ItemData, n: int = 1) -> void:
+func add_item(item: ItemData, n: int = 1) -> bool:
+	if item == null or n <= 0:
+		return false
 	for slot in inventory:
 		if slot.item.id == item.id:
 			slot.count += n
-			return
+			return true
 	inventory.append({"item": item, "count": n})
+	return true
 
 ## 扣减指定物品。数量不足时不扣并返回 false；扣到 0 移除该槽位。
 func remove_item(item_id: String, n: int = 1) -> bool:
+	if n <= 0:
+		return false
 	for slot in inventory:
 		if slot.item.id == item_id:
 			if slot.count < n:
@@ -128,25 +133,33 @@ func get_item_count(item_id: String) -> int:
 			return slot.count
 	return 0
 
-## 使用消耗品：仅处理 HEAL_HP/HEAL_MP，对队伍首位成员生效。
-func use_item(item_id: String) -> bool:
+## 恢复物当前是否可使用；只读，不消耗也不修改队伍状态。
+func can_use_item(item_id: String) -> bool:
 	var item: ItemData = get_item_by_id(item_id)
-	if item == null:
-		return false
-	if party_members.is_empty():
-		Log.warn("GameData", "use_item: 队伍为空，无法对成员生效")
+	if item == null or not item.usable or item.effect_value <= 0 or party_members.is_empty():
 		return false
 	var member: Dictionary = party_members[0]
 	match item.effect_type:
 		ItemData.EffectType.HEAL_HP:
-			member.hp = clampi(member.hp + item.effect_value, 0, member.max_hp)
+			return member.hp < member.max_hp
 		ItemData.EffectType.HEAL_MP:
-			member.mp = clampi(member.mp + item.effect_value, 0, member.max_mp)
+			return member.mp < member.max_mp
 		_:
-			Log.warn("GameData", "use_item: 不支持的 effect_type: %s" % item.effect_type)
 			return false
+
+## 使用恢复物：仅处理 HEAL_HP/HEAL_MP，对队伍首位成员生效。
+func use_item(item_id: String) -> bool:
+	if not can_use_item(item_id):
+		return false
+	var item: ItemData = get_item_by_id(item_id)
 	if not remove_item(item_id, 1):
 		return false
+	var member: Dictionary = party_members[0]
+	match item.effect_type:
+		ItemData.EffectType.HEAL_HP:
+			member.hp = mini(member.max_hp, member.hp + item.effect_value)
+		ItemData.EffectType.HEAL_MP:
+			member.mp = mini(member.max_mp, member.mp + item.effect_value)
 	item_used.emit(item_id)
 	return true
 
@@ -165,7 +178,10 @@ func equip_item(item_id: String) -> bool:
 			slot = "accessory"
 		_:
 			return false
-	if not equipment[slot].is_empty():
+	var equipped_id: String = equipment.get(slot, "")
+	if equipped_id == item_id:
+		return false
+	if not equipped_id.is_empty():
 		unequip_item(slot)
 	equipment[slot] = item_id
 	item_equipped.emit(item_id, slot)
@@ -173,6 +189,8 @@ func equip_item(item_id: String) -> bool:
 
 ## 卸下指定槽位的装备。
 func unequip_item(slot: String) -> bool:
+	if not equipment.has(slot):
+		return false
 	var old_id: String = equipment.get(slot, "")
 	if old_id.is_empty():
 		return false
@@ -182,13 +200,15 @@ func unequip_item(slot: String) -> bool:
 
 ## 丢弃物品：若该物品已装备，先自动卸下，避免悬空 id。
 func discard_item(item_id: String, count: int) -> bool:
+	if count <= 0 or get_item_count(item_id) < count:
+		return false
 	for slot in equipment:
 		if equipment[slot] == item_id:
 			unequip_item(slot)
-	var result := remove_item(item_id, count)
-	if result:
-		item_discarded.emit(item_id, count)
-	return result
+	if not remove_item(item_id, count):
+		return false
+	item_discarded.emit(item_id, count)
+	return true
 
 ## 按 id 查找背包中的物品资源，找不到返回 null。
 func get_item_by_id(item_id: String) -> ItemData:
@@ -203,6 +223,20 @@ func is_item_equipped(item_id: String) -> bool:
 		if equipment[slot] == item_id:
 			return true
 	return false
+
+## 当前装备的主角战斗加成；按需汇总，避免缓存与装备状态失配。
+func get_equipment_bonuses() -> Dictionary:
+	var bonuses := {"atk": 0, "def": 0}
+	for slot in equipment:
+		var item_id: String = equipment[slot]
+		if item_id.is_empty():
+			continue
+		var item: ItemData = get_item_by_id(item_id)
+		if item == null:
+			continue
+		bonuses.atk += item.attack_bonus
+		bonuses.def += item.defense_bonus
+	return bonuses
 
 ## 背包快照/回滚（§B.2 战斗数据隔离：失败丢弃物品消耗）
 func duplicate_inventory() -> Array[Dictionary]:

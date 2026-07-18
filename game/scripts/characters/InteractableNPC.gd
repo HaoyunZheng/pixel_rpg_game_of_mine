@@ -6,8 +6,6 @@ extends Area2D
 
 ## REGISTRY 中登记的对话键。
 @export var dialogue_id: String = ""
-## 对话结束时写入的剧情 flag（回流见 DialogueManager._apply_end_hooks）。
-@export var set_flags: PackedStringArray = []
 
 @onready var _prompt: Node = get_node_or_null("Prompt")
 
@@ -34,7 +32,7 @@ func _unhandled_input(event: InputEvent) -> void:
 	if event.is_action_pressed(&"interact"):
 		get_viewport().set_input_as_handled()
 		_set_prompt_visible(false)
-		DialogueManager.start(dialogue_id, {"set_flags": set_flags})
+		DialogueManager.start(dialogue_id)
 
 func _set_prompt_visible(value: bool) -> void:
 	if _prompt is CanvasItem:

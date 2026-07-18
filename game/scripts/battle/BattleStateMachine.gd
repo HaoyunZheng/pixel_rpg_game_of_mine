@@ -39,6 +39,7 @@ func _on_round_start() -> void:
 	_resolve_dot_effects()
 	_calculate_turn_order()
 	turn_order_calculated.emit(_turn_order)
+	await _battle_controller.freeze_enemy_intents(_turn_order)
 	_transition_to(MacroState.TURN_LOOP)
 
 func _resolve_dot_effects() -> void:

@@ -1,4 +1,4 @@
-[gd_scene load_steps=10 format=3]
+[gd_scene load_steps=15 format=3]
 
 [ext_resource type="Script" path="res://scripts/Battle.gd" id="1_battle"]
 [ext_resource type="Script" path="res://scripts/battle/BattleStateMachine.gd" id="2_bsm"]
@@ -6,14 +6,39 @@
 [ext_resource type="Script" path="res://scripts/battle/BattleUI.gd" id="4_bui"]
 [ext_resource type="Theme" path="res://assets/ui/battle/battle_theme.tres" id="5_theme"]
 [ext_resource type="Texture2D" path="res://assets/ui/battle/panel_central_9p.png" id="6_central"]
-[ext_resource type="Texture2D" path="res://assets/ui/battle/panel_party_strip_9p.png" id="8_strip"]
 [ext_resource type="Texture2D" path="res://assets/ui/battle/bg_battle_forest.png" id="9_bg"]
+[ext_resource type="Script" path="res://addons/phantom_camera/scripts/phantom_camera_host/phantom_camera_host.gd" id="10_pcam_host"]
+[ext_resource type="Script" path="res://addons/phantom_camera/scripts/phantom_camera/phantom_camera_2d.gd" id="11_pcam"]
+[ext_resource type="Script" path="res://addons/phantom_camera/scripts/phantom_camera/phantom_camera_noise_emitter_2d.gd" id="12_noise_emitter"]
+[ext_resource type="Script" path="res://addons/phantom_camera/scripts/resources/phantom_camera_noise_2d.gd" id="13_noise"]
+[ext_resource type="Script" path="res://scripts/battle/TurnArcBar.gd" id="14_turn_arc"]
 
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_enemy"]
 size = Vector2(60, 60)
 
+[sub_resource type="Resource" id="Resource_impact_noise"]
+script = ExtResource("13_noise")
+amplitude = 9.0
+frequency = 4.5
+rotational_noise = true
+rotational_multiplier = 0.15
+
 [node name="Battle" type="Node2D"]
 script = ExtResource("1_battle")
+
+[node name="BattleCamera" type="Camera2D" parent="."]
+position = Vector2(960, 540)
+ignore_rotation = false
+
+[node name="PhantomCameraHost" type="Node" parent="BattleCamera"]
+script = ExtResource("10_pcam_host")
+
+[node name="BattlePCam" type="Node2D" parent="."]
+position = Vector2(960, 540)
+script = ExtResource("11_pcam")
+priority = 10
+tween_on_load = false
+noise_emitter_layer = 1
 
 [node name="BackdropLayer" type="CanvasLayer" parent="."]
 layer = -1
@@ -80,6 +105,7 @@ script = ExtResource("2_bsm")
 script = ExtResource("3_tsm")
 
 [node name="UI" type="CanvasLayer" parent="."]
+follow_viewport_enabled = true
 
 [node name="BattleUI" type="Control" parent="UI"]
 layout_mode = 3
@@ -91,53 +117,52 @@ grow_vertical = 2
 theme = ExtResource("5_theme")
 script = ExtResource("4_bui")
 
-[node name="TurnOrderBar" type="HBoxContainer" parent="UI/BattleUI"]
+[node name="ImpactCameraNoise" type="Node2D" parent="UI/BattleUI"]
+script = ExtResource("12_noise_emitter")
+noise = SubResource("Resource_impact_noise")
+duration = 0.1
+decay_time = 0.12
+
+[node name="TurnOrderBar" type="Control" parent="UI/BattleUI"]
 layout_mode = 1
 anchors_preset = 5
 anchor_left = 0.5
 anchor_right = 0.5
-offset_left = -480.0
-offset_top = 24.0
-offset_right = 480.0
-offset_bottom = 124.0
+offset_left = -400.0
+offset_top = 8.0
+offset_right = 400.0
+offset_bottom = 120.0
 grow_horizontal = 2
 mouse_filter = 2
-alignment = 1
-theme_override_constants/separation = 24
+script = ExtResource("14_turn_arc")
 
 [node name="EnemyContainer" type="HBoxContainer" parent="UI/BattleUI"]
 layout_mode = 1
 anchors_preset = 5
 anchor_left = 0.5
 anchor_right = 0.5
-offset_left = -420.0
-offset_top = 190.0
-offset_right = 420.0
-offset_bottom = 410.0
+offset_left = -560.0
+offset_top = 140.0
+offset_right = 560.0
+offset_bottom = 420.0
 grow_horizontal = 2
 mouse_filter = 2
 alignment = 1
-theme_override_constants/separation = 80
+theme_override_constants/separation = 48
 
 [node name="CentralBox" type="NinePatchRect" parent="UI/BattleUI"]
-layout_mode = 1
-anchors_preset = 7
-anchor_left = 0.5
-anchor_top = 1.0
-anchor_right = 0.5
-anchor_bottom = 1.0
-offset_left = -576.0
-offset_top = -436.0
-offset_right = 576.0
-offset_bottom = -156.0
-grow_horizontal = 2
-grow_vertical = 0
+z_index = 2
+layout_mode = 0
+offset_left = 392.0
+offset_top = 608.0
+offset_right = 1432.0
+offset_bottom = 936.0
 mouse_filter = 2
 texture = ExtResource("6_central")
-patch_margin_left = 14
-patch_margin_top = 14
-patch_margin_right = 14
-patch_margin_bottom = 14
+patch_margin_left = 8
+patch_margin_top = 8
+patch_margin_right = 8
+patch_margin_bottom = 8
 
 [node name="MessageLabel" type="Label" parent="UI/BattleUI/CentralBox"]
 layout_mode = 1
@@ -152,23 +177,32 @@ grow_horizontal = 2
 grow_vertical = 2
 mouse_filter = 2
 theme_override_font_sizes/font_size = 28
-horizontal_alignment = 1
-vertical_alignment = 1
+vertical_alignment = 0
 autowrap_mode = 2
+clip_text = true
+max_lines_visible = 3
+
+[node name="StageBox" type="NinePatchRect" parent="UI/BattleUI"]
+z_index = 2
+layout_mode = 0
+offset_left = 1456.0
+offset_top = 608.0
+offset_right = 1824.0
+offset_bottom = 1048.0
+mouse_filter = 2
+texture = ExtResource("6_central")
+patch_margin_left = 8
+patch_margin_top = 8
+patch_margin_right = 8
+patch_margin_bottom = 8
 
 [node name="CommandBar" type="Control" parent="UI/BattleUI"]
-layout_mode = 1
-anchors_preset = 7
-anchor_left = 0.5
-anchor_top = 1.0
-anchor_right = 0.5
-anchor_bottom = 1.0
-offset_left = -480.0
-offset_top = -132.0
-offset_right = 480.0
-offset_bottom = -44.0
-grow_horizontal = 2
-grow_vertical = 0
+z_index = 2
+layout_mode = 0
+offset_left = 392.0
+offset_top = 960.0
+offset_right = 1432.0
+offset_bottom = 1048.0
 mouse_filter = 2
 
 [node name="CommandCells" type="HBoxContainer" parent="UI/BattleUI/CommandBar"]
@@ -183,37 +217,25 @@ alignment = 1
 theme_override_constants/separation = 24
 
 [node name="PartyPanel" type="NinePatchRect" parent="UI/BattleUI"]
-layout_mode = 1
-anchors_preset = 2
-anchor_top = 1.0
-anchor_bottom = 1.0
+layout_mode = 0
 offset_left = 24.0
-offset_top = -304.0
-offset_right = 360.0
-offset_bottom = -24.0
-grow_vertical = 0
+offset_top = 608.0
+offset_right = 368.0
+offset_bottom = 1048.0
 mouse_filter = 2
-texture = ExtResource("8_strip")
-patch_margin_left = 12
-patch_margin_top = 12
-patch_margin_right = 12
-patch_margin_bottom = 12
 
 [node name="PartyContainer" type="VBoxContainer" parent="UI/BattleUI/PartyPanel"]
 layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
-offset_left = 20.0
-offset_top = 20.0
-offset_right = -20.0
-offset_bottom = -20.0
 grow_horizontal = 2
 grow_vertical = 2
 mouse_filter = 2
 theme_override_constants/separation = 12
 
 [node name="ReticleLayer" type="Control" parent="UI/BattleUI"]
+z_index = 4
 layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
@@ -221,17 +243,3 @@ anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
 mouse_filter = 2
-
-[node name="TurnLabel" type="Label" parent="UI/BattleUI"]
-layout_mode = 1
-anchors_preset = 5
-anchor_left = 0.5
-anchor_right = 0.5
-offset_left = -300.0
-offset_top = 132.0
-offset_right = 300.0
-offset_bottom = 168.0
-grow_horizontal = 2
-mouse_filter = 2
-theme_override_font_sizes/font_size = 22
-horizontal_alignment = 1

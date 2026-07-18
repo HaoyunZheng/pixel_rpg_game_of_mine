@@ -16,14 +16,13 @@ extends CanvasLayer
 const CONFIRM_KEY: Key = KEY_Z
 const CANCEL_KEY: Key = KEY_X
 const FADE_DURATION: float = 0.15
-const MENU_EXPAND_DURATION: float = 0.1
 const DIALOG_POPUP_DURATION: float = 0.12
-const ACTION_MENU_ROW_HEIGHT: int = 30
+const ACTION_MENU_ROW_HEIGHT: int = 42
+const ITEMS_PER_PAGE: int = 20
 
 enum UIState { PREVIEW, ACTION_MENU, DISCARD_CONFIRM }
 
 # ── 节点引用 ──
-@onready var _mask: ColorRect = $Mask
 @onready var _stage: Control = $Stage
 @onready var _bg: TextureRect = $Stage/Background
 @onready var _layers: Control = $Stage/Layers
@@ -31,19 +30,20 @@ enum UIState { PREVIEW, ACTION_MENU, DISCARD_CONFIRM }
 @onready var _grid_layer: Control = $Stage/Layers/Grid
 @onready var _grid_hint_layer: Control = $Stage/Layers/GridHint
 @onready var _detail_layer: Control = $Stage/Layers/Detail
-@onready var _dialog_layer: Control = $DialogLayer
-@onready var _dialog_panel: PanelContainer = $DialogLayer/Dialog
+@onready var _dialog_layer: Control = $Stage/DialogLayer
+@onready var _dialog_panel: PanelContainer = $Stage/DialogLayer/Dialog
 
 var _state: UIState = UIState.PREVIEW
 var _category_index: int = 0
 var _focus_index_by_category: Dictionary = {}
+var _page_index_by_category: Dictionary = {}
 var _menu_index: int = 0
 var _is_open: bool = false
 
 var _layout: Dictionary = {}
 var _current_items: Array = []
 var _menu_options: Array = []
-var _action_menu_box: PanelContainer = null
+var _action_menu_box: GridContainer = null
 var _pending_discard_item: ItemData = null
 var _pending_discard_count: int = 0
 
@@ -126,10 +126,10 @@ func _rect_of(arr) -> Rect2:
 	return Rect2(float(arr[0]), float(arr[1]), float(arr[2]), float(arr[3]))
 
 
-func _zone(name: String) -> Rect2:
+func _zone(zone_name: String) -> Rect2:
 	var zones: Dictionary = _layout.get("zones", {})
-	if zones.has(name):
-		return _rect_of(zones[name])
+	if zones.has(zone_name):
+		return _rect_of(zones[zone_name])
 	return Rect2()
 
 
@@ -222,8 +222,16 @@ func _refresh_grid() -> void:
 		child.queue_free()
 	_slot_nodes.clear()
 
-	_current_items = _gather_current_items()
+	var category_items: Array = _gather_current_items()
 	var wells: Array = _layout.get("wells", [])
+	var page_count: int = maxi(1, ceili(category_items.size() / float(ITEMS_PER_PAGE)))
+	var page_index: int = clampi(_get_page_index(), 0, page_count - 1)
+	_set_page_index(page_index)
+	_current_items.clear()
+	var page_start: int = page_index * ITEMS_PER_PAGE
+	var page_end: int = mini(page_start + ITEMS_PER_PAGE, category_items.size())
+	for i in range(page_start, page_end):
+		_current_items.append(category_items[i])
 
 	if _current_items.is_empty():
 		_grid_hint_layer.add_child(_make_grid_empty_hint(wells))
@@ -231,10 +239,12 @@ func _refresh_grid() -> void:
 
 	for i in range(_current_items.size()):
 		if i >= wells.size():
-			break  # 井位已满（20）；溢出留待分页（Open Question）
+			break
 		var rect: Rect2 = _rect_of(wells[i])
 		var slot_node := _build_item_slot(_current_items[i], rect)
 		_grid_layer.add_child(slot_node)
+	if page_count > 1:
+		_grid_hint_layer.add_child(_make_page_indicator(wells, page_index, page_count))
 
 	var focus_idx: int = clampi(_get_focus_index(), 0, mini(_current_items.size(), wells.size()) - 1)
 	_set_focus_index(focus_idx)
@@ -250,6 +260,25 @@ func _make_grid_empty_hint(wells: Array) -> Control:
 		label.size = last.position + last.size - first.position
 	else:
 		label.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	return label
+
+
+func _make_page_indicator(wells: Array, page_index: int, page_count: int) -> Label:
+	var label := Label.new()
+	label.name = "PageIndicator"
+	label.text = InventoryWidgets.STR_PAGE_FMT % [page_index + 1, page_count]
+	label.add_theme_font_size_override("font_size", 16)
+	label.add_theme_color_override("font_color", InventoryWidgets.COL_BONE)
+	label.add_theme_constant_override("outline_size", 4)
+	label.add_theme_color_override("font_outline_color", Color(0.04, 0.03, 0.02))
+	label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	if not wells.is_empty():
+		var first: Rect2 = _rect_of(wells[0])
+		var last: Rect2 = _rect_of(wells[wells.size() - 1])
+		label.position = Vector2(first.position.x, last.end.y + 6.0)
+		label.size = Vector2(last.end.x - first.position.x, 28.0)
 	return label
 
 
@@ -271,11 +300,16 @@ func _build_item_slot(slot: Dictionary, rect: Rect2) -> Control:
 	holder.add_child(overlay)
 
 	var icon_px: int = int(min(rect.size.x, rect.size.y) * 0.62)
+	# 用 CenterContainer 居中：容器按子节点最小尺寸逐帧居中，不依赖 PRESET_CENTER 的调用时机
+	# （preset 在节点入树前以 size=0 锚定左上角，会让图标向右下方溢出半格）。
+	var icon_center := CenterContainer.new()
+	icon_center.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	icon_center.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	var icon := InventoryWidgets.make_item_icon(item, icon_px)
-	icon.set_anchors_and_offsets_preset(Control.PRESET_CENTER)
 	if item != null and not item.usable:
 		icon.modulate.a = 0.5
-	holder.add_child(icon)
+	icon_center.add_child(icon)
+	holder.add_child(icon_center)
 
 	if item != null and item.category == ItemData.ItemCategory.CONSUMABLE:
 		var qty := Label.new()
@@ -313,7 +347,14 @@ func _update_slot_styles() -> void:
 		overlay.add_theme_stylebox_override("panel", InventoryWidgets.make_item_slot_focus_overlay(slot_state))
 
 
-# ───────────────────────────────────────────── 焦点索引（每分类记忆）
+# ───────────────────────────────────────────── 页码与焦点索引（每分类记忆）
+
+func _get_page_index() -> int:
+	return _page_index_by_category.get(_category_index, 0)
+
+
+func _set_page_index(idx: int) -> void:
+	_page_index_by_category[_category_index] = idx
 
 func _get_focus_index() -> int:
 	return _focus_index_by_category.get(_category_index, 0)
@@ -365,95 +406,114 @@ func _refresh_detail() -> void:
 
 func _add_detail_empty_hint() -> void:
 	var hint := InventoryWidgets.make_empty_detail_hint()
-	_place_in_zone(hint, "body")
+	_place_in_zone(hint, "desc")
 	_detail_layer.add_child(hint)
 
 
 ## ③ 详情图框：物品大图标置于画好的 portrait 框内（框由底图提供，仅叠图标）。
 func _build_detail_icon(item: ItemData) -> void:
 	var r: Rect2 = _zone("portrait")
-	var icon_px: int = int(min(r.size.x, r.size.y) * 0.7)
+	var icon_px: int = mini(90, int(min(r.size.x, r.size.y) * 0.7))
 	var icon := InventoryWidgets.make_item_icon(item, icon_px)
-	var holder := Control.new()
+	# 同 grid：CenterContainer 按子节点最小尺寸居中，替代时机敏感的 PRESET_CENTER。
+	var holder := CenterContainer.new()
 	holder.position = r.position
 	holder.size = r.size
 	holder.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	icon.set_anchors_and_offsets_preset(Control.PRESET_CENTER)
 	holder.add_child(icon)
 	_detail_layer.add_child(holder)
 
 
 ## ④ 详情文字（标题区）：名称 + 分类章，置于 header 分区。
 func _build_detail_header(item: ItemData) -> void:
-	var box := VBoxContainer.new()
-	box.add_theme_constant_override("separation", 6)
-	box.alignment = BoxContainer.ALIGNMENT_CENTER
-	box.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_place_in_zone(box, "header")
-
 	var name_label := Label.new()
+	name_label.name = "ItemName"
 	name_label.text = item.display_name if item != null else InventoryWidgets.STR_UNKNOWN_ITEM_NAME
-	name_label.add_theme_font_size_override("font_size", 26)
 	name_label.add_theme_color_override("font_color", InventoryWidgets.COL_INK)
 	name_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	name_label.autowrap_mode = TextServer.AUTOWRAP_WORD
+	name_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	name_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	name_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	box.add_child(name_label)
+	_place_in_zone(name_label, "name")
+	_detail_layer.add_child(name_label)
+	_fit_label_font(name_label, 26, 18, _zone("name").size)
 
 	if item != null:
-		var chip_row := HBoxContainer.new()
-		chip_row.alignment = BoxContainer.ALIGNMENT_CENTER
-		chip_row.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		var chip_holder := CenterContainer.new()
+		chip_holder.name = "Category"
+		chip_holder.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		_place_in_zone(chip_holder, "tag")
 		var chip := Label.new()
+		chip.name = "CategoryChip"
 		chip.text = InventoryWidgets.get_category_name(item.category)
 		chip.add_theme_font_size_override("font_size", 15)
 		chip.add_theme_color_override("font_color", InventoryWidgets.COL_BONE)
 		chip.add_theme_constant_override("outline_size", 1)
 		chip.add_theme_stylebox_override("normal", InventoryWidgets.make_chip_style())
-		chip_row.add_child(chip)
-		box.add_child(chip_row)
-
-	_detail_layer.add_child(box)
+		chip_holder.add_child(chip)
+		_detail_layer.add_child(chip_holder)
 
 
 ## ④ 详情文字（正文区）：数值条目 + 说明文字，置于 body 分区。
 func _build_detail_body(item: ItemData) -> void:
-	var box := VBoxContainer.new()
-	box.add_theme_constant_override("separation", 8)
-	box.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_place_in_zone(box, "body")
-
+	var stats := GridContainer.new()
+	stats.name = "Stats"
+	stats.columns = 2
+	stats.clip_contents = true
+	stats.add_theme_constant_override("h_separation", 20)
+	stats.add_theme_constant_override("v_separation", 2)
+	stats.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_place_in_zone(stats, "stats")
 	if item != null:
 		for line in InventoryWidgets.get_stat_lines(item):
-			box.add_child(_make_stat_line(line))
+			stats.add_child(_make_stat_line(line))
+	_detail_layer.add_child(stats)
 
 	var desc := Label.new()
+	desc.name = "Description"
 	desc.text = item.description if item != null else InventoryWidgets.STR_UNKNOWN_ITEM_DESC
-	desc.add_theme_font_size_override("font_size", 17)
 	desc.add_theme_color_override("font_color", InventoryWidgets.COL_INK_LIGHT)
 	desc.add_theme_constant_override("line_spacing", 6)
-	desc.autowrap_mode = TextServer.AUTOWRAP_WORD
-	desc.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	desc.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	desc.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	box.add_child(desc)
-
-	_detail_layer.add_child(box)
+	_place_in_zone(desc, "desc")
+	_detail_layer.add_child(desc)
+	_fit_label_font(desc, 17, 13, _zone("desc").size)
 
 
 ## ④ 详情文字（页脚区）：装备状态徽章，置于 footer 分区（非菜单态）。
 func _build_detail_footer(item: ItemData) -> void:
 	if item == null or not InventoryWidgets.is_equipment_category(item.category):
 		return
-	var box := VBoxContainer.new()
-	box.alignment = BoxContainer.ALIGNMENT_END
-	box.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_place_in_zone(box, "footer")
-	box.add_child(_make_equip_status_badge(item))
-	_detail_layer.add_child(box)
+	var holder := CenterContainer.new()
+	holder.name = "EquipStatus"
+	holder.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_place_in_zone(holder, "footer")
+	holder.add_child(_make_equip_status_badge(item))
+	_detail_layer.add_child(holder)
+
+
+func _fit_label_font(label: Label, max_font_size: int, min_font_size: int,
+		available_size: Vector2 = Vector2.ZERO) -> void:
+	var font: Font = label.get_theme_font("font")
+	var fit_size: Vector2 = label.size if available_size == Vector2.ZERO else available_size
+	var font_size: int = max_font_size
+	while font_size > min_font_size:
+		var measured: Vector2 = font.get_multiline_string_size(
+			label.text, label.horizontal_alignment, fit_size.x, font_size)
+		if measured.y <= fit_size.y:
+			break
+		font_size -= 1
+	label.add_theme_font_size_override("font_size", font_size)
+	var line_height: float = font.get_height(font_size) + label.get_theme_constant("line_spacing")
+	label.max_lines_visible = maxi(1, floori(fit_size.y / line_height))
+	label.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+	label.clip_text = true
 
 
 func _make_stat_line(text: String) -> Control:
 	var row := HBoxContainer.new()
+	row.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	row.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	var split_idx: int = text.rfind(" ")
 	var label_part: String = text
@@ -508,7 +568,7 @@ func _build_menu_options(item: ItemData, _count: int) -> Array:
 		options.append({"label": InventoryWidgets.STR_ACTION_DISCARD, "action": "discard", "disabled": false})
 		return options
 	if item.usable:
-		options.append({"label": InventoryWidgets.STR_ACTION_USE, "action": "use", "disabled": false})
+		options.append({"label": InventoryWidgets.STR_ACTION_USE, "action": "use", "disabled": not GameData.can_use_item(item.id)})
 	if InventoryWidgets.is_equipment_category(item.category):
 		var equipped: bool = GameData.is_item_equipped(item.id)
 		options.append({
@@ -524,28 +584,24 @@ func _build_menu_options(item: ItemData, _count: int) -> Array:
 func _build_action_menu(item: ItemData, count: int) -> void:
 	_menu_options = _build_menu_options(item, count)
 	_menu_index = clampi(_menu_index, 0, _menu_options.size() - 1)
+	if _menu_options[_menu_index].disabled:
+		for i in range(_menu_options.size()):
+			if not _menu_options[i].disabled:
+				_menu_index = i
+				break
 
-	var menu_panel := PanelContainer.new()
-	menu_panel.add_theme_stylebox_override("panel", InventoryWidgets.make_action_menu_style())
-	menu_panel.clip_contents = true
-	var inner := VBoxContainer.new()
-	inner.add_theme_constant_override("separation", 4)
+	var menu_grid := GridContainer.new()
+	menu_grid.name = "ActionMenu"
+	menu_grid.columns = 2
+	menu_grid.clip_contents = true
+	menu_grid.add_theme_constant_override("h_separation", 12)
+	menu_grid.add_theme_constant_override("v_separation", 8)
 	for opt in _menu_options:
-		inner.add_child(_make_menu_option_label(opt))
-	menu_panel.add_child(inner)
-	_place_in_zone(menu_panel, "footer")
-	_detail_layer.add_child(menu_panel)
-	_action_menu_box = menu_panel
+		menu_grid.add_child(_make_menu_option_label(opt))
+	_place_in_zone(menu_grid, "footer")
+	_detail_layer.add_child(menu_grid)
+	_action_menu_box = menu_grid
 	_update_menu_selection()
-
-	var target_h: float = float(_menu_options.size() * ACTION_MENU_ROW_HEIGHT + 16)
-	var zone_w: float = _zone("footer").size.x
-	menu_panel.custom_minimum_size = Vector2(zone_w, 0)
-	var tween := create_tween()
-	tween.set_pause_mode(Tween.TWEEN_PAUSE_PROCESS)
-	tween.set_ease(Tween.EASE_OUT)
-	tween.set_trans(Tween.TRANS_QUAD)
-	tween.tween_property(menu_panel, "custom_minimum_size:y", target_h, MENU_EXPAND_DURATION)
 
 
 func _make_menu_option_label(opt: Dictionary) -> Label:
@@ -553,6 +609,9 @@ func _make_menu_option_label(opt: Dictionary) -> Label:
 	label.text = opt.label
 	label.add_theme_font_size_override("font_size", 19)
 	label.custom_minimum_size = Vector2(0, ACTION_MENU_ROW_HEIGHT)
+	label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	label.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	label.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	return label
@@ -561,9 +620,8 @@ func _make_menu_option_label(opt: Dictionary) -> Label:
 func _update_menu_selection() -> void:
 	if _action_menu_box == null:
 		return
-	var inner: VBoxContainer = _action_menu_box.get_child(0)
-	for i in range(inner.get_child_count()):
-		var label: Label = inner.get_child(i)
+	for i in range(_action_menu_box.get_child_count()):
+		var label: Label = _action_menu_box.get_child(i)
 		var opt: Dictionary = _menu_options[i]
 		if opt.disabled:
 			label.add_theme_color_override("font_color", InventoryWidgets.COL_PARCHMENT_DIM)
@@ -621,10 +679,12 @@ func _open_discard_dialog(item: ItemData, count: int) -> void:
 	var item_name: String = item.display_name if item != null else InventoryWidgets.STR_UNKNOWN_ITEM_NAME
 	var body := Label.new()
 	body.text = InventoryWidgets.STR_DISCARD_BODY_FMT % [item_name, count]
-	body.add_theme_font_size_override("font_size", 22)
 	body.add_theme_color_override("font_color", InventoryWidgets.COL_GOLD)
 	body.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	body.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	body.custom_minimum_size = Vector2(0, 58)
 	content.add_child(body)
+	call_deferred("_fit_label_font", body, 22, 14)
 
 	var spacer := Control.new()
 	spacer.custom_minimum_size = Vector2(0, 16)
@@ -749,29 +809,33 @@ func _handle_preview_input(keycode: Key) -> void:
 		KEY_DOWN, KEY_S:
 			_move_focus(0, 1)
 			get_viewport().set_input_as_handled()
+		KEY_Q:
+			_switch_category(-1)
+			get_viewport().set_input_as_handled()
+		KEY_E:
+			_switch_category(1)
+			get_viewport().set_input_as_handled()
 		CONFIRM_KEY:
 			_enter_action_menu()
 			get_viewport().set_input_as_handled()
 
 
-## 方向键导航：左右在网格内移动列，到边缘列切换分类；上下按行移动，不切换分类。
+## 方向键导航：左右在网格内移动列，到边缘列切页；上下按行移动。分类只由 Q/E 切换。
 func _move_focus(dx: int, dy: int) -> void:
 	if _current_items.is_empty():
-		if dx != 0:
-			_switch_category(dx)
 		return
 
 	var count: int = _current_items.size()
 	var cols: int = InventoryWidgets.GRID_COLUMNS
 	var idx: int = _get_focus_index()
 	var col: int = idx % cols
-	var row: int = idx / cols
-	var row_count: int = (count - 1) / cols + 1
+	var row: int = floori(idx / float(cols))
+	var row_count: int = ceili(count / float(cols))
 
 	if dx != 0:
 		var new_col: int = col + dx
 		if new_col < 0 or new_col >= cols:
-			_switch_category(dx)
+			_switch_page(dx, row)
 			return
 		var new_idx: int = row * cols + new_col
 		if new_idx >= count:
@@ -793,6 +857,24 @@ func _move_focus(dx: int, dy: int) -> void:
 		_refresh_detail()
 
 
+func _switch_page(direction: int, row: int) -> void:
+	var category_items: Array = _gather_current_items()
+	var page_count: int = maxi(1, ceili(category_items.size() / float(ITEMS_PER_PAGE)))
+	var next_page: int = _get_page_index() + direction
+	if next_page < 0 or next_page >= page_count:
+		return
+	_set_page_index(next_page)
+	_refresh_grid()
+	if _current_items.is_empty():
+		_refresh_detail()
+		return
+	var cols: int = InventoryWidgets.GRID_COLUMNS
+	var target_col: int = 0 if direction > 0 else cols - 1
+	_set_focus_index(mini(row * cols + target_col, _current_items.size() - 1))
+	_update_slot_styles()
+	_refresh_detail()
+
+
 func _switch_category(direction: int) -> void:
 	var n: int = InventoryWidgets.CATEGORY_ORDER.size()
 	_category_index = posmod(_category_index + direction, n)
@@ -804,9 +886,15 @@ func _switch_category(direction: int) -> void:
 func _handle_action_menu_input(keycode: Key) -> void:
 	match keycode:
 		KEY_UP, KEY_W:
-			_move_menu_selection(-1)
+			_move_menu_selection(-2)
 			get_viewport().set_input_as_handled()
 		KEY_DOWN, KEY_S:
+			_move_menu_selection(2)
+			get_viewport().set_input_as_handled()
+		KEY_LEFT, KEY_A:
+			_move_menu_selection(-1)
+			get_viewport().set_input_as_handled()
+		KEY_RIGHT, KEY_D:
 			_move_menu_selection(1)
 			get_viewport().set_input_as_handled()
 		CONFIRM_KEY:
