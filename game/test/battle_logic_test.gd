@@ -714,15 +714,24 @@ func _test_battle_hud_frames() -> void:
 		BattleUI.calculate_enemy_sprite_size(normal.enemy.size, 1, 48.0, 1.0) == 224
 		and BattleUI.calculate_enemy_sprite_size(normal.enemy.size, 2, 48.0, 1.0) == 224
 		and BattleUI.calculate_enemy_sprite_size(normal.enemy.size, 4, 48.0, 1.0) == 224
+		and BattleUI.calculate_enemy_sprite_size(normal.enemy.size, 5, 48.0, 1.0) == 185
 		and BattleUI.calculate_enemy_sprite_size(Vector2(746.6667, 186.6667), 4, 32.0, 2.0 / 3.0) == 149)
-	_check("敌方槽位按 M 形上下错落",
+	_check("敌方槽位按 M 形上下错落且单双数对称",
 		BattleUI.calculate_enemy_vertical_offset(0, 1, 280.0, 224) == 28
-		and BattleUI.calculate_enemy_vertical_offset(0, 2, 280.0, 224) == 0
-		and BattleUI.calculate_enemy_vertical_offset(1, 2, 280.0, 224) == 56
-		and BattleUI.calculate_enemy_vertical_offset(0, 4, 280.0, 224) == 0
-		and BattleUI.calculate_enemy_vertical_offset(1, 4, 280.0, 224) == 56
-		and BattleUI.calculate_enemy_vertical_offset(2, 4, 280.0, 224) == 56
-		and BattleUI.calculate_enemy_vertical_offset(3, 4, 280.0, 224) == 0)
+		and BattleUI.calculate_enemy_vertical_offset(0, 2, 280.0, 224) == 28
+		and BattleUI.calculate_enemy_vertical_offset(1, 2, 280.0, 224) == 28
+		and BattleUI.calculate_enemy_vertical_offset(0, 3, 280.0, 224) == 56
+		and BattleUI.calculate_enemy_vertical_offset(1, 3, 280.0, 224) == 0
+		and BattleUI.calculate_enemy_vertical_offset(2, 3, 280.0, 224) == 56
+		and BattleUI.calculate_enemy_vertical_offset(0, 4, 280.0, 224) == 56
+		and BattleUI.calculate_enemy_vertical_offset(1, 4, 280.0, 224) == 0
+		and BattleUI.calculate_enemy_vertical_offset(2, 4, 280.0, 224) == 0
+		and BattleUI.calculate_enemy_vertical_offset(3, 4, 280.0, 224) == 56
+		and BattleUI.calculate_enemy_vertical_offset(0, 5, 280.0, 185) == 95
+		and BattleUI.calculate_enemy_vertical_offset(1, 5, 280.0, 185) == 0
+		and BattleUI.calculate_enemy_vertical_offset(2, 5, 280.0, 185) == 95
+		and BattleUI.calculate_enemy_vertical_offset(3, 5, 280.0, 185) == 0
+		and BattleUI.calculate_enemy_vertical_offset(4, 5, 280.0, 185) == 95)
 	_check("队伍头像在 1080p 与 720p 下按人数缩放且不越界",
 		BattleUI.calculate_party_avatar_size(normal.party.size.y, 1, 1.0) == 120
 		and BattleUI.calculate_party_avatar_size(normal.party.size.y, 3, 1.0) == 120

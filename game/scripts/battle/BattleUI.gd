@@ -759,11 +759,10 @@ static func calculate_enemy_vertical_offset(
 		container_height: float,
 		sprite_size: int) -> int:
 	var travel: int = maxi(0, floori(container_height) - sprite_size)
-	if enemy_count <= 1:
+	if enemy_count <= 2:
 		return travel / 2
-	if enemy_count == 2:
-		return 0 if index == 0 else travel
-	return 0 if index == 0 or index == enemy_count - 1 else travel
+	var depth: int = mini(index, enemy_count - 1 - index)
+	return travel if depth % 2 == 0 else 0
 
 static func calculate_party_avatar_size(
 		panel_height: float,
