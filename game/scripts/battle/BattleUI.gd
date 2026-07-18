@@ -231,12 +231,15 @@ func _refresh_display() -> void:
 	# ② 敌方
 	_enemy_anchor_by_unit.clear()
 	for child in _enemy_container.get_children():
+		# ponytail: 立即移出容器，queue_free 留到帧末也不会与新卡重叠渲染。
+		_enemy_container.remove_child(child)
 		child.queue_free()
 	for enemy in _enemy_units:
 		_enemy_container.add_child(BattleWidgets.make_unit_card(enemy, false))
 	# ⑤ 我方
 	_party_anchor_by_unit.clear()
 	for child in _party_container.get_children():
+		_party_container.remove_child(child)
 		child.queue_free()
 	for member in _party_units:
 		_party_container.add_child(BattleWidgets.make_unit_card(
@@ -776,6 +779,7 @@ func _clear_timing_overlay() -> void:
 
 func _show_stage_actor(unit) -> void:
 	for child in _stage_box.get_children():
+		_stage_box.remove_child(child)
 		child.queue_free()
 	if unit != null:
 		_stage_box.add_child(BattleWidgets.make_stage_actor(unit, unit.is_player))

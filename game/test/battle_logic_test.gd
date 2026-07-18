@@ -829,9 +829,14 @@ func _test_reticle_animations() -> void:
 	controller.enemies = [enemy_a, enemy_b]
 	add_child(controller)
 	ui.setup([party], [enemy_a, enemy_b], controller, null)
-	await get_tree().process_frame
-	await get_tree().process_frame
+	ui.refresh()
 	ui.show_actor_turn(party)
+	_check("战斗开场同帧刷新不会叠加旧角色卡",
+		ui.get_node("EnemyContainer").get_child_count() == 2
+		and ui.get_node("PartyPanel/PartyContainer").get_child_count() == 1
+		and ui.get_node("StageBox").get_child_count() == 1)
+	await get_tree().process_frame
+	await get_tree().process_frame
 
 	var picked: Array = []
 	ui._start_target_select(BattleUI.TARGET_GROUP_ENEMY, func(target): picked.append(target))
