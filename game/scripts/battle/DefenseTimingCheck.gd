@@ -527,10 +527,15 @@ func _resolve_contact() -> void:
 func _resolve_barrage_contact() -> void:
 	if _stance == BattleUnit.Stance.DODGE and _total_elapsed <= _hit_invulnerable_until:
 		return
-	if _barrage_results_recorded >= _barrage_hit_count:
-		return
 	var outcome := _classify_current_contact(false)
 	_apply_contact_impact(outcome)
+	if _stance == BattleUnit.Stance.DODGE and outcome != DefenseTimingRules.Outcome.FAILURE:
+		# ponytail: 成功闪避保留反馈与奖励，但不消耗最多三个实际受击槽。
+		_append_hit_result(
+			_hit_results.size(), _barrage_hit_count, true, outcome)
+		return
+	if _barrage_results_recorded >= _barrage_hit_count:
+		return
 	_append_hit_result(
 		_barrage_results_recorded, _barrage_hit_count, true, outcome)
 	_barrage_results_recorded += 1

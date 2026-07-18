@@ -328,6 +328,24 @@ func _test_right_side_attack_origins_and_barrage() -> void:
 	for _contact in range(4):
 		random_a._resolve_barrage_contact()
 	_check("大量视觉弹幕最多结算三个伤害槽", random_a._hit_results.size() == 3)
+
+	var dodge := TIMING_CHECK.new()
+	add_child(dodge)
+	dodge.start(BattleUnit.Stance.DODGE, Rect2(0, 0, 960, 540),
+		EnemyAI.PATTERN_HUNTER_SLOW_BARRAGE, random_params)
+	dodge._total_elapsed = 1.0
+	dodge._reaction_started_at = 1.0
+	for _contact in range(4):
+		dodge._resolve_barrage_contact()
+	dodge._impact_particles.emitting = false
+	dodge._total_elapsed = 2.0
+	dodge._reaction_started_at = -1.0
+	dodge._resolve_barrage_contact()
+	_check("多次成功闪避后碰撞仍触发受击判定与粒子",
+		dodge._hit_results.any(func(result):
+			return result.outcome == DefenseTimingRules.Outcome.FAILURE)
+		and dodge._impact_particles.emitting)
+	dodge.free()
 	random_a.free()
 	random_b.free()
 
