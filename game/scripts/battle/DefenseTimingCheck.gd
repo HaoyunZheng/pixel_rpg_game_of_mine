@@ -610,6 +610,9 @@ func _finish() -> void:
 
 func _emit_attack_particles() -> void:
 	var stage: Dictionary = _stages[_stage_index]
+	# ponytail: 弹体自带轨迹绘制，不叠加普通攻击粒子，也不要求 width 参数。
+	if stage.kind == "barrage":
+		return
 	_trail_particles.modulate = _attack_color
 	var material := _trail_particles.process_material as ParticleProcessMaterial
 	if stage.kind == "area":

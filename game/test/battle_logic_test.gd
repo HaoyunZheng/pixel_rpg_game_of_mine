@@ -272,7 +272,9 @@ func _test_right_side_attack_origins_and_barrage() -> void:
 			"bullet_count": 36, "hit_count": 3,
 		})
 	var child_count: int = straight.get_child_count()
-	straight._phase = straight.Phase.ACTIVE
+	straight._advance_phase()
+	_check("慢速弹幕可从预警态无错切入活跃态",
+		straight._phase == straight.Phase.ACTIVE)
 	straight._phase_elapsed = 0.21
 	straight._update_barrage(0.01)
 	var straight_leftward: bool = true

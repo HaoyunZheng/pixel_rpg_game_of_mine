@@ -98,7 +98,6 @@ func show_actor_turn(actor) -> void:
 	_turn_label.text = "✦ 轮到 %s" % actor.display_name
 	_is_selecting_target = false
 	_clear_target_reticles()
-	_refresh_display()
 	_rebuild_turn_order_bar(actor)
 	if actor.is_player and not actor.is_dead():
 		_build_command_menu()
