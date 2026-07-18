@@ -197,19 +197,8 @@ func _build_command_cells() -> void:
 	for child in _command_cells.get_children():
 		child.queue_free()
 	for i in range(CMD_LABELS.size()):
-		var cell := Label.new()
-		cell.text = CMD_LABELS[i]
-		cell.add_theme_font_size_override("font_size", 30)
-		# 每格独立切片底框：文字经框的 content margin 在格内水平/垂直居中
-		cell.add_theme_stylebox_override("normal", BattleWidgets.make_cmd_cell_style())
-		cell.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-		cell.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-		cell.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		cell.size_flags_vertical = Control.SIZE_EXPAND_FILL
-		cell.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		if i == CMD_ITEM_INDEX and not _has_battle_usable_items():
-			cell.modulate = BattleWidgets.COL_DIM  # 物品：背包无可用物品时置灰
-		_command_cells.add_child(cell)
+		var disabled: bool = i == CMD_ITEM_INDEX and not _has_battle_usable_items()
+		_command_cells.add_child(BattleWidgets.make_command_cell(CMD_LABELS[i], disabled))
 
 ## 命令模式：把四格命令接入既有 _menu_buttons 高亮/激活机制。
 func _build_command_menu() -> void:
@@ -329,23 +318,11 @@ func _render_central_options_header(header: String) -> void:
 	_clear_central_options()
 	_message_label.text = header
 	_message_label.vertical_alignment = VERTICAL_ALIGNMENT_TOP
-	_central_option_box = VBoxContainer.new()
-	_central_option_box.set_anchors_and_offsets_preset(Control.PRESET_CENTER_BOTTOM)
-	_central_option_box.anchor_top = 0.35
-	_central_option_box.anchor_bottom = 1.0
-	_central_option_box.offset_left = -200
-	_central_option_box.offset_right = 200
-	_central_option_box.offset_bottom = -24
-	_central_option_box.alignment = BoxContainer.ALIGNMENT_CENTER
-	_central_option_box.add_theme_constant_override("separation", 6)
-	_central_option_box.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_central_option_box = BattleWidgets.make_central_option_box()
 	_central_box.add_child(_central_option_box)
 
 func _add_central_option(label: String, action: Callable, disabled: bool) -> void:
-	var item := Label.new()
-	item.add_theme_font_size_override("font_size", 24)
-	item.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	item.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var item := BattleWidgets.make_menu_option()
 	if _central_option_box != null:
 		_central_option_box.add_child(item)
 	_menu_buttons.append(item)
@@ -539,28 +516,7 @@ func _update_intent_markers_after_layout() -> void:
 		var avatar: Control = _find_avatar_for_unit(member)
 		if avatar == null:
 			continue
-		var marker := Panel.new()
-		marker.set_meta("intent_marker", true)
-		marker.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		marker.size = avatar.size + Vector2(16, 16)
-		marker.position = _avatar_screen_center(avatar) - marker.size * 0.5
-		var outline := StyleBoxFlat.new()
-		outline.bg_color = Color(0, 0, 0, 0)
-		outline.border_color = BattleWidgets.COL_ENEMY
-		outline.set_border_width_all(4)
-		marker.add_theme_stylebox_override("panel", outline)
-		var label := Label.new()
-		label.text = "锁定 ×%d" % lock_count
-		label.position = Vector2(-12, -34)
-		label.size = Vector2(marker.size.x + 24, 30)
-		label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-		label.add_theme_font_size_override("font_size", 18)
-		label.add_theme_color_override("font_color", BattleWidgets.COL_ENEMY.lightened(0.25))
-		label.add_theme_constant_override("outline_size", 5)
-		label.add_theme_color_override("font_outline_color", Color(0.04, 0.03, 0.05))
-		label.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		marker.add_child(label)
-		_reticle_layer.add_child(marker)
+		_reticle_layer.add_child(BattleWidgets.make_intent_marker(avatar, lock_count))
 
 func _intent_count_for(unit) -> int:
 	var count: int = 0
@@ -598,41 +554,12 @@ func _set_timing_layout(expanded: bool) -> void:
 		_timing_tween.tween_property(hud, "modulate:a", hud_alpha, TIMING_TWEEN_SECONDS)
 	await _timing_tween.finished
 
-func _build_timing_overlay(attacker: BattleUnit, target: BattleUnit) -> void:
+func _build_timing_overlay(attacker: BattleUnit, _target: BattleUnit) -> void:
 	_clear_timing_overlay()
-	_timing_overlay = Control.new()
-	_timing_overlay.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	_timing_overlay.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_timing_overlay.z_index = 2
+	var parts: Dictionary = BattleWidgets.make_timing_overlay(attacker)
+	_timing_overlay = parts.overlay
+	_timing_result_label = parts.result_label
 	_central_box.add_child(_timing_overlay)
-	var attacker_box := VBoxContainer.new()
-	attacker_box.set_anchors_preset(Control.PRESET_CENTER_TOP)
-	attacker_box.offset_left = -140
-	attacker_box.offset_top = 42
-	attacker_box.offset_right = 140
-	attacker_box.offset_bottom = 174
-	attacker_box.alignment = BoxContainer.ALIGNMENT_CENTER
-	attacker_box.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	var avatar := BattleWidgets.make_avatar(attacker, false)
-	avatar.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
-	attacker_box.add_child(avatar)
-	var name_label := Label.new()
-	name_label.text = attacker.display_name
-	name_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	name_label.add_theme_font_size_override("font_size", 24)
-	attacker_box.add_child(name_label)
-	_timing_overlay.add_child(attacker_box)
-	_timing_result_label = Label.new()
-	_timing_result_label.set_anchors_preset(Control.PRESET_CENTER_BOTTOM)
-	_timing_result_label.offset_left = -460
-	_timing_result_label.offset_top = -126
-	_timing_result_label.offset_right = 460
-	_timing_result_label.offset_bottom = -76
-	_timing_result_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	_timing_result_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	_timing_result_label.add_theme_font_size_override("font_size", 26)
-	_timing_result_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_timing_overlay.add_child(_timing_result_label)
 
 func _clear_timing_overlay() -> void:
 	if is_instance_valid(_timing_overlay):

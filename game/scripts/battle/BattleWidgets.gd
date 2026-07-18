@@ -209,6 +209,20 @@ static func make_stat_bar_fallback(cur: int, maxv: int, col: Color) -> Control:
 	return pb
 
 # ───────────────────────────────────────────── ④ 命令格底框
+static func make_command_cell(text: String, disabled: bool) -> Label:
+	var cell := Label.new()
+	cell.text = text
+	cell.add_theme_font_size_override("font_size", 30)
+	cell.add_theme_stylebox_override("normal", make_cmd_cell_style())
+	cell.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	cell.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	cell.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	cell.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	cell.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	if disabled:
+		cell.modulate = COL_DIM
+	return cell
+
 ## 单个命令格的 StyleBox（cmd_cell_9p 切片：8px 黑框 + 2px 骨白 + 2px 暗缝）。
 ## 每格独立带框，格与格之间由 HBox separation 拉开，文字经 content margin 居中于框内。
 static func make_cmd_cell_style() -> StyleBox:
@@ -253,3 +267,84 @@ static func make_overlay_marker(tex: Texture2D, base_px: int, fallback_col: Colo
 	dot.color = fallback_col
 	dot.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	return dot
+
+static func make_intent_marker(avatar: Control, lock_count: int) -> Panel:
+	var marker := Panel.new()
+	marker.set_meta("intent_marker", true)
+	marker.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	marker.size = avatar.size + Vector2(16, 16)
+	marker.position = avatar.get_global_rect().get_center() - marker.size * 0.5
+	var outline := StyleBoxFlat.new()
+	outline.bg_color = Color(0, 0, 0, 0)
+	outline.border_color = COL_ENEMY
+	outline.set_border_width_all(4)
+	marker.add_theme_stylebox_override("panel", outline)
+	var label := Label.new()
+	label.text = "锁定 ×%d" % lock_count
+	label.position = Vector2(-12, -34)
+	label.size = Vector2(marker.size.x + 24, 30)
+	label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	label.add_theme_font_size_override("font_size", 18)
+	label.add_theme_color_override("font_color", COL_ENEMY.lightened(0.25))
+	label.add_theme_constant_override("outline_size", 5)
+	label.add_theme_color_override("font_outline_color", Color(0.04, 0.03, 0.05))
+	label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	marker.add_child(label)
+	return marker
+
+# ───────────────────────────────────────────── ③ 中央框临时视图
+
+static func make_central_option_box() -> VBoxContainer:
+	var box := VBoxContainer.new()
+	box.set_anchors_and_offsets_preset(Control.PRESET_CENTER_BOTTOM)
+	box.anchor_top = 0.35
+	box.anchor_bottom = 1.0
+	box.offset_left = -200
+	box.offset_right = 200
+	box.offset_bottom = -24
+	box.alignment = BoxContainer.ALIGNMENT_CENTER
+	box.add_theme_constant_override("separation", 6)
+	box.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	return box
+
+static func make_menu_option() -> Label:
+	var item := Label.new()
+	item.add_theme_font_size_override("font_size", 24)
+	item.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	item.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	return item
+
+static func make_timing_overlay(attacker: BattleUnit) -> Dictionary:
+	var overlay := Control.new()
+	overlay.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	overlay.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	overlay.z_index = 2
+	var attacker_box := VBoxContainer.new()
+	attacker_box.set_anchors_preset(Control.PRESET_CENTER_TOP)
+	attacker_box.offset_left = -140
+	attacker_box.offset_top = 42
+	attacker_box.offset_right = 140
+	attacker_box.offset_bottom = 174
+	attacker_box.alignment = BoxContainer.ALIGNMENT_CENTER
+	attacker_box.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var avatar := make_avatar(attacker, false)
+	avatar.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	attacker_box.add_child(avatar)
+	var name_label := Label.new()
+	name_label.text = attacker.display_name
+	name_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	name_label.add_theme_font_size_override("font_size", 24)
+	attacker_box.add_child(name_label)
+	overlay.add_child(attacker_box)
+	var result_label := Label.new()
+	result_label.set_anchors_preset(Control.PRESET_CENTER_BOTTOM)
+	result_label.offset_left = -460
+	result_label.offset_top = -126
+	result_label.offset_right = 460
+	result_label.offset_bottom = -76
+	result_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	result_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	result_label.add_theme_font_size_override("font_size", 26)
+	result_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	overlay.add_child(result_label)
+	return {"overlay": overlay, "result_label": result_label}
