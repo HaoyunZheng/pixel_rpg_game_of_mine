@@ -17,8 +17,9 @@ NinePatch margin 即屏幕厚度，1:1 绘制无重采样。状态条使用独�
   bar_mp_9p.png          160×32  MP 平面填充遮罩（由 HUD 固定着色）
   bar_frame_9p.png       160×32  4px 静态骨白外框（TextureProgressBar.texture_over）
   marker_locked_red.png  24×24   透明底红色环形锁定标记
-  pip_turn.png           56×56   行动顺序 pip（非当前，放大）
-  pip_turn_active.png    72×72   行动顺序 pip（当前行动者，放大）
+
+旧 pip_turn / pip_turn_active 文件按禁止删除规则保留，但行动条已改为程序化弧线头像球，
+本脚本不再生成或覆盖它们。
 
 用法：python3 tools/gen_battle_ui_slices.py
 """
@@ -32,15 +33,12 @@ OUT_DIR = Path(__file__).resolve().parent.parent.parent / "game" / "assets" / "u
 # ── 配色（采样自原 Meowa 切片 / BattleWidgets.COL_*）──
 BLACK = (10, 8, 14, 255)          # 近黑（带一点紫调，贴合阴郁基调）
 BONE = (230, 223, 205, 255)       # 骨白硬边
-BONE_DIM = (176, 168, 152, 255)   # 暗骨白（非当前 pip）
 INK_CENTRAL = (27, 24, 34, 255)   # 中央框内部（原切片采样）
 INK_CMD = (62, 55, 68, 255)       # 命令格内部（原四连底板采样调暗）
 INK_PARTY = (24, 21, 32, 215)     # 队伍底板内部（半透明）
 INK_AVATAR = (17, 14, 26, 255)    # 头像框内部（原切片采样）
 TRACK = (28, 26, 35, 255)         # 条底轨
 BAR_FILL_MASK = (255, 255, 255, 255)
-EMBER = (252, 158, 47, 255)       # 当前行动者（余烬橙，原 pip_active 采样）
-GOLD = (230, 192, 74, 255)
 LOCKED_RED = (214, 45, 55, 255)
 
 
@@ -72,23 +70,6 @@ def locked_ring_tile(size: int = 24, thickness: int = 3) -> Image.Image:
     return im
 
 
-def pip_tile(size: int, fill: tuple, core: tuple, border: int = 4) -> Image.Image:
-    """菱形行动顺序 pip：黑描边 + 主色 + 亮芯。"""
-    im = Image.new("RGBA", (size, size), (0, 0, 0, 0))
-    d = ImageDraw.Draw(im)
-    c = size // 2
-
-    def diamond(r: int, col: tuple) -> None:
-        d.polygon([(c, c - r), (c + r, c), (c, c + r), (c - r, c)], fill=col)
-
-    r_outer = c - 1
-    diamond(r_outer, BLACK)
-    diamond(r_outer - border - 1, fill)
-    diamond(max(3, r_outer - border - 9), core)
-    d.rectangle([c - 1, c - 1, c, c], fill=BONE)    # 中心点
-    return im
-
-
 def main() -> None:
     OUT_DIR.mkdir(parents=True, exist_ok=True)
     tiles = {
@@ -101,8 +82,6 @@ def main() -> None:
         "bar_mp_9p.png": bar_tile("mp"),
         "bar_frame_9p.png": bar_tile("frame"),
         "marker_locked_red.png": locked_ring_tile(),
-        "pip_turn.png": pip_tile(56, BONE_DIM, (210, 202, 184, 255)),
-        "pip_turn_active.png": pip_tile(72, EMBER, GOLD),
     }
     for name, im in tiles.items():
         path = OUT_DIR / name

@@ -1,4 +1,4 @@
-[gd_scene load_steps=15 format=3]
+[gd_scene load_steps=16 format=3]
 
 [ext_resource type="Script" path="res://scripts/Battle.gd" id="1_battle"]
 [ext_resource type="Script" path="res://scripts/battle/BattleStateMachine.gd" id="2_bsm"]
@@ -12,6 +12,7 @@
 [ext_resource type="Script" path="res://addons/phantom_camera/scripts/phantom_camera/phantom_camera_2d.gd" id="11_pcam"]
 [ext_resource type="Script" path="res://addons/phantom_camera/scripts/phantom_camera/phantom_camera_noise_emitter_2d.gd" id="12_noise_emitter"]
 [ext_resource type="Script" path="res://addons/phantom_camera/scripts/resources/phantom_camera_noise_2d.gd" id="13_noise"]
+[ext_resource type="Script" path="res://scripts/battle/TurnArcBar.gd" id="14_turn_arc"]
 
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_enemy"]
 size = Vector2(60, 60)
@@ -123,19 +124,18 @@ noise = SubResource("Resource_impact_noise")
 duration = 0.1
 decay_time = 0.12
 
-[node name="TurnOrderBar" type="HBoxContainer" parent="UI/BattleUI"]
+[node name="TurnOrderBar" type="Control" parent="UI/BattleUI"]
 layout_mode = 1
 anchors_preset = 5
 anchor_left = 0.5
 anchor_right = 0.5
-offset_left = -480.0
-offset_top = 24.0
-offset_right = 480.0
-offset_bottom = 124.0
+offset_left = -400.0
+offset_top = 8.0
+offset_right = 400.0
+offset_bottom = 120.0
 grow_horizontal = 2
 mouse_filter = 2
-alignment = 1
-theme_override_constants/separation = 24
+script = ExtResource("14_turn_arc")
 
 [node name="EnemyContainer" type="HBoxContainer" parent="UI/BattleUI"]
 layout_mode = 1
@@ -253,17 +253,3 @@ anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
 mouse_filter = 2
-
-[node name="TurnLabel" type="Label" parent="UI/BattleUI"]
-layout_mode = 1
-anchors_preset = 5
-anchor_left = 0.5
-anchor_right = 0.5
-offset_left = -300.0
-offset_top = 132.0
-offset_right = 300.0
-offset_bottom = 168.0
-grow_horizontal = 2
-mouse_filter = 2
-theme_override_font_sizes/font_size = 22
-horizontal_alignment = 1

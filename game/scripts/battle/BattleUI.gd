@@ -7,12 +7,12 @@ extends Control
 ##     完全沿用旧版（_input / _handle_menu_input / _handle_target_input / select_command /
 ##     select_target / 技能 action 构造）。
 ##   - 仅把占位 Label 换成 12 张切片：中央 9-patch 框（③）、命令栏底板四格（④）、
-##     我方/敌方头像框 + HP/MP TextureProgressBar（②⑤）、顶部行动顺序 pip 条（①）、
+##     我方/敌方头像框 + HP/MP TextureProgressBar（②⑤）、顶部弧线头像行动条（①）、
 ##     金色准星 / 红色锁定标记叠加层（⑥）。
 ##   - 切片加载失败一律回退纯色块 / 默认 StyleBox，不崩溃。
 
 # ── 节点引用（六分层）──
-@onready var _turn_order_bar: HBoxContainer = $TurnOrderBar          # ① 顶部行动顺序条
+@onready var _turn_order_bar: Control = $TurnOrderBar               # ① 顶部弧线行动顺序条
 @onready var _enemy_container: HBoxContainer = $EnemyContainer        # ② 上方敌方区域
 @onready var _central_box: NinePatchRect = $CentralBox               # ③ 中央 Undertale 框
 @onready var _message_label: Label = $CentralBox/MessageLabel        # ③ 框内单条战况文字
@@ -22,7 +22,6 @@ extends Control
 @onready var _party_panel: NinePatchRect = $PartyPanel
 @onready var _party_container: VBoxContainer = $PartyPanel/PartyContainer # ⑤ 左下我方状态列
 @onready var _reticle_layer: Control = $ReticleLayer                 # ⑥ 准星 / 锁敌层
-@onready var _turn_label: Label = $TurnLabel
 @onready var _impact_camera_noise: PhantomCameraNoiseEmitter2D = $ImpactCameraNoise
 
 # ── 既有常量（沿用，勿改键位/指令字符串）──
@@ -101,7 +100,6 @@ func refresh() -> void:
 
 func show_actor_turn(actor) -> void:
 	_current_actor = actor
-	_turn_label.text = "✦ 轮到 %s" % actor.display_name
 	_is_selecting_target = false
 	_clear_target_reticles()
 	_rebuild_turn_order_bar(actor)
@@ -120,7 +118,6 @@ func show_battle_result(victory: bool) -> void:
 	_set_menu_visible(false)
 	_clear_all_reticles()
 	_message_label.text = "战斗结束 — %s" % ("胜利！" if victory else "失败...")
-	_turn_label.text = ""
 
 func run_timing_check(
 		attacker: BattleUnit,
@@ -169,22 +166,18 @@ func show_enemy_intents(intents: Dictionary) -> void:
 	_enemy_intents = intents.duplicate(true)
 	_schedule_intent_marker_refresh()
 
-# ───────────────────────────────────────────── ① 顶部行动顺序条（pip）
+# ───────────────────────────────────────────── ① 顶部弧线行动顺序条
 
 func _rebuild_turn_order_bar(active_actor) -> void:
-	for child in _turn_order_bar.get_children():
-		child.queue_free()
 	var order: Array = []
-	if battle_controller != null and battle_controller.has_method("get_all_units"):
+	if battle_controller != null and battle_controller.has_method("get_turn_order"):
+		order = battle_controller.get_turn_order()
+	elif battle_controller != null and battle_controller.has_method("get_all_units"):
 		order = battle_controller.get_all_units()
 	else:
 		order = _party_units.duplicate()
 		order.append_array(_enemy_units)
-	for unit in order:
-		if unit.is_dead():
-			continue
-		var is_active: bool = unit == active_actor
-		_turn_order_bar.add_child(BattleWidgets.make_pip(is_active))
+	_turn_order_bar.show_order(order, active_actor)
 
 # ───────────────────────────────────────────── ②⑤ 敌我状态卡（头像框 + HP/MP 条）
 
@@ -591,7 +584,7 @@ func _set_timing_layout(expanded: bool) -> void:
 	_timing_tween.tween_property(_central_box, "size", target_rect.size, TIMING_TWEEN_SECONDS)
 	_timing_tween.tween_property(_stage_box, "position", stage_rect.position, TIMING_TWEEN_SECONDS)
 	_timing_tween.tween_property(_stage_box, "size", stage_rect.size, TIMING_TWEEN_SECONDS)
-	for hud: CanvasItem in [_enemy_container, _reticle_layer, _turn_label]:
+	for hud: CanvasItem in [_enemy_container, _reticle_layer]:
 		_timing_tween.tween_property(hud, "modulate:a", hud_alpha, TIMING_TWEEN_SECONDS)
 	_timing_tween.tween_property(_turn_order_bar, "modulate:a", 1.0, TIMING_TWEEN_SECONDS)
 	# 状态列保持原位，由扩张后层级更高的中央框自然覆盖。

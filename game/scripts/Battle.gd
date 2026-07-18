@@ -112,6 +112,9 @@ func get_party_units() -> Array:
 func get_enemy_units() -> Array:
 	return _enemy_units
 
+func get_turn_order() -> Array:
+	return _turn_order.duplicate()
+
 func freeze_enemy_intents() -> void:
 	_enemy_intents.clear()
 	for enemy in _enemy_units:

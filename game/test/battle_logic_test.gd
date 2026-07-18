@@ -65,6 +65,7 @@ func _ready() -> void:
 	_test_attack_duration_scale()
 	_test_impact_camera_feedback()
 	_test_battle_hud_frames()
+	await _test_turn_arc_bar()
 	await _test_defense_action_field()
 	await _test_enemy_damage_waits_for_timing()
 	_test_flee_turn_flow()
@@ -712,6 +713,61 @@ func _test_battle_hud_frames() -> void:
 		overlay.get_node_or_null("EnemyPerformanceFrame") == null
 		and overlay_parts.result_label is Label)
 	overlay.free()
+
+func _test_turn_arc_bar() -> void:
+	var turn_arc_bar_script: Script = load("res://scripts/battle/TurnArcBar.gd")
+	var bar: Control = turn_arc_bar_script.new()
+	bar.size = Vector2(800, 112)
+	add_child(bar)
+	var order: Array = []
+	for index in range(8):
+		var unit := _make_unit(10, 5, 20 - index)
+		unit.is_player = index % 2 == 0
+		unit.display_name = "单位%d" % index
+		order.append(unit)
+	bar.show_order(order, order[3])
+	await get_tree().create_timer(0.3).timeout
+	var active_orb: Control = null
+	var reused_orb: Control = null
+	for child in bar.get_children():
+		if child.get_meta("unit_ref", null) == order[3]:
+			active_orb = child
+		if child.get_meta("unit_ref", null) == order[1]:
+			reused_orb = child
+	var active_border := active_orb.get_node("Border") as Panel
+	var active_style := active_border.get_theme_stylebox("panel") as StyleBoxFlat
+	_check("弧线行动条最多显示七个无文字圆形头像球",
+		bar.get_child_count() == 7
+		and active_orb.find_children("*", "Label", true, false).is_empty())
+	_check("中央行动者以最大尺寸、描金和下指示符标记",
+		active_orb.scale == Vector2.ONE
+		and active_style.border_color == BattleWidgets.COL_GOLD
+		and active_orb.get_node("Indicator").visible)
+	var previous_x: float = active_orb.position.x
+	var reused_id: int = reused_orb.get_instance_id()
+	bar.show_order(order, order[4])
+	await get_tree().create_timer(0.3).timeout
+	await get_tree().process_frame
+	var new_active: Control = null
+	var reused_after: Control = null
+	var has_left_exit: bool = false
+	var has_right_entry: bool = false
+	for child in bar.get_children():
+		var unit = child.get_meta("unit_ref", null)
+		has_left_exit = has_left_exit or unit == order[0]
+		has_right_entry = has_right_entry or unit == order[7]
+		if unit == order[4]:
+			new_active = child
+		if unit == order[1]:
+			reused_after = child
+	_check("回合变更复用头像球并整体向左滚动",
+		bar.get_child_count() == 7
+		and reused_after != null and reused_after.get_instance_id() == reused_id
+		and active_orb.position.x < previous_x)
+	_check("滚动后左端退场、右端入场并更新中央行动者",
+		not has_left_exit and has_right_entry
+		and new_active != null and new_active.get_node("Indicator").visible)
+	bar.queue_free()
 
 func _test_enemy_damage_waits_for_timing() -> void:
 	var enemy := _make_unit(20, 0, 10)

@@ -6,8 +6,6 @@ extends RefCounted
 
 # ── 切片资源路径 ──
 const ASSET_DIR: String = "res://assets/ui/battle/"
-const TEX_PIP: String = ASSET_DIR + "pip_turn.png"
-const TEX_PIP_ACTIVE: String = ASSET_DIR + "pip_turn_active.png"
 const TEX_RETICLE: String = ASSET_DIR + "reticle_target_gold.png"
 const TEX_MARKER_LOCKED: String = ASSET_DIR + "marker_locked_red.png"
 const TEX_CHIP: String = ASSET_DIR + "chip_status.png"
@@ -37,28 +35,6 @@ static func load_tex(path: String) -> Texture2D:
 		return null
 	var res = load(path)
 	return res as Texture2D
-
-# ───────────────────────────────────────────── ① 行动顺序 pip
-
-static func make_pip(active: bool) -> Control:
-	# pip 切片已按屏幕尺寸烘焙（56/72px），1:1 绘制；非当前 pip 在条内垂直居中。
-	var tex: Texture2D = load_tex(TEX_PIP_ACTIVE if active else TEX_PIP)
-	if tex != null:
-		var rect := TextureRect.new()
-		rect.texture = tex
-		rect.stretch_mode = TextureRect.STRETCH_KEEP
-		rect.custom_minimum_size = tex.get_size()
-		rect.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-		rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		return rect
-	# 回退：金/暗骨白纯色圆点
-	var dot := ColorRect.new()
-	var px: int = 72 if active else 56
-	dot.custom_minimum_size = Vector2(px, px)
-	dot.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-	dot.color = COL_GOLD if active else COL_BONE.darkened(0.4)
-	dot.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	return dot
 
 # ───────────────────────────────────────────── ②⑤ 敌我状态卡（头像框 + HP/MP 条）
 
