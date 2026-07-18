@@ -741,9 +741,8 @@ func _set_timing_layout(expanded: bool) -> void:
 	var layout: Dictionary = calculate_layout(get_viewport_rect().size, expanded)
 	var target_rect: Rect2 = layout.central
 	var stage_rect: Rect2 = layout.stage
-	var hud_alpha: float = 1.0
-	if expanded:
-		hud_alpha = 0.15
+	var enemy_alpha: float = 0.15 if expanded else 1.0
+	var overlay_alpha: float = 0.0 if expanded else 1.0
 	_message_label.visible = false
 	_timing_tween = create_tween().set_parallel(true)
 	_timing_tween.set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN_OUT)
@@ -751,8 +750,9 @@ func _set_timing_layout(expanded: bool) -> void:
 	_timing_tween.tween_property(_central_box, "size", target_rect.size, TIMING_TWEEN_SECONDS)
 	_timing_tween.tween_property(_stage_box, "position", stage_rect.position, TIMING_TWEEN_SECONDS)
 	_timing_tween.tween_property(_stage_box, "size", stage_rect.size, TIMING_TWEEN_SECONDS)
-	for hud: CanvasItem in [_enemy_container, _reticle_layer]:
-		_timing_tween.tween_property(hud, "modulate:a", hud_alpha, TIMING_TWEEN_SECONDS)
+	_timing_tween.tween_property(_enemy_container, "modulate:a", enemy_alpha, TIMING_TWEEN_SECONDS)
+	_timing_tween.tween_property(_reticle_layer, "modulate:a", overlay_alpha, TIMING_TWEEN_SECONDS)
+	_timing_tween.tween_property(_command_bar, "modulate:a", overlay_alpha, TIMING_TWEEN_SECONDS)
 	_timing_tween.tween_property(_turn_order_bar, "modulate:a", 1.0, TIMING_TWEEN_SECONDS)
 	# 状态列保持原位，由扩张后层级更高的中央框自然覆盖。
 	_timing_tween.tween_property(_party_panel, "modulate:a", 1.0, TIMING_TWEEN_SECONDS)

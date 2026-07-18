@@ -888,6 +888,15 @@ func _test_reticle_animations() -> void:
 	_check("敌人实际行动时不重播锁定脉冲",
 		intent_layer.get_children().filter(
 			func(child): return child.has_meta("intent_pulse")).is_empty())
+	ui._set_menu_visible(true)
+	await ui._set_timing_layout(true)
+	_check("演出态完全隐藏命令栏与准星层",
+		is_zero_approx(ui.get_node("CommandBar").modulate.a)
+		and is_zero_approx(intent_layer.modulate.a))
+	await ui._set_timing_layout(false)
+	_check("演出回落后恢复命令栏与准星层透明度",
+		is_equal_approx(ui.get_node("CommandBar").modulate.a, 1.0)
+		and is_equal_approx(intent_layer.modulate.a, 1.0))
 	battle_scene.queue_free()
 	controller.queue_free()
 	await get_tree().process_frame
