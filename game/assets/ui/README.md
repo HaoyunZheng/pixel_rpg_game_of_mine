@@ -16,6 +16,6 @@
 ## 来源与流程
 
 - 出图：agent4 调 Meowa API（`api.meowa.ai`，key 见 `secrets/meowa.cfg`），Meowa 优先、不达标经开发者同意可兜底。
-- **2026-06 起**：切片与背景改由 `../../sprite-pipeline/tools/gen_battle_ui_slices.py` / `gen_battle_bg.py` 程序化重绘（按屏幕像素尺寸烘焙 8-bit 粗黑边，修复首轮 Meowa 切片的 NinePatch 细边与裁切问题）；改样式跑脚本再生成即可，不要手改 PNG。
+- **2026-06 起**：切片与背景改由 `../../sprite-pipeline/tools/gen_battle_ui_slices.py` / `gen_battle_bg.py` 程序化重绘（按屏幕像素尺寸烘焙方形硬像素边框与平面状态条，修复首轮 Meowa 切片的 NinePatch 细边与裁切问题）；改样式跑脚本再生成即可，不要手改 PNG。
 - 验收：agent3（godot-game-architect）按《战斗系统文档 §B.3》比对配色 / 分层 / 中文标签后交付。
 - 接入：agent1（godot-ui-designer）增量改造 `scripts/battle/BattleUI.gd` + `scenes/Battle.tscn`，保留占位回退。
