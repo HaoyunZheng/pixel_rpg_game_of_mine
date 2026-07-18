@@ -350,24 +350,31 @@ func _test_defense_action_field() -> void:
 		BattleUnit.Stance.DEFEND, 0.20) == TIMING_RULES.Outcome.SUCCESS)
 	_check("弹反超时后失败", TIMING_CHECK.classify_contact(
 		BattleUnit.Stance.DEFEND, 0.26) == TIMING_RULES.Outcome.FAILURE)
+	_check("弹反窗口边界外立即失败", TIMING_CHECK.classify_contact(
+		BattleUnit.Stance.DEFEND, 0.2501) == TIMING_RULES.Outcome.FAILURE)
 	_check("冲刺前 0.05s 内为完美闪避", TIMING_CHECK.classify_contact(
 		BattleUnit.Stance.DODGE, 0.04) == TIMING_RULES.Outcome.PERFECT)
 	_check("冲刺 0.20s 内为普通闪避", TIMING_CHECK.classify_contact(
 		BattleUnit.Stance.DODGE, 0.18) == TIMING_RULES.Outcome.SUCCESS)
+	_check("输入时间估算最多回溯一个物理帧", is_equal_approx(
+		TIMING_CHECK.estimate_input_time(1.0, 50_000, 1.0 / 60.0), 1.0 + 1.0 / 60.0))
 	var parry := TIMING_CHECK.new()
 	add_child(parry)
 	parry.start(BattleUnit.Stance.DEFEND, Rect2(0, 0, 960, 540))
 	var parry_event := InputEventKey.new()
 	parry_event.keycode = KEY_Z
 	parry_event.pressed = true
-	parry._unhandled_input(parry_event)
+	parry._input(parry_event)
+	var parry_started_at: float = parry._reaction_started_at
+	parry._total_elapsed = parry_started_at
 	var parry_position: Vector2 = parry._player_position
 	Input.action_press("move_right")
 	parry._move_player(0.05)
 	Input.action_release("move_right")
-	_check("Z 走真实输入路径开启弹反并冻结移动", parry._reaction_started_at == 0.0
+	_check("Z 走真实输入路径开启弹反并冻结移动", parry_started_at >= 0.0
+		and parry_started_at <= parry._last_physics_delta
 		and parry._player_position == parry_position)
-	parry.queue_free()
+	parry.free()
 
 	var dodge := TIMING_CHECK.new()
 	add_child(dodge)
@@ -378,12 +385,53 @@ func _test_defense_action_field() -> void:
 	dodge_event.pressed = true
 	Input.action_press("move_right")
 	var dodge_position: Vector2 = dodge._player_position
-	dodge._unhandled_input(dodge_event)
+	dodge._input(dodge_event)
+	dodge._total_elapsed = dodge._reaction_started_at
 	dodge._move_player(0.05)
 	Input.action_release("move_right")
-	_check("Shift+方向走真实输入路径产生冲刺位移", dodge._reaction_started_at == 0.0
+	_check("Shift+方向走真实输入路径产生冲刺位移", dodge._reaction_started_at >= 0.0
+		and dodge._reaction_started_at <= dodge._last_physics_delta
 		and dodge._player_position.x - dodge_position.x > TIMING_CHECK.MOVE_SPEED * 0.05)
-	dodge.queue_free()
+	dodge.free()
+
+	var buffered := TIMING_CHECK.new()
+	add_child(buffered)
+	buffered.start(BattleUnit.Stance.DEFEND, Rect2(0, 0, 960, 540))
+	buffered._hit_stop_remaining = 0.05
+	buffered._input(parry_event)
+	var buffered_during_stop: bool = buffered._reaction_started_at < 0.0 \
+		and buffered._buffered_action == TIMING_CHECK.PARRY_ACTION
+	buffered._physics_process(0.06)
+	_check("受击停顿期间的 Z 在解锁后立即执行", buffered_during_stop
+		and is_equal_approx(buffered._reaction_started_at, 0.0))
+	buffered._total_elapsed = 0.20
+	buffered._input(parry_event)
+	buffered._physics_process(0.05)
+	_check("弹反结束前 0.10s 内的再次输入会衔接下一次弹反",
+		is_equal_approx(buffered._reaction_started_at, 0.25))
+	buffered.free()
+
+	var expired := TIMING_CHECK.new()
+	add_child(expired)
+	expired.start(BattleUnit.Stance.DEFEND, Rect2(0, 0, 960, 540))
+	expired._buffer_reaction(TIMING_CHECK.PARRY_ACTION, Vector2.DOWN)
+	expired._buffered_until_usec = Time.get_ticks_usec() - 1
+	expired._try_consume_reaction_buffer()
+	_check("过期输入缓冲不会触发动作", expired._reaction_started_at < 0.0
+		and expired._buffered_action == &"")
+	expired.free()
+
+	var fallback_dodge := TIMING_CHECK.new()
+	add_child(fallback_dodge)
+	fallback_dodge.start(BattleUnit.Stance.DODGE, Rect2(0, 0, 960, 540))
+	fallback_dodge._last_direction = Vector2.RIGHT
+	var fallback_position: Vector2 = fallback_dodge._player_position
+	fallback_dodge._input(dodge_event)
+	fallback_dodge._total_elapsed = fallback_dodge._reaction_started_at
+	fallback_dodge._move_player(0.05)
+	_check("Shift 无当前方向时沿最近方向冲刺",
+		fallback_dodge._player_position.x - fallback_position.x > TIMING_CHECK.MOVE_SPEED * 0.05)
+	fallback_dodge.free()
 
 	var area := TIMING_CHECK.new()
 	add_child(area)

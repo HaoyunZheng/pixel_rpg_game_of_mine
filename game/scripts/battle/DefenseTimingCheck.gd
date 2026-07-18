@@ -15,6 +15,9 @@ const HIT_INVULNERABILITY: float = 0.50
 const HIT_STOP_FAILURE: float = 0.07
 const HIT_STOP_BLOCK: float = 0.035
 const HIT_STOP_PARRY: float = 0.06
+const INPUT_BUFFER_SECONDS: float = 0.10
+const PARRY_ACTION: StringName = &"ui_accept"
+const DODGE_ACTION: StringName = &"run"
 # ponytail: 单一比例在统一相位入口缩放，避免逐攻击模板复制时长。
 const ACTION_DURATION_SCALE: float = 1.5
 # ponytail: 只限制碰撞采样距离；流程时长仍按秒累计，不依赖固定 tick。
@@ -35,6 +38,12 @@ var _active_progress: float = 0.0
 var _total_elapsed: float = 0.0
 var _reaction_started_at: float = -1.0
 var _reaction_ends_at: float = -1.0
+# ponytail: 单槽覆盖足够处理停顿/动作尾端抢输入；需要连招序列时再升级队列。
+var _buffered_action: StringName = &""
+var _buffered_direction: Vector2 = Vector2.ZERO
+var _buffered_until_usec: int = 0
+var _last_physics_tick_usec: int = 0
+var _last_physics_delta: float = 1.0 / 60.0
 var _hit_invulnerable_until: float = -1.0
 var _stage_contact_resolved: bool = false
 var _hit_results: Array = []
@@ -93,6 +102,9 @@ func start(
 	_total_elapsed = 0.0
 	_reaction_started_at = -1.0
 	_reaction_ends_at = -1.0
+	_clear_reaction_buffer()
+	_last_physics_tick_usec = Time.get_ticks_usec()
+	_last_physics_delta = 1.0 / float(Engine.physics_ticks_per_second)
 	_hit_invulnerable_until = -1.0
 	_feedback_text = ""
 	_feedback_until = -1.0
@@ -106,6 +118,7 @@ func start(
 func _physics_process(delta: float) -> void:
 	if not _running:
 		return
+	_last_physics_delta = delta
 	var remaining: float = delta
 	# ponytail: 只暂停动作场，让镜头噪声与粒子继续播放，不引入全局 time_scale。
 	if _hit_stop_remaining > 0.0:
@@ -113,15 +126,20 @@ func _physics_process(delta: float) -> void:
 		_hit_stop_remaining -= paused
 		remaining -= paused
 		if remaining <= 0.0:
+			_last_physics_tick_usec = Time.get_ticks_usec()
 			queue_redraw()
 			return
+	_try_consume_reaction_buffer()
 	while remaining > 0.0 and _running:
 		var duration: float = _phase_duration()
 		var step: float = minf(remaining, maxf(0.0, duration - _phase_elapsed))
 		if _phase == Phase.ACTIVE:
 			step = minf(step, MAX_ACTIVE_SUBSTEP_SECONDS)
+		if _buffered_action != &"" and _reaction_locked():
+			step = minf(step, maxf(0.0, _reaction_ends_at - _total_elapsed))
 		_phase_elapsed += step
 		_total_elapsed += step
+		_try_consume_reaction_buffer()
 		_move_player(step)
 		remaining -= step
 		if _phase == Phase.ACTIVE:
@@ -132,25 +150,74 @@ func _physics_process(delta: float) -> void:
 			_advance_phase()
 		elif step <= 0.0:
 			break
+	_last_physics_tick_usec = Time.get_ticks_usec()
 	queue_redraw()
 
-func _unhandled_input(event: InputEvent) -> void:
-	if not _running or _hit_stop_remaining > 0.0 \
-		or not (event is InputEventKey) or not event.pressed or event.echo:
+func _input(event: InputEvent) -> void:
+	if not _running or not (event is InputEventKey) or not event.pressed or event.echo:
 		return
-	if _total_elapsed <= _reaction_ends_at:
+	var action: StringName = &""
+	if _stance == BattleUnit.Stance.DEFEND and event.is_action_pressed(PARRY_ACTION):
+		action = PARRY_ACTION
+	elif _stance == BattleUnit.Stance.DODGE and event.is_action_pressed(DODGE_ACTION):
+		action = DODGE_ACTION
+	if action == &"":
 		return
-	if _stance == BattleUnit.Stance.DEFEND and event.is_action_pressed("ui_accept"):
-		_reaction_started_at = _total_elapsed
-		_reaction_ends_at = _total_elapsed + PARRY_DURATION
-		get_viewport().set_input_as_handled()
-	elif _stance == BattleUnit.Stance.DODGE and event.is_action_pressed("run"):
-		var direction := Input.get_vector("move_left", "move_right", "move_up", "move_down")
-		if direction != Vector2.ZERO:
-			_last_direction = direction.normalized()
-			_reaction_started_at = _total_elapsed
-			_reaction_ends_at = _total_elapsed + DODGE_DURATION
-			get_viewport().set_input_as_handled()
+	var direction := Input.get_vector(&"move_left", &"move_right", &"move_up", &"move_down")
+	if direction == Vector2.ZERO:
+		direction = _last_direction
+	else:
+		direction = direction.normalized()
+	if _hit_stop_remaining > 0.0 or _reaction_locked():
+		_buffer_reaction(action, direction)
+	else:
+		_begin_reaction(action, direction, _estimated_input_time())
+	get_viewport().set_input_as_handled()
+
+func _reaction_locked() -> bool:
+	return _reaction_started_at >= 0.0 and _total_elapsed < _reaction_ends_at
+
+func _reaction_active() -> bool:
+	return _reaction_started_at >= 0.0 \
+		and _total_elapsed >= _reaction_started_at and _total_elapsed < _reaction_ends_at
+
+func _buffer_reaction(action: StringName, direction: Vector2) -> void:
+	_buffered_action = action
+	_buffered_direction = direction
+	_buffered_until_usec = Time.get_ticks_usec() + int(INPUT_BUFFER_SECONDS * 1_000_000.0)
+
+func _try_consume_reaction_buffer() -> void:
+	if _buffered_action == &"":
+		return
+	if Time.get_ticks_usec() > _buffered_until_usec:
+		_clear_reaction_buffer()
+		return
+	if _hit_stop_remaining > 0.0 or _reaction_locked():
+		return
+	var action: StringName = _buffered_action
+	var direction: Vector2 = _buffered_direction
+	_clear_reaction_buffer()
+	_begin_reaction(action, direction, _total_elapsed)
+
+func _clear_reaction_buffer() -> void:
+	_buffered_action = &""
+	_buffered_direction = Vector2.ZERO
+	_buffered_until_usec = 0
+
+func _begin_reaction(action: StringName, direction: Vector2, started_at: float) -> void:
+	_reaction_started_at = started_at
+	if action == DODGE_ACTION:
+		_last_direction = direction
+		_reaction_ends_at = started_at + DODGE_DURATION
+	else:
+		_reaction_ends_at = started_at + PARRY_DURATION
+
+func _estimated_input_time() -> float:
+	var elapsed_usec: int = maxi(0, Time.get_ticks_usec() - _last_physics_tick_usec)
+	return estimate_input_time(_total_elapsed, elapsed_usec, _last_physics_delta)
+
+static func estimate_input_time(total_elapsed: float, elapsed_usec: int, physics_delta: float) -> float:
+	return total_elapsed + clampf(float(elapsed_usec) / 1_000_000.0, 0.0, physics_delta)
 
 static func classify_contact(
 		stance: BattleUnit.Stance,
@@ -356,8 +423,8 @@ func _move_player(delta: float) -> void:
 	var direction := Input.get_vector("move_left", "move_right", "move_up", "move_down")
 	if direction != Vector2.ZERO:
 		_last_direction = direction.normalized()
-	var parrying: bool = _stance == BattleUnit.Stance.DEFEND and _total_elapsed <= _reaction_ends_at
-	var dashing: bool = _stance == BattleUnit.Stance.DODGE and _total_elapsed <= _reaction_ends_at
+	var parrying: bool = _stance == BattleUnit.Stance.DEFEND and _reaction_active()
+	var dashing: bool = _stance == BattleUnit.Stance.DODGE and _reaction_active()
 	if not parrying:
 		_player_position += (_last_direction * DASH_SPEED if dashing else direction * MOVE_SPEED) * delta
 	var bounds := _arena_rect.grow(-PLAYER_RADIUS)
@@ -462,16 +529,16 @@ func _draw() -> void:
 	draw_string(font, _arena_rect.position + Vector2(16.0, 28.0),
 		"%s  %d/%d" % [_pattern_label, mini(_stage_index + 1, _stages.size()), _stages.size()],
 		HORIZONTAL_ALIGNMENT_LEFT, -1.0, 18, Color(0.86, 0.82, 0.74))
-	var player_color := Color(0.98, 0.78, 0.22) if _total_elapsed <= _reaction_ends_at else Color(0.48, 0.78, 1.0)
+	var player_color := Color(0.98, 0.78, 0.22) if _reaction_active() else Color(0.48, 0.78, 1.0)
 	if _stance == BattleUnit.Stance.DODGE and _total_elapsed <= _hit_invulnerable_until:
 		player_color.a = 0.35 if int(_total_elapsed * 20.0) % 2 == 0 else 1.0
-	var dashing: bool = _stance == BattleUnit.Stance.DODGE and _total_elapsed <= _reaction_ends_at
+	var dashing: bool = _stance == BattleUnit.Stance.DODGE and _reaction_active()
 	if dashing:
 		for index in range(1, 4):
 			draw_circle(_player_position - _last_direction * index * 14.0, PLAYER_RADIUS - index,
 				Color(0.38, 0.76, 1.0, 0.34 / index))
 	draw_circle(_player_position, PLAYER_RADIUS, player_color)
-	if _stance == BattleUnit.Stance.DEFEND and _total_elapsed <= _reaction_ends_at:
+	if _stance == BattleUnit.Stance.DEFEND and _reaction_active():
 		draw_arc(_player_position, PLAYER_RADIUS + 12.0, 0.0, TAU, 32, Color(1.0, 0.82, 0.28), 4.0)
 	if _total_elapsed <= _feedback_until:
 		draw_string(font, _arena_rect.position + Vector2(_arena_rect.size.x * 0.5 - 180.0, 58.0),
