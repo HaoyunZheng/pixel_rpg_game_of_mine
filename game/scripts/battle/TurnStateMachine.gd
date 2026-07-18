@@ -177,6 +177,9 @@ func _execute_enemy_attack() -> Dictionary:
 			"outcome": TIMING_RULES.Outcome.PERFECT,
 			"damage": 0,
 			"mp_change": 0,
+			"hit_count": 0,
+			"success_count": 0,
+			"failure_count": 0,
 		}
 		for hit: Dictionary in hit_results:
 			var hit_index: int = int(hit.get("hit_index", 0))
@@ -200,6 +203,11 @@ func _execute_enemy_attack() -> Dictionary:
 			TIMING_RULES.apply(target, timing_result)
 			summary.damage += timing_result.damage
 			summary.mp_change += timing_result.mp_change
+			summary.hit_count += 1
+			if timing_result.outcome == TIMING_RULES.Outcome.FAILURE:
+				summary.failure_count += 1
+			else:
+				summary.success_count += 1
 			if timing_result.outcome < summary.outcome:
 				summary.outcome = timing_result.outcome
 			result.damage += timing_result.damage

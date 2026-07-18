@@ -23,6 +23,7 @@ class FleeBattleController:
 	var wait_for_timing: bool = false
 	var wait_for_intent_preview: bool = false
 	var last_frozen_order: Array = []
+	var timing_summaries: Array[Dictionary] = []
 
 	func get_party_units() -> Array:
 		return party
@@ -57,6 +58,9 @@ class FleeBattleController:
 			"contact": true,
 			"outcome": DefenseTimingRules.Outcome.FAILURE,
 		}]
+
+	func finish_timing_check(_target: BattleUnit, timing_result: Dictionary) -> void:
+		timing_summaries.append(timing_result.duplicate(true))
 
 func _ready() -> void:
 	_test_damage_calculator()
@@ -551,11 +555,25 @@ func _test_defense_action_field() -> void:
 		is_equal_approx(buffered._reaction_started_at, 0.25))
 	buffered.free()
 
+	var paused_buffer := TIMING_CHECK.new()
+	add_child(paused_buffer)
+	paused_buffer.start(BattleUnit.Stance.DEFEND, Rect2(0, 0, 960, 540))
+	paused_buffer.set_physics_process(false)
+	paused_buffer._hit_stop_remaining = 0.20
+	paused_buffer._input(parry_event)
+	await get_tree().create_timer(TIMING_CHECK.INPUT_BUFFER_SECONDS + 0.02).timeout
+	paused_buffer._hit_stop_remaining = 0.0
+	paused_buffer._try_consume_reaction_buffer()
+	_check("污染兽受击停顿不消耗动作场输入缓冲",
+		is_equal_approx(paused_buffer._total_elapsed, 0.0)
+		and is_equal_approx(paused_buffer._reaction_started_at, 0.0))
+	paused_buffer.free()
+
 	var expired := TIMING_CHECK.new()
 	add_child(expired)
 	expired.start(BattleUnit.Stance.DEFEND, Rect2(0, 0, 960, 540))
 	expired._buffer_reaction(TIMING_CHECK.PARRY_ACTION, Vector2.DOWN)
-	expired._buffered_until_usec = Time.get_ticks_usec() - 1
+	expired._buffered_until_elapsed = expired._total_elapsed - 0.01
 	expired._try_consume_reaction_buffer()
 	_check("过期输入缓冲不会触发动作", expired._reaction_started_at < 0.0
 		and expired._buffered_action == &"")
@@ -613,6 +631,24 @@ func _test_defense_action_field() -> void:
 	_check("横扫在大 delta 下仍命中经过的玩家", not sweep._hit_results.is_empty()
 		and sweep._hit_results[0].contact)
 	sweep.queue_free()
+
+	var sweep_parry := TIMING_CHECK.new()
+	add_child(sweep_parry)
+	sweep_parry.start(BattleUnit.Stance.DEFEND, Rect2(0, 0, 960, 540),
+		EnemyAI.PATTERN_MUTANT_SWEEP, {
+			"hit_count": 2, "telegraph": 0.8, "active": 0.5, "gap": 0.2,
+			"arc_degrees": 140.0, "width": 56.0, "clockwise": true,
+		})
+	sweep_parry.set_physics_process(false)
+	sweep_parry._reaction_started_at = 0.0
+	sweep_parry._reaction_ends_at = TIMING_CHECK.PARRY_DURATION
+	sweep_parry._total_elapsed = 0.12
+	sweep_parry._resolve_contact()
+	_check("污染兽横扫接触时有效弹反稳定判定成功",
+		sweep_parry._hit_results.size() == 1
+		and sweep_parry._hit_results[0].contact
+		and sweep_parry._hit_results[0].outcome == TIMING_RULES.Outcome.SUCCESS)
+	sweep_parry.free()
 
 	var timing := TIMING_CHECK.new()
 	add_child(timing)
@@ -880,11 +916,20 @@ func _test_reticle_animations() -> void:
 	var picked: Array = []
 	ui._start_target_select(BattleUI.TARGET_GROUP_ENEMY, func(target): picked.append(target))
 	var entering_marker: Control = ui.get("_target_reticle")
-	_check("准星以一圈旋转和淡入开始入场",
-		is_equal_approx(entering_marker.rotation, -TAU)
-		and is_zero_approx(entering_marker.modulate.a))
-	await get_tree().create_timer(0.21).timeout
+	var first_avatar: Control = ui._find_avatar_for_unit(enemy_a)
+	_check("准星按分辨率缩放且以一圈旋转、缩放和淡入开始入场",
+		BattleUI.calculate_target_reticle_size(1.0) == 96
+		and BattleUI.calculate_target_reticle_size(2.0 / 3.0) == 64
+		and entering_marker.size == Vector2(96, 96)
+		and is_equal_approx(entering_marker.rotation, -TAU)
+		and is_zero_approx(entering_marker.modulate.a)
+		and entering_marker.scale == Vector2.ONE * BattleUI.TARGET_RETICLE_ENTER_SCALE
+		and entering_marker.position.is_equal_approx(BattleUI.calculate_target_reticle_position(
+			first_avatar.get_global_rect(), entering_marker.size)))
+	await get_tree().create_timer(0.29).timeout
 	var marker: Control = ui.get("_target_reticle")
+	_check("准星入场 0.28 秒后恢复原尺寸与完全不透明",
+		marker.scale == Vector2.ONE and is_equal_approx(marker.modulate.a, 1.0))
 	var marker_id: int = marker.get_instance_id()
 	var first_position: Vector2 = marker.position
 	ui._move_target_selection(1)
@@ -898,15 +943,20 @@ func _test_reticle_animations() -> void:
 	var avatar_b: Control = ui._find_avatar_for_unit(enemy_b)
 	_check("准星滑到新目标并切换敌方立绘明暗",
 		marker.position != first_position
+		and marker.position.is_equal_approx(BattleUI.calculate_target_reticle_position(
+			avatar_b.get_global_rect(), marker.size))
 		and avatar_a.modulate.r < 0.5 and avatar_b.modulate == Color.WHITE)
 
 	ui._pick_selected_target()
-	await get_tree().create_timer(0.18).timeout
+	await get_tree().create_timer(0.22).timeout
 	_check("确认脉冲开始即封锁输入且尚未执行回调",
 		ui.get("_target_confirming") and not ui.get("_is_selecting_target") and picked.is_empty()
 		and ui.get_node("ReticleLayer").get_children().any(
 			func(child): return child.has_meta("target_pulse")))
-	await get_tree().create_timer(0.27).timeout
+	await get_tree().create_timer(0.36).timeout
+	_check("外扩环完整播放前不提交目标回调",
+		ui.get("_target_confirming") and picked.is_empty())
+	await get_tree().create_timer(0.08).timeout
 	await get_tree().process_frame
 	_check("准星完整脉冲结束后才执行目标回调", picked == [enemy_b])
 
@@ -939,6 +989,10 @@ func _test_reticle_animations() -> void:
 	var count_labels: Array = base_markers[0].find_children("*", "Label", true, false)
 	_check("多敌锁定保留单一基础红环和 ×N 数量",
 		base_markers.size() == 1 and count_labels[0].text == "×2")
+	var party_avatar: Control = ui._find_avatar_for_unit(party)
+	_check("红色准星始终围绕角色圆形头像中心",
+		base_markers[0].get_global_rect().get_center().is_equal_approx(
+			party_avatar.get_global_rect().get_center()))
 	_check("同目标多敌意图使用错峰临时脉冲副本",
 		ui.get("_intent_preview_active") and pulse_markers.size() == 2)
 	await get_tree().create_timer(0.42).timeout
@@ -985,8 +1039,8 @@ func _test_enemy_damage_waits_for_timing() -> void:
 		"target_side": EnemyAI.TARGET_SIDE_PARTY,
 		"target_mode": EnemyAI.TARGET_MODE_SINGLE,
 		"targets": [target],
-		"attack_pattern": EnemyAI.PATTERN_HUNTER_CROSS_THRUST,
-		"pattern_params": {"hit_count": 2},
+		"attack_pattern": EnemyAI.PATTERN_MUTANT_CLEAVE,
+		"pattern_params": {"hit_count": 3},
 	}
 	add_child(controller)
 	var sm := TurnStateMachine.new()
@@ -996,11 +1050,27 @@ func _test_enemy_damage_waits_for_timing() -> void:
 	sm.start_turn(enemy)
 	_check("敌方伤害等待判定完成", target.hp == 30 and target.mp == 5)
 	controller.timing_submitted.emit([
-		{"hit_index": 0, "hit_count": 2, "contact": true, "outcome": TIMING_RULES.Outcome.SUCCESS},
-		{"hit_index": 1, "hit_count": 2, "contact": true, "outcome": TIMING_RULES.Outcome.SUCCESS},
+		{"hit_index": 0, "hit_count": 3, "contact": true, "outcome": TIMING_RULES.Outcome.SUCCESS},
+		{"hit_index": 1, "hit_count": 3, "contact": true, "outcome": TIMING_RULES.Outcome.FAILURE},
+		{"hit_index": 2, "hit_count": 3, "contact": true, "outcome": TIMING_RULES.Outcome.PERFECT},
 	])
 	await get_tree().process_frame
-	_check("多段判定完成后逐段应用伤害和 MP", target.hp == 24 and target.mp == 1)
+	var summary: Dictionary = controller.timing_summaries[0] \
+		if not controller.timing_summaries.is_empty() else {}
+	_check("污染兽重劈三段依次应用实际伤害和 MP", target.hp == 23 and target.mp == 3)
+	_check("混合成功失败汇总保留三段完整计数",
+		summary.get("hit_count", 0) == 3
+		and summary.get("success_count", 0) == 2
+		and summary.get("failure_count", 0) == 1
+		and summary.get("outcome", TIMING_RULES.Outcome.PERFECT) == TIMING_RULES.Outcome.FAILURE
+		and summary.get("damage", 0) == 7
+		and summary.get("mp_change", 0) == -2)
+	var result_ui := BattleUI.new()
+	target.display_name = "主角"
+	_check("混合多段结果显示部分成功与实际伤害",
+		result_ui._format_timing_result(target, summary)
+		== "主角 部分成功 2/3｜7 伤害｜MP -2")
+	result_ui.free()
 	sm.free()
 	controller.free()
 
