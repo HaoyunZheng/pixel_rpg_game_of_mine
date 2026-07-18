@@ -65,7 +65,9 @@ func _ready() -> void:
 	mouse_filter = Control.MOUSE_FILTER_STOP
 	z_index = 110
 	_create_collision_areas()
-	_create_particles()
+	var particles: Array[GPUParticles2D] = DefenseTimingVFX.create(self)
+	_trail_particles = particles[0]
+	_impact_particles = particles[1]
 
 func start(
 		stance: BattleUnit.Stance,
@@ -73,7 +75,9 @@ func start(
 		pattern_id: String = EnemyAI.PATTERN_FALLBACK_THRUST,
 		pattern_params: Dictionary = {}) -> void:
 	_stance = stance
-	_set_pattern_style(pattern_id)
+	var pattern_style: Dictionary = DefenseAttackPatterns.style(pattern_id)
+	_pattern_label = pattern_style.label
+	_attack_color = pattern_style.color
 	_arena_rect = Rect2(
 		focus_rect.position + Vector2(48.0, 176.0),
 		focus_rect.size - Vector2(96.0, 304.0))
@@ -81,7 +85,7 @@ func start(
 		_arena_rect = focus_rect.grow(-32.0)
 	_player_position = _arena_rect.get_center() + Vector2(0.0, _arena_rect.size.y * 0.24)
 	_player_area.position = _player_position
-	_stages = _build_stages(pattern_id, pattern_params)
+	_stages = DefenseAttackPatterns.build(pattern_id, pattern_params, _arena_rect, _player_position)
 	_stage_index = 0
 	_phase = Phase.TELEGRAPH
 	_phase_elapsed = 0.0
@@ -188,70 +192,6 @@ func _create_collision_areas() -> void:
 	_hazard_area.add_child(_hazard_shape_node)
 	_hazard_area.position = Vector2(-10000.0, -10000.0)
 	add_child(_hazard_area)
-
-func _build_stages(pattern_id: String, params: Dictionary) -> Array[Dictionary]:
-	var stages: Array[Dictionary] = []
-	var telegraph: float = float(params.get("telegraph", 0.75))
-	var active: float = float(params.get("active", 0.30))
-	var width: float = float(params.get("width", 48.0))
-	match pattern_id:
-		EnemyAI.PATTERN_HUNTER_LOCK_THRUST:
-			for index in range(int(params.get("hit_count", 2))):
-				stages.append({"kind": "aimed", "telegraph": telegraph, "active": active,
-					"gap": float(params.get("gap", 0.16)), "width": width,
-					"offset": Vector2(params.get("aim_offset", Vector2.ZERO)).rotated(index * 0.9)})
-		EnemyAI.PATTERN_HUNTER_CROSS_THRUST:
-			var angle: float = deg_to_rad(float(params.get("angle_degrees", 26.0)))
-			for index in range(2):
-				stages.append({"kind": "cross", "telegraph": telegraph, "active": active,
-					"gap": float(params.get("stagger", 0.22)), "width": width,
-					"angle": angle if index == 0 else -angle})
-		EnemyAI.PATTERN_BURNER_ERUPTION:
-			var aim_offset := Vector2(params.get("aim_offset", Vector2.ZERO))
-			var rotation_step := deg_to_rad(float(params.get("rotation_degrees", 115.0)))
-			var area_radius := minf(float(params.get("radius", 104.0)),
-				minf(_arena_rect.size.x, _arena_rect.size.y) * 0.46)
-			for index in range(int(params.get("hit_count", 2))):
-				var center := _player_position + aim_offset.rotated(rotation_step * index)
-				center = Vector2(clampf(center.x, _arena_rect.position.x + area_radius, _arena_rect.end.x - area_radius),
-					clampf(center.y, _arena_rect.position.y + area_radius, _arena_rect.end.y - area_radius))
-				stages.append({"kind": "area", "telegraph": telegraph, "active": active,
-					"gap": float(params.get("gap", 0.20)), "radius": area_radius,
-					"center": center})
-		EnemyAI.PATTERN_BURNER_SCORCH_FIELD:
-			var side: int = int(params.get("start_side", 1))
-			var center_offset: float = float(params.get("center_offset", 112.0))
-			var vertical_offset: float = float(params.get("vertical_offset", 0.0))
-			var area_radius := minf(float(params.get("radius", 210.0)),
-				minf(_arena_rect.size.x, _arena_rect.size.y) * 0.46)
-			for index in range(2):
-				var center := _player_position + Vector2(side * center_offset, vertical_offset * (1.0 if index == 0 else -1.0))
-				center = Vector2(clampf(center.x, _arena_rect.position.x + area_radius, _arena_rect.end.x - area_radius),
-					clampf(center.y, _arena_rect.position.y + area_radius, _arena_rect.end.y - area_radius))
-				stages.append({"kind": "area", "telegraph": telegraph, "active": active,
-					"gap": float(params.get("gap", 0.23)), "radius": area_radius,
-					"center": center})
-				side *= -1
-		EnemyAI.PATTERN_MUTANT_SWEEP:
-			var arc: float = deg_to_rad(float(params.get("arc_degrees", 120.0)))
-			var clockwise: bool = bool(params.get("clockwise", true))
-			for index in range(2):
-				var forward: bool = clockwise if index == 0 else not clockwise
-				stages.append({"kind": "sweep", "telegraph": telegraph, "active": active,
-					"gap": float(params.get("gap", 0.25)), "width": width,
-					"angle_from": PI * 0.5 + (arc * 0.5 if forward else -arc * 0.5),
-					"angle_to": PI * 0.5 + (-arc * 0.5 if forward else arc * 0.5)})
-		EnemyAI.PATTERN_MUTANT_CLEAVE:
-			var center_x: float = _arena_rect.get_center().x + float(params.get("offset_x", 0.0))
-			var spacing: float = float(params.get("aftershock_spacing", 128.0))
-			for offset_x in [0.0, -spacing, spacing]:
-				stages.append({"kind": "cleave", "telegraph": telegraph if offset_x == 0.0 else float(params.get("aftershock_delay", 0.24)),
-					"active": active, "gap": 0.12, "width": width * (1.0 if offset_x == 0.0 else 0.55),
-					"x": center_x + offset_x})
-		_:
-			stages.append({"kind": "cleave", "telegraph": telegraph, "active": active,
-				"gap": 0.15, "width": width, "x": _arena_rect.get_center().x})
-	return stages
 
 func _prepare_stage() -> void:
 	if _stage_index >= _stages.size():
@@ -433,94 +373,6 @@ func _finish() -> void:
 	set_physics_process(false)
 	timing_resolved.emit(_hit_results.duplicate(true))
 	queue_free()
-
-func _set_pattern_style(pattern_id: String) -> void:
-	match pattern_id:
-		EnemyAI.PATTERN_HUNTER_LOCK_THRUST:
-			_pattern_label = "猎手·锁定连刺"
-			_attack_color = Color(0.42, 0.82, 1.0)
-		EnemyAI.PATTERN_HUNTER_CROSS_THRUST:
-			_pattern_label = "猎手·交叉穿刺"
-			_attack_color = Color(0.62, 0.72, 1.0)
-		EnemyAI.PATTERN_BURNER_ERUPTION:
-			_pattern_label = "燃烬者·灼地连爆"
-			_attack_color = Color(1.0, 0.50, 0.12)
-		EnemyAI.PATTERN_BURNER_SCORCH_FIELD:
-			_pattern_label = "燃烬者·焦土围猎"
-			_attack_color = Color(1.0, 0.24, 0.10)
-		EnemyAI.PATTERN_MUTANT_SWEEP:
-			_pattern_label = "变异体·交替横扫"
-			_attack_color = Color(0.92, 0.30, 0.48)
-		EnemyAI.PATTERN_MUTANT_CLEAVE:
-			_pattern_label = "变异体·蓄力重劈"
-			_attack_color = Color(1.0, 0.42, 0.18)
-		_:
-			_pattern_label = "直线突击"
-			_attack_color = Color(1.0, 0.38, 0.22)
-
-func _create_particles() -> void:
-	var texture := GradientTexture2D.new()
-	texture.width = 32
-	texture.height = 12
-	texture.fill = GradientTexture2D.FILL_RADIAL
-	texture.fill_from = Vector2(0.5, 0.5)
-	texture.fill_to = Vector2(1.0, 0.5)
-	var texture_gradient := Gradient.new()
-	texture_gradient.offsets = PackedFloat32Array([0.0, 0.45, 1.0])
-	texture_gradient.colors = PackedColorArray([
-		Color(1.0, 1.0, 1.0, 1.0),
-		Color(1.0, 1.0, 1.0, 0.8),
-		Color(1.0, 1.0, 1.0, 0.0),
-	])
-	texture.gradient = texture_gradient
-
-	_trail_particles = GPUParticles2D.new()
-	_trail_particles.amount = 28
-	_trail_particles.lifetime = 0.34
-	_trail_particles.one_shot = true
-	_trail_particles.explosiveness = 1.0
-	_trail_particles.fixed_fps = 30
-	_trail_particles.local_coords = false
-	_trail_particles.visibility_rect = Rect2(-2200.0, -1400.0, 4400.0, 2800.0)
-	_trail_particles.texture = texture
-	_trail_particles.z_index = 121
-	var trail_material := ParticleProcessMaterial.new()
-	trail_material.emission_shape = ParticleProcessMaterial.EMISSION_SHAPE_BOX
-	trail_material.emission_box_extents = Vector3(16.0, 4.0, 1.0)
-	trail_material.direction = Vector3(1.0, 0.0, 0.0)
-	trail_material.spread = 24.0
-	trail_material.initial_velocity_min = 28.0
-	trail_material.initial_velocity_max = 92.0
-	trail_material.gravity = Vector3.ZERO
-	trail_material.damping_min = 4.0
-	trail_material.damping_max = 8.0
-	trail_material.scale_min = 0.35
-	trail_material.scale_max = 0.85
-	_trail_particles.process_material = trail_material
-	add_child(_trail_particles)
-
-	_impact_particles = GPUParticles2D.new()
-	_impact_particles.amount = 18
-	_impact_particles.lifetime = 0.42
-	_impact_particles.one_shot = true
-	_impact_particles.explosiveness = 1.0
-	_impact_particles.fixed_fps = 30
-	_impact_particles.local_coords = false
-	_impact_particles.visibility_rect = Rect2(-320.0, -320.0, 640.0, 640.0)
-	_impact_particles.texture = texture
-	_impact_particles.z_index = 122
-	var impact_material := ParticleProcessMaterial.new()
-	impact_material.direction = Vector3(0.0, -1.0, 0.0)
-	impact_material.spread = 180.0
-	impact_material.initial_velocity_min = 90.0
-	impact_material.initial_velocity_max = 210.0
-	impact_material.gravity = Vector3(0.0, 180.0, 0.0)
-	impact_material.damping_min = 3.0
-	impact_material.damping_max = 7.0
-	impact_material.scale_min = 0.4
-	impact_material.scale_max = 1.0
-	_impact_particles.process_material = impact_material
-	add_child(_impact_particles)
 
 func _emit_attack_particles() -> void:
 	var stage: Dictionary = _stages[_stage_index]
