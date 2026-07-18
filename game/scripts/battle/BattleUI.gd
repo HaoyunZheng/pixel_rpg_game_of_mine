@@ -501,6 +501,7 @@ func _cancel_target_select() -> void:
 	_valid_targets.clear()
 	if _turn_state_machine != null:
 		_turn_state_machine.cancel_command()
+	_set_menu_visible(true)
 	if _menu_mode == MENU_MODE_SKILL:
 		_show_skill_menu()
 	elif _menu_mode == MENU_MODE_ITEM:

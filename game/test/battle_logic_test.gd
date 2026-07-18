@@ -848,6 +848,7 @@ func _test_reticle_animations() -> void:
 	await get_tree().process_frame
 	_check("准星完整脉冲结束后才执行目标回调", picked == [enemy_b])
 
+	ui._show_action_menu()
 	ui._start_target_select(BattleUI.TARGET_GROUP_ENEMY, func(_target): pass)
 	await get_tree().create_timer(0.21).timeout
 	ui._move_target_selection(1)
@@ -858,6 +859,8 @@ func _test_reticle_animations() -> void:
 		ui.get("_target_reticle") == null
 		and ui._find_avatar_for_unit(enemy_a).modulate == Color.WHITE
 		and ui._find_avatar_for_unit(enemy_b).modulate == Color.WHITE)
+	_check("X 退出目标选择后恢复行动菜单输入",
+		ui.get("_menu_visible") and not ui.get("_menu_buttons").is_empty())
 
 	var intents: Dictionary = {
 		enemy_a: {"targets": [party]},
