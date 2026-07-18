@@ -88,7 +88,7 @@ var _intent_preview_tween: Tween = null
 var _intent_marker_by_unit: Dictionary = {}
 var _hud_scale: float = 1.0
 var _party_avatar_size: int = 120
-var _enemy_sprite_size: int = 192
+var _enemy_sprite_size: int = 224
 
 # ───────────────────────────────────────────── 生命周期 / 对外接口
 
@@ -237,9 +237,21 @@ func _refresh_display() -> void:
 		# ponytail: 立即移出容器，queue_free 留到帧末也不会与新卡重叠渲染。
 		_enemy_container.remove_child(child)
 		child.queue_free()
-	for enemy in _enemy_units:
-		_enemy_container.add_child(BattleWidgets.make_unit_card(
-			enemy, false, false, _enemy_sprite_size, _hud_scale))
+	for index in _enemy_units.size():
+		var enemy = _enemy_units[index]
+		var top_margin: int = calculate_enemy_vertical_offset(
+			index, _enemy_units.size(), _enemy_container.size.y, _enemy_sprite_size)
+		var vertical_travel: int = maxi(0, floori(_enemy_container.size.y) - _enemy_sprite_size)
+		var slot := MarginContainer.new()
+		slot.custom_minimum_size = Vector2(_enemy_sprite_size, floori(_enemy_container.size.y))
+		slot.add_theme_constant_override("margin_top", top_margin)
+		slot.add_theme_constant_override("margin_bottom", vertical_travel - top_margin)
+		slot.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		var card := BattleWidgets.make_unit_card(
+			enemy, false, false, _enemy_sprite_size, _hud_scale)
+		card.set_meta("unit_ref", enemy)
+		slot.add_child(card)
+		_enemy_container.add_child(slot)
 	# ⑤ 我方
 	_party_anchor_by_unit.clear()
 	for child in _party_container.get_children():
@@ -723,8 +735,8 @@ static func calculate_layout(viewport_size: Vector2, expanded: bool) -> Dictiona
 	var bottom: float = (262.0 if expanded else 234.0) * ui_scale
 	return {
 		"scale": ui_scale,
-		"enemy": Rect2(viewport_size.x * 0.5 - 105.0 * ui_scale, 47.5 * ui_scale,
-			210.0 * ui_scale, 55.0 * ui_scale),
+		"enemy": Rect2(viewport_size.x * 0.5 - 140.0 * ui_scale, 35.0 * ui_scale,
+			280.0 * ui_scale, 70.0 * ui_scale),
 		"central": Rect2(central_left, top, stage_left - 6.0 * ui_scale - central_left, bottom - top),
 		"stage": Rect2(stage_left, top, 92.0 * ui_scale, (262.0 * ui_scale) - top),
 		"command": Rect2(98.0 * ui_scale, 240.0 * ui_scale,
@@ -739,7 +751,19 @@ static func calculate_enemy_sprite_size(
 		hud_scale: float) -> int:
 	var count: int = maxi(1, enemy_count)
 	var available_width: float = (container_size.x - separation * (count - 1)) / count
-	return maxi(1, floori(minf(192.0 * hud_scale, minf(container_size.y * 0.88, available_width))))
+	return maxi(1, floori(minf(224.0 * hud_scale, minf(container_size.y * 0.88, available_width))))
+
+static func calculate_enemy_vertical_offset(
+		index: int,
+		enemy_count: int,
+		container_height: float,
+		sprite_size: int) -> int:
+	var travel: int = maxi(0, floori(container_height) - sprite_size)
+	if enemy_count <= 1:
+		return travel / 2
+	if enemy_count == 2:
+		return 0 if index == 0 else travel
+	return 0 if index == 0 or index == enemy_count - 1 else travel
 
 static func calculate_party_avatar_size(
 		panel_height: float,
@@ -764,7 +788,7 @@ func _apply_layout() -> void:
 	_party_panel.position = normal.party.position
 	_party_panel.size = normal.party.size
 	_hud_scale = normal.scale / BattleWidgets.PIXEL_SCALE
-	var enemy_separation: int = roundi(20.0 * normal.scale)
+	var enemy_separation: int = roundi(12.0 * normal.scale)
 	_enemy_container.add_theme_constant_override("separation", enemy_separation)
 	_party_container.add_theme_constant_override("separation", roundi(3.0 * normal.scale))
 	_enemy_sprite_size = calculate_enemy_sprite_size(

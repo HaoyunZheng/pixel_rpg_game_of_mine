@@ -141,14 +141,14 @@ layout_mode = 1
 anchors_preset = 5
 anchor_left = 0.5
 anchor_right = 0.5
-offset_left = -420.0
-offset_top = 190.0
-offset_right = 420.0
-offset_bottom = 410.0
+offset_left = -560.0
+offset_top = 140.0
+offset_right = 560.0
+offset_bottom = 420.0
 grow_horizontal = 2
 mouse_filter = 2
 alignment = 1
-theme_override_constants/separation = 80
+theme_override_constants/separation = 48
 
 [node name="CentralBox" type="NinePatchRect" parent="UI/BattleUI"]
 z_index = 2

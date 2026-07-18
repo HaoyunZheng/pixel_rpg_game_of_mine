@@ -704,17 +704,25 @@ func _test_battle_hud_frames() -> void:
 		normal.central == Rect2(392, 608, 1040, 328)
 		and normal.stage == Rect2(1456, 608, 368, 440)
 		and normal.command == Rect2(392, 960, 1040, 88)
-		and normal.enemy == Rect2(540, 190, 840, 220))
+		and normal.enemy == Rect2(400, 140, 1120, 280))
 	_check("演出态中央框覆盖状态列并止于右侧框",
 		expanded.central == Rect2(24, 112, 1408, 936)
 		and expanded.stage == Rect2(1456, 112, 368, 936)
 		and expanded.central.intersects(expanded.party)
 		and is_equal_approx(expanded.stage.position.x - expanded.central.end.x, 24.0))
 	_check("敌方立绘按容器高度、均分宽度和上限自适应",
-		BattleUI.calculate_enemy_sprite_size(normal.enemy.size, 1, 80.0, 1.0) == 192
-		and BattleUI.calculate_enemy_sprite_size(normal.enemy.size, 2, 80.0, 1.0) == 192
-		and BattleUI.calculate_enemy_sprite_size(normal.enemy.size, 4, 80.0, 1.0) == 150
-		and BattleUI.calculate_enemy_sprite_size(Vector2(560, 146.6667), 4, 53.3333, 2.0 / 3.0) == 100)
+		BattleUI.calculate_enemy_sprite_size(normal.enemy.size, 1, 48.0, 1.0) == 224
+		and BattleUI.calculate_enemy_sprite_size(normal.enemy.size, 2, 48.0, 1.0) == 224
+		and BattleUI.calculate_enemy_sprite_size(normal.enemy.size, 4, 48.0, 1.0) == 224
+		and BattleUI.calculate_enemy_sprite_size(Vector2(746.6667, 186.6667), 4, 32.0, 2.0 / 3.0) == 149)
+	_check("敌方槽位按 M 形上下错落",
+		BattleUI.calculate_enemy_vertical_offset(0, 1, 280.0, 224) == 28
+		and BattleUI.calculate_enemy_vertical_offset(0, 2, 280.0, 224) == 0
+		and BattleUI.calculate_enemy_vertical_offset(1, 2, 280.0, 224) == 56
+		and BattleUI.calculate_enemy_vertical_offset(0, 4, 280.0, 224) == 0
+		and BattleUI.calculate_enemy_vertical_offset(1, 4, 280.0, 224) == 56
+		and BattleUI.calculate_enemy_vertical_offset(2, 4, 280.0, 224) == 56
+		and BattleUI.calculate_enemy_vertical_offset(3, 4, 280.0, 224) == 0)
 	_check("队伍头像在 1080p 与 720p 下按人数缩放且不越界",
 		BattleUI.calculate_party_avatar_size(normal.party.size.y, 1, 1.0) == 120
 		and BattleUI.calculate_party_avatar_size(normal.party.size.y, 3, 1.0) == 120
