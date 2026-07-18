@@ -1,8 +1,9 @@
-[gd_resource type="Resource" script_class="CharacterStats" load_steps=4 format=3]
+[gd_resource type="Resource" script_class="CharacterStats" load_steps=5 format=3]
 
 [ext_resource type="Script" path="res://scripts/resources/CharacterStats.gd" id="1_char"]
 [ext_resource type="Script" path="res://scripts/resources/SkillData.gd" id="2_skill"]
 [ext_resource type="Resource" path="res://assets/data/skills/skill_slash.tres" id="3_slash"]
+[ext_resource type="SpriteFrames" path="res://assets/sprites/hooded_player/hooded_player_frames.tres" id="4_frames"]
 
 [resource]
 script = ExtResource("1_char")
@@ -14,3 +15,4 @@ atk = 15
 def = 6
 spd = 10
 skills = [ExtResource("3_slash")]
+sprite_frames = ExtResource("4_frames")

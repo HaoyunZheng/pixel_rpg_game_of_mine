@@ -644,8 +644,34 @@ func _test_impact_camera_feedback() -> void:
 	parry.free()
 
 func _test_battle_hud_frames() -> void:
+	var battle_scene: Node = load("res://scenes/Battle.tscn").instantiate()
+	var ui: Control = battle_scene.get_node("UI/BattleUI")
+	var central: NinePatchRect = ui.get_node("CentralBox")
+	var stage: NinePatchRect = ui.get_node("StageBox")
+	var message: Label = central.get_node("MessageLabel")
+	_check("StageBox 是中央框右侧的同级框",
+		stage.get_parent() == central.get_parent() and stage.texture == central.texture)
+	_check("中央战况文字固定左上并限制三行",
+		message.vertical_alignment == VERTICAL_ALIGNMENT_TOP
+		and message.horizontal_alignment == HORIZONTAL_ALIGNMENT_LEFT
+		and message.max_lines_visible == 3)
+	var normal: Dictionary = BattleUI.calculate_layout(Vector2(1920, 1080), false)
+	var expanded: Dictionary = BattleUI.calculate_layout(Vector2(1920, 1080), true)
+	_check("常态双框与命令栏符合 480×270 基准",
+		normal.central == Rect2(392, 608, 1040, 328)
+		and normal.stage == Rect2(1456, 608, 368, 440)
+		and normal.command == Rect2(392, 960, 1040, 88))
+	_check("演出态中央框覆盖状态列并止于右侧框",
+		expanded.central == Rect2(24, 112, 1408, 936)
+		and expanded.stage == Rect2(1456, 112, 368, 936)
+		and expanded.central.intersects(expanded.party)
+		and is_equal_approx(expanded.stage.position.x - expanded.central.end.x, 24.0))
+	battle_scene.free()
+
 	var party := _make_unit(10, 5, 8)
 	party.is_player = true
+	party.mp = 20
+	party.max_mp = 40
 	var inactive_card: Control = BattleWidgets.make_unit_card(party, true)
 	var active_card: Control = BattleWidgets.make_unit_card(party, true, true)
 	var inactive_avatar: Control = inactive_card.get_child(0)
@@ -658,6 +684,21 @@ func _test_battle_hud_frames() -> void:
 		and outline_style.border_color == BattleWidgets.COL_GOLD)
 	inactive_card.free()
 	active_card.free()
+	var hp_bar := BattleWidgets.make_stat_bar(60, 100, BattleWidgets.TEX_BAR_HP, BattleWidgets.COL_HP) as TextureProgressBar
+	var hp_mid := BattleWidgets.make_stat_bar(40, 100, BattleWidgets.TEX_BAR_HP, BattleWidgets.COL_HP) as TextureProgressBar
+	var hp_low := BattleWidgets.make_stat_bar(25, 100, BattleWidgets.TEX_BAR_HP, BattleWidgets.COL_HP) as TextureProgressBar
+	_check("状态条使用静态外框、平面阈值色与当前最大值",
+		hp_bar is TextureProgressBar
+		and hp_bar.texture_over != null
+		and hp_bar.get_node("ValueLabel").text == "HP 60/100"
+		and hp_bar.tint_progress == BattleWidgets.COL_HP
+		and hp_mid.tint_progress == BattleWidgets.COL_HP_MID
+		and hp_low.tint_progress == BattleWidgets.COL_HP_LOW)
+	hp_bar.free()
+	hp_mid.free()
+	hp_low.free()
+	var player_stats := load("res://assets/data/characters/char_player.tres") as CharacterStats
+	_check("主角数据引用已有兜帽角色外观", player_stats.sprite_frames != null)
 
 	var enemy := _make_unit(10, 5, 8)
 	enemy.is_player = false
@@ -665,13 +706,11 @@ func _test_battle_hud_frames() -> void:
 	_check("常态敌方区域只显示纯立绘", enemy_card.get_child_count() == 1)
 	enemy_card.free()
 
-	var overlay_parts: Dictionary = BattleWidgets.make_timing_overlay(enemy)
+	var overlay_parts: Dictionary = BattleWidgets.make_timing_overlay()
 	var overlay: Control = overlay_parts.overlay
-	var performance_frame: Control = overlay.get_node("EnemyPerformanceFrame")
-	_check("受击演出敌方形象框固定在右侧",
-		performance_frame.anchor_left == 1.0
-		and performance_frame.anchor_right == 1.0
-		and performance_frame.offset_right < 0.0)
+	_check("timing overlay 只保留判定文字，不再内嵌敌人卡",
+		overlay.get_node_or_null("EnemyPerformanceFrame") == null
+		and overlay_parts.result_label is Label)
 	overlay.free()
 
 func _test_enemy_damage_waits_for_timing() -> void:

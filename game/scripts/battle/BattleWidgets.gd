@@ -14,6 +14,7 @@ const TEX_CHIP: String = ASSET_DIR + "chip_status.png"
 const TEX_BAR_HP: String = ASSET_DIR + "bar_hp_9p.png"
 const TEX_BAR_MP: String = ASSET_DIR + "bar_mp_9p.png"
 const TEX_BAR_TRACK: String = ASSET_DIR + "bar_track_9p.png"
+const TEX_BAR_FRAME: String = ASSET_DIR + "bar_frame_9p.png"
 const TEX_AVATAR_FRAME: String = ASSET_DIR + "avatar_frame_9p.png"
 const TEX_CMD_CELL: String = ASSET_DIR + "cmd_cell_9p.png"
 
@@ -23,7 +24,9 @@ const COL_GOLD: Color = Color(0.902, 0.753, 0.290)       # 金色反馈（我锁
 const COL_DIM: Color = Color(0.45, 0.43, 0.40)           # 置灰
 const COL_ALLY: Color = Color(0.22, 0.52, 0.82)          # 友蓝占位
 const COL_ENEMY: Color = Color(0.82, 0.22, 0.22)         # 敌红占位
-const COL_HP: Color = Color(0.70, 0.27, 0.27)            # HP 暗红
+const COL_HP: Color = Color(0.46, 0.12, 0.15)            # HP >50%：暗血红
+const COL_HP_MID: Color = Color(0.82, 0.34, 0.12)        # HP 26%~50%：余烬橙
+const COL_HP_LOW: Color = Color(0.95, 0.10, 0.12)        # HP <=25%：亮血红
 const COL_MP: Color = Color(0.31, 0.52, 0.66)            # MP 法力蓝
 const PIXEL_SCALE: int = 4                                # 480×270 基准 ×4 → 1080p（准星/锁定标记等小件仍按此放大；面板/条/pip 切片已按屏幕尺寸烘焙、1:1 绘制）
 
@@ -68,8 +71,12 @@ static func make_unit_card(unit, is_party: bool, is_active: bool = false) -> Con
 	if unit.is_dead():
 		row.modulate = Color(0.5, 0.5, 0.5)
 
-	# 头像框（avatar_frame_9p）+ 单位 sprite 正面帧（无外观时回退占位纯色块）
-	var avatar := make_avatar(unit, is_party, 104 if is_active else 88, is_active)
+	# 敌方常态只显示纯立绘；我方使用头像框与状态信息。
+	var avatar: Control
+	if is_party:
+		avatar = make_avatar(unit, true, 104 if is_active else 88, is_active)
+	else:
+		avatar = make_unit_sprite(unit, false, 88)
 	avatar.set_meta("unit_ref", unit)
 	row.add_child(avatar)
 	if not is_party:
@@ -112,9 +119,8 @@ static func make_avatar(
 		is_party: bool,
 		size_px: int = 88,
 		gold_outline: bool = false) -> Control:
-	# 头像框切片 88×88 已按屏幕尺寸烘焙（8px 黑框 + 2px 骨白 + 2px 暗缝），1:1 绘制；
-	# 内域恰为 64×64，正面帧无重采样。
-	var border_px: int = 12  # 黑框 8 + 骨白 2 + 暗缝 2
+	# 头像框切片使用单层 8px 骨白硬边。
+	var border_px: int = 8
 	var holder := Control.new()
 	holder.custom_minimum_size = Vector2(size_px, size_px)
 	holder.size_flags_vertical = Control.SIZE_SHRINK_CENTER
@@ -132,31 +138,13 @@ static func make_avatar(
 		frame.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 		frame.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		holder.add_child(frame)
-	# 单位带 sprite 外观：叠 idle_down 正面帧（框内灰烬底透出 sprite 透明区作为背景）。
-	var portrait: Texture2D = get_unit_portrait(unit)
-	if portrait != null:
-		var rect := TextureRect.new()
-		rect.texture = portrait
-		rect.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
-		rect.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
-		rect.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-		rect.offset_left = border_px
-		rect.offset_top = border_px
-		rect.offset_right = -border_px
-		rect.offset_bottom = -border_px
-		rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		holder.add_child(rect)
-	else:
-		# 无外观回退：内部占位色块（友蓝/敌红），叠在粗框以内。
-		var fill := ColorRect.new()
-		fill.color = COL_ALLY if is_party else COL_ENEMY
-		fill.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-		fill.offset_left = border_px
-		fill.offset_top = border_px
-		fill.offset_right = -border_px
-		fill.offset_bottom = -border_px
-		fill.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		holder.add_child(fill)
+	var visual := make_unit_sprite(unit, is_party, size_px - border_px * 2)
+	visual.set_anchors_preset(Control.PRESET_CENTER)
+	visual.offset_left = -visual.custom_minimum_size.x * 0.5
+	visual.offset_top = -visual.custom_minimum_size.y * 0.5
+	visual.offset_right = visual.custom_minimum_size.x * 0.5
+	visual.offset_bottom = visual.custom_minimum_size.y * 0.5
+	holder.add_child(visual)
 	if gold_outline:
 		var active_outline := Panel.new()
 		active_outline.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
@@ -169,6 +157,42 @@ static func make_avatar(
 		holder.add_child(active_outline)
 	return holder
 
+static func make_unit_sprite(unit, is_party: bool, size_px: int) -> Control:
+	var holder := Control.new()
+	holder.custom_minimum_size = Vector2(size_px, size_px)
+	holder.size = holder.custom_minimum_size
+	holder.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var portrait: Texture2D = get_unit_portrait(unit)
+	if portrait != null:
+		var rect := TextureRect.new()
+		rect.texture = portrait
+		rect.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+		rect.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+		rect.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+		rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		holder.add_child(rect)
+	else:
+		# 无外观回退：阵营色占位，不阻断战斗流程。
+		var fill := ColorRect.new()
+		fill.color = COL_ALLY if is_party else COL_ENEMY
+		fill.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+		fill.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		holder.add_child(fill)
+	return holder
+
+static func make_stage_actor(unit, is_party: bool) -> Control:
+	var holder := Control.new()
+	holder.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	holder.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var visual := make_unit_sprite(unit, is_party, 256)
+	visual.set_anchors_preset(Control.PRESET_CENTER)
+	visual.offset_left = -128
+	visual.offset_top = -128
+	visual.offset_right = 128
+	visual.offset_bottom = 128
+	holder.add_child(visual)
+	return holder
+
 ## 取单位头像纹理：stats_res 带 sprite_frames（8 向 idle）时取 idle_down 首帧，否则 null。
 static func get_unit_portrait(unit) -> Texture2D:
 	if unit.stats_res == null:
@@ -179,10 +203,9 @@ static func get_unit_portrait(unit) -> Texture2D:
 	return null
 
 static func make_stat_bar(cur: int, maxv: int, fill_tex_path: String, fallback_col: Color) -> Control:
-	# 条切片 160×24 已按屏幕尺寸烘焙（4px 黑框），1:1 绘制零重采样；
-	# nine_patch_stretch 令黑框端帽随进度收缩，半血时填充条仍是完整带框胶囊。
+	# 平面填充与静态 texture_over 外框分层，进度变化不会收缩边框。
 	var bar := TextureProgressBar.new()
-	bar.custom_minimum_size = Vector2(160, 24)
+	bar.custom_minimum_size = Vector2(160, 32)
 	bar.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	bar.min_value = 0
 	bar.max_value = maxi(1, maxv)
@@ -197,18 +220,46 @@ static func make_stat_bar(cur: int, maxv: int, fill_tex_path: String, fallback_c
 	bar.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	var track: Texture2D = load_tex(TEX_BAR_TRACK)
 	var fill: Texture2D = load_tex(fill_tex_path)
+	var frame: Texture2D = load_tex(TEX_BAR_FRAME)
 	if track != null:
 		bar.texture_under = track
 	if fill != null:
 		bar.texture_progress = fill
+	if frame != null:
+		bar.texture_over = frame
+	var prefix: String = "HP" if fill_tex_path == TEX_BAR_HP else "MP"
+	bar.tint_progress = _stat_bar_color(cur, maxv, prefix)
+	_add_stat_value_label(bar, prefix, cur, maxv)
 	# 任一切片缺失：回退用纯色 StyleBox-like ProgressBar 表达
-	if track == null or fill == null:
-		return make_stat_bar_fallback(cur, maxv, fallback_col)
+	if track == null or fill == null or frame == null:
+		return make_stat_bar_fallback(cur, maxv, fallback_col, prefix)
 	return bar
 
-static func make_stat_bar_fallback(cur: int, maxv: int, col: Color) -> Control:
+static func _stat_bar_color(cur: int, maxv: int, prefix: String) -> Color:
+	if prefix == "MP":
+		return COL_MP
+	var ratio: float = float(cur) / float(maxi(1, maxv))
+	if ratio > 0.5:
+		return COL_HP
+	return COL_HP_MID if ratio > 0.25 else COL_HP_LOW
+
+static func _add_stat_value_label(bar: Control, prefix: String, cur: int, maxv: int) -> void:
+	var value_label := Label.new()
+	value_label.name = "ValueLabel"
+	value_label.text = "%s %d/%d" % [prefix, cur, maxv]
+	value_label.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	value_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	value_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	value_label.add_theme_font_size_override("font_size", 16)
+	value_label.add_theme_color_override("font_color", COL_BONE)
+	value_label.add_theme_constant_override("outline_size", 4)
+	value_label.add_theme_color_override("font_outline_color", Color(0.03, 0.02, 0.04))
+	value_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	bar.add_child(value_label)
+
+static func make_stat_bar_fallback(cur: int, maxv: int, col: Color, prefix: String) -> Control:
 	var pb := ProgressBar.new()
-	pb.custom_minimum_size = Vector2(40 * PIXEL_SCALE, 14)
+	pb.custom_minimum_size = Vector2(160, 32)
 	pb.min_value = 0
 	pb.max_value = maxi(1, maxv)
 	pb.value = clampi(cur, 0, maxi(1, maxv))
@@ -221,6 +272,7 @@ static func make_stat_bar_fallback(cur: int, maxv: int, col: Color) -> Control:
 	fg.bg_color = col
 	pb.add_theme_stylebox_override("background", bg)
 	pb.add_theme_stylebox_override("fill", fg)
+	_add_stat_value_label(pb, prefix, cur, maxv)
 	return pb
 
 # ───────────────────────────────────────────── ④ 命令格底框
@@ -245,10 +297,10 @@ static func make_cmd_cell_style() -> StyleBox:
 	if tex != null:
 		var sb := StyleBoxTexture.new()
 		sb.texture = tex
-		sb.texture_margin_left = 12
-		sb.texture_margin_top = 12
-		sb.texture_margin_right = 12
-		sb.texture_margin_bottom = 12
+		sb.texture_margin_left = 8
+		sb.texture_margin_top = 8
+		sb.texture_margin_right = 8
+		sb.texture_margin_bottom = 8
 		sb.content_margin_left = 20
 		sb.content_margin_top = 14
 		sb.content_margin_right = 20
@@ -329,38 +381,11 @@ static func make_menu_option() -> Label:
 	item.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	return item
 
-static func make_timing_overlay(attacker: BattleUnit) -> Dictionary:
+static func make_timing_overlay() -> Dictionary:
 	var overlay := Control.new()
 	overlay.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	overlay.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	overlay.z_index = 2
-	var attacker_frame := PanelContainer.new()
-	attacker_frame.name = "EnemyPerformanceFrame"
-	attacker_frame.set_anchors_preset(Control.PRESET_TOP_RIGHT)
-	attacker_frame.offset_left = -248
-	attacker_frame.offset_top = 24
-	attacker_frame.offset_right = -40
-	attacker_frame.offset_bottom = 168
-	attacker_frame.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	var frame_style := StyleBoxFlat.new()
-	frame_style.bg_color = Color(0.055, 0.04, 0.055, 0.96)
-	frame_style.border_color = COL_ENEMY.darkened(0.18)
-	frame_style.set_border_width_all(6)
-	frame_style.set_content_margin_all(10)
-	attacker_frame.add_theme_stylebox_override("panel", frame_style)
-	var attacker_box := VBoxContainer.new()
-	attacker_box.alignment = BoxContainer.ALIGNMENT_CENTER
-	attacker_box.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	var avatar := make_avatar(attacker, false)
-	avatar.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
-	attacker_box.add_child(avatar)
-	var name_label := Label.new()
-	name_label.text = attacker.display_name
-	name_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	name_label.add_theme_font_size_override("font_size", 22)
-	attacker_box.add_child(name_label)
-	attacker_frame.add_child(attacker_box)
-	overlay.add_child(attacker_frame)
 	var result_label := Label.new()
 	result_label.set_anchors_preset(Control.PRESET_CENTER_BOTTOM)
 	result_label.offset_left = -460

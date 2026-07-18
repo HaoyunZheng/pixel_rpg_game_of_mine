@@ -152,24 +152,18 @@ alignment = 1
 theme_override_constants/separation = 80
 
 [node name="CentralBox" type="NinePatchRect" parent="UI/BattleUI"]
-layout_mode = 1
-anchors_preset = 7
-anchor_left = 0.5
-anchor_top = 1.0
-anchor_right = 0.5
-anchor_bottom = 1.0
-offset_left = -576.0
-offset_top = -436.0
-offset_right = 576.0
-offset_bottom = -156.0
-grow_horizontal = 2
-grow_vertical = 0
+z_index = 2
+layout_mode = 0
+offset_left = 392.0
+offset_top = 608.0
+offset_right = 1432.0
+offset_bottom = 936.0
 mouse_filter = 2
 texture = ExtResource("6_central")
-patch_margin_left = 14
-patch_margin_top = 14
-patch_margin_right = 14
-patch_margin_bottom = 14
+patch_margin_left = 8
+patch_margin_top = 8
+patch_margin_right = 8
+patch_margin_bottom = 8
 
 [node name="MessageLabel" type="Label" parent="UI/BattleUI/CentralBox"]
 layout_mode = 1
@@ -184,23 +178,32 @@ grow_horizontal = 2
 grow_vertical = 2
 mouse_filter = 2
 theme_override_font_sizes/font_size = 28
-horizontal_alignment = 1
-vertical_alignment = 1
+vertical_alignment = 0
 autowrap_mode = 2
+clip_text = true
+max_lines_visible = 3
+
+[node name="StageBox" type="NinePatchRect" parent="UI/BattleUI"]
+z_index = 2
+layout_mode = 0
+offset_left = 1456.0
+offset_top = 608.0
+offset_right = 1824.0
+offset_bottom = 1048.0
+mouse_filter = 2
+texture = ExtResource("6_central")
+patch_margin_left = 8
+patch_margin_top = 8
+patch_margin_right = 8
+patch_margin_bottom = 8
 
 [node name="CommandBar" type="Control" parent="UI/BattleUI"]
-layout_mode = 1
-anchors_preset = 7
-anchor_left = 0.5
-anchor_top = 1.0
-anchor_right = 0.5
-anchor_bottom = 1.0
-offset_left = -480.0
-offset_top = -132.0
-offset_right = 480.0
-offset_bottom = -44.0
-grow_horizontal = 2
-grow_vertical = 0
+z_index = 2
+layout_mode = 0
+offset_left = 392.0
+offset_top = 960.0
+offset_right = 1432.0
+offset_bottom = 1048.0
 mouse_filter = 2
 
 [node name="CommandCells" type="HBoxContainer" parent="UI/BattleUI/CommandBar"]
@@ -215,21 +218,17 @@ alignment = 1
 theme_override_constants/separation = 24
 
 [node name="PartyPanel" type="NinePatchRect" parent="UI/BattleUI"]
-layout_mode = 1
-anchors_preset = 2
-anchor_top = 1.0
-anchor_bottom = 1.0
+layout_mode = 0
 offset_left = 24.0
-offset_top = -304.0
-offset_right = 360.0
-offset_bottom = -24.0
-grow_vertical = 0
+offset_top = 608.0
+offset_right = 368.0
+offset_bottom = 1048.0
 mouse_filter = 2
 texture = ExtResource("8_strip")
-patch_margin_left = 12
-patch_margin_top = 12
-patch_margin_right = 12
-patch_margin_bottom = 12
+patch_margin_left = 8
+patch_margin_top = 8
+patch_margin_right = 8
+patch_margin_bottom = 8
 
 [node name="PartyContainer" type="VBoxContainer" parent="UI/BattleUI/PartyPanel"]
 layout_mode = 1
@@ -246,6 +245,7 @@ mouse_filter = 2
 theme_override_constants/separation = 12
 
 [node name="ReticleLayer" type="Control" parent="UI/BattleUI"]
+z_index = 4
 layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0

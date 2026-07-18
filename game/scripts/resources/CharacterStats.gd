@@ -10,3 +10,5 @@ extends Resource
 @export var def: int = 5
 @export var spd: int = 10
 @export var skills: Array = []
+## 可选战斗外观；为空时 HUD 使用阵营色占位。
+@export var sprite_frames: SpriteFrames = null

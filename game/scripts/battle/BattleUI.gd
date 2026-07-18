@@ -16,6 +16,7 @@ extends Control
 @onready var _enemy_container: HBoxContainer = $EnemyContainer        # ② 上方敌方区域
 @onready var _central_box: NinePatchRect = $CentralBox               # ③ 中央 Undertale 框
 @onready var _message_label: Label = $CentralBox/MessageLabel        # ③ 框内单条战况文字
+@onready var _stage_box: NinePatchRect = $StageBox                   # ③b 右侧独立演出框
 @onready var _command_bar: Control = $CommandBar                     # ④ 命令栏（四格各自带框，不再用整条底板）
 @onready var _command_cells: HBoxContainer = $CommandBar/CommandCells # ④ 四格固定命令
 @onready var _party_panel: NinePatchRect = $PartyPanel
@@ -34,9 +35,7 @@ const MENU_MODE_ACTION: String = "action"
 const MENU_MODE_SKILL: String = "skill"
 const MENU_MODE_ITEM: String = "item"
 const TIMING_TWEEN_SECONDS: float = 0.3
-const TIMING_MARGIN_LEFT_RIGHT: float = 24.0
-const TIMING_MARGIN_TOP: float = 112.0
-const TIMING_MARGIN_BOTTOM: float = 156.0
+const DESIGN_SIZE: Vector2 = Vector2(480.0, 270.0)
 
 # ── 攻击力度转盘（纯代码自绘，攻击流中实例化叠加在中央框上）──
 const ATTACK_WHEEL_SCENE: PackedScene = preload("res://scenes/battle/AttackPowerWheel.tscn")
@@ -76,8 +75,13 @@ var _timing_overlay: Control = null
 var _timing_result_label: Label = null
 var _timing_tween: Tween = null
 var _intent_refresh_pending: bool = false
+var _stage_party_actor = null
 
 # ───────────────────────────────────────────── 生命周期 / 对外接口
+
+func _ready() -> void:
+	get_viewport().size_changed.connect(_apply_layout)
+	_apply_layout()
 
 func setup(party: Array, enemies: Array, controller: Node = null, turn_state_machine: Node = null) -> void:
 	battle_controller = controller
@@ -89,6 +93,8 @@ func setup(party: Array, enemies: Array, controller: Node = null, turn_state_mac
 	_clear_menu_highlight()
 	_set_menu_visible(false)
 	_message_label.text = "战斗开始！"
+	_stage_party_actor = _first_living_party()
+	_show_stage_actor(_stage_party_actor)
 
 func refresh() -> void:
 	_refresh_display()
@@ -100,6 +106,8 @@ func show_actor_turn(actor) -> void:
 	_clear_target_reticles()
 	_rebuild_turn_order_bar(actor)
 	if actor.is_player and not actor.is_dead():
+		_stage_party_actor = actor
+		_show_stage_actor(actor)
 		_build_command_menu()
 		_message_label.text = _actor_turn_message(actor)
 	else:
@@ -123,6 +131,7 @@ func run_timing_check(
 	_set_menu_visible(false)
 	_clear_target_reticles()
 	_timing_normal_rect = Rect2(_central_box.position, _central_box.size)
+	_show_stage_actor(attacker)
 	await _set_timing_layout(true)
 	_build_timing_overlay(attacker, target)
 	var timing := DEFENSE_TIMING_SCENE.instantiate()
@@ -150,6 +159,9 @@ func finish_timing_check(target: BattleUnit, timing_result: Dictionary) -> void:
 	_refresh_display()
 	await _set_timing_layout(false)
 	_clear_timing_overlay()
+	if _stage_party_actor == null or _stage_party_actor.is_dead():
+		_stage_party_actor = _first_living_party()
+	_show_stage_actor(_stage_party_actor)
 	_message_label.visible = true
 	_timing_active = false
 
@@ -335,7 +347,7 @@ func _clear_central_options() -> void:
 	if _central_option_box != null and is_instance_valid(_central_option_box):
 		_central_option_box.queue_free()
 	_central_option_box = null
-	_message_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	_message_label.vertical_alignment = VERTICAL_ALIGNMENT_TOP
 
 # ───────────────────────────────────────────── 菜单高亮 / 激活（沿用旧机制）
 
@@ -535,31 +547,61 @@ func _actor_turn_message(actor) -> String:
 	var lock_text: String = "｜敌方锁定 ×%d" % count if count > 0 else ""
 	return "✦ %s 行动了——请选择指令%s。" % [actor.display_name, lock_text]
 
+static func calculate_layout(viewport_size: Vector2, expanded: bool) -> Dictionary:
+	var ui_scale: float = minf(viewport_size.x / DESIGN_SIZE.x, viewport_size.y / DESIGN_SIZE.y)
+	var stage_left: float = viewport_size.x - 116.0 * ui_scale
+	var central_left: float = (6.0 if expanded else 98.0) * ui_scale
+	var top: float = (28.0 if expanded else 152.0) * ui_scale
+	var bottom: float = (262.0 if expanded else 234.0) * ui_scale
+	return {
+		"scale": ui_scale,
+		"central": Rect2(central_left, top, stage_left - 6.0 * ui_scale - central_left, bottom - top),
+		"stage": Rect2(stage_left, top, 92.0 * ui_scale, (262.0 * ui_scale) - top),
+		"command": Rect2(98.0 * ui_scale, 240.0 * ui_scale,
+			stage_left - 104.0 * ui_scale, 22.0 * ui_scale),
+		"party": Rect2(6.0 * ui_scale, 152.0 * ui_scale, 86.0 * ui_scale, 110.0 * ui_scale),
+	}
+
+func _apply_layout() -> void:
+	var normal: Dictionary = calculate_layout(get_viewport_rect().size, false)
+	var current: Dictionary = calculate_layout(get_viewport_rect().size, _timing_active)
+	_central_box.position = current.central.position
+	_central_box.size = current.central.size
+	_stage_box.position = current.stage.position
+	_stage_box.size = current.stage.size
+	_command_bar.position = normal.command.position
+	_command_bar.size = normal.command.size
+	_party_panel.position = normal.party.position
+	_party_panel.size = normal.party.size
+	_timing_normal_rect = normal.central
+
 func _set_timing_layout(expanded: bool) -> void:
 	if _timing_tween != null and _timing_tween.is_valid():
 		_timing_tween.kill()
-	var target_rect: Rect2 = _timing_normal_rect
+	var layout: Dictionary = calculate_layout(get_viewport_rect().size, expanded)
+	var target_rect: Rect2 = layout.central
+	var stage_rect: Rect2 = layout.stage
 	var hud_alpha: float = 1.0
 	if expanded:
-		var viewport_size: Vector2 = get_viewport_rect().size
-		target_rect = Rect2(
-			Vector2(TIMING_MARGIN_LEFT_RIGHT, TIMING_MARGIN_TOP),
-			viewport_size - Vector2(TIMING_MARGIN_LEFT_RIGHT * 2.0, TIMING_MARGIN_TOP + TIMING_MARGIN_BOTTOM))
 		hud_alpha = 0.15
 	_message_label.visible = false
 	_timing_tween = create_tween().set_parallel(true)
 	_timing_tween.set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN_OUT)
 	_timing_tween.tween_property(_central_box, "position", target_rect.position, TIMING_TWEEN_SECONDS)
 	_timing_tween.tween_property(_central_box, "size", target_rect.size, TIMING_TWEEN_SECONDS)
-	for hud: CanvasItem in [_turn_order_bar, _enemy_container, _reticle_layer, _turn_label]:
+	_timing_tween.tween_property(_stage_box, "position", stage_rect.position, TIMING_TWEEN_SECONDS)
+	_timing_tween.tween_property(_stage_box, "size", stage_rect.size, TIMING_TWEEN_SECONDS)
+	for hud: CanvasItem in [_enemy_container, _reticle_layer, _turn_label]:
 		_timing_tween.tween_property(hud, "modulate:a", hud_alpha, TIMING_TWEEN_SECONDS)
-	# ponytail: 左下状态列始终可读；若未来遮挡弹幕，再缩小而不是淡出。
+	_timing_tween.tween_property(_turn_order_bar, "modulate:a", 1.0, TIMING_TWEEN_SECONDS)
+	# 状态列保持原位，由扩张后层级更高的中央框自然覆盖。
 	_timing_tween.tween_property(_party_panel, "modulate:a", 1.0, TIMING_TWEEN_SECONDS)
 	await _timing_tween.finished
 
 func _build_timing_overlay(attacker: BattleUnit, _target: BattleUnit) -> void:
 	_clear_timing_overlay()
-	var parts: Dictionary = BattleWidgets.make_timing_overlay(attacker)
+	_show_stage_actor(attacker)
+	var parts: Dictionary = BattleWidgets.make_timing_overlay()
 	_timing_overlay = parts.overlay
 	_timing_result_label = parts.result_label
 	_central_box.add_child(_timing_overlay)
@@ -570,6 +612,18 @@ func _clear_timing_overlay() -> void:
 		_timing_overlay.queue_free()
 	_timing_overlay = null
 	_timing_result_label = null
+
+func _show_stage_actor(unit) -> void:
+	for child in _stage_box.get_children():
+		child.queue_free()
+	if unit != null:
+		_stage_box.add_child(BattleWidgets.make_stage_actor(unit, unit.is_player))
+
+func _first_living_party():
+	for member in _party_units:
+		if not member.is_dead():
+			return member
+	return null
 
 func _format_timing_result(target: BattleUnit, result: Dictionary) -> String:
 	var outcome_text: String = "失败"
