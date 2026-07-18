@@ -6,7 +6,8 @@ static func build(
 		pattern_id: String,
 		params: Dictionary,
 		arena_rect: Rect2,
-		player_position: Vector2) -> Array[Dictionary]:
+		player_position: Vector2,
+		enemy_origin: Vector2) -> Array[Dictionary]:
 	var stages: Array[Dictionary] = []
 	var telegraph: float = float(params.get("telegraph", 0.75))
 	var active: float = float(params.get("active", 0.30))
@@ -23,6 +24,22 @@ static func build(
 				stages.append({"kind": "cross", "telegraph": telegraph, "active": active,
 					"gap": float(params.get("stagger", 0.22)), "width": width,
 					"angle": angle if index == 0 else -angle})
+		EnemyAI.PATTERN_HUNTER_SLOW_BARRAGE:
+			stages.append({
+				"kind": "barrage",
+				"telegraph": float(params.get("telegraph", 0.45)),
+				"active": float(params.get("active", 5.2)),
+				"gap": float(params.get("gap", 0.25)),
+				"hit_count": int(params.get("hit_count", 3)),
+				"subtype": String(params.get("subtype", EnemyAI.BARRAGE_STRAIGHT)),
+				"seed": int(params.get("seed", 1)),
+				"bullet_count": int(params.get("bullet_count", 36)),
+				"bullet_speed": float(params.get("bullet_speed", 240.0)),
+				"bullet_radius": float(params.get("bullet_radius", 8.0)),
+				"spawn_interval": float(params.get("spawn_interval", 0.10)),
+				"wander_interval": float(params.get("wander_interval", 0.22)),
+				"wander_vertical_speed": float(params.get("wander_vertical_speed", 110.0)),
+			})
 		EnemyAI.PATTERN_BURNER_ERUPTION:
 			var aim_offset := Vector2(params.get("aim_offset", Vector2.ZERO))
 			var rotation_step := deg_to_rad(float(params.get("rotation_degrees", 115.0)))
@@ -56,8 +73,8 @@ static func build(
 				var forward: bool = clockwise if index == 0 else not clockwise
 				stages.append({"kind": "sweep", "telegraph": telegraph, "active": active,
 					"gap": float(params.get("gap", 0.25)), "width": width,
-					"angle_from": PI * 0.5 + (arc * 0.5 if forward else -arc * 0.5),
-					"angle_to": PI * 0.5 + (-arc * 0.5 if forward else arc * 0.5)})
+					"angle_from": PI + (arc * 0.5 if forward else -arc * 0.5),
+					"angle_to": PI + (-arc * 0.5 if forward else arc * 0.5)})
 		EnemyAI.PATTERN_MUTANT_CLEAVE:
 			var center_x: float = arena_rect.get_center().x + float(params.get("offset_x", 0.0))
 			var spacing: float = float(params.get("aftershock_spacing", 128.0))
@@ -68,6 +85,8 @@ static func build(
 		_:
 			stages.append({"kind": "cleave", "telegraph": telegraph, "active": active,
 				"gap": 0.15, "width": width, "x": arena_rect.get_center().x})
+	for stage: Dictionary in stages:
+		stage.origin = enemy_origin
 	return stages
 
 static func style(pattern_id: String) -> Dictionary:
@@ -76,6 +95,8 @@ static func style(pattern_id: String) -> Dictionary:
 			return {"label": "猎手·锁定连刺", "color": Color(0.42, 0.82, 1.0)}
 		EnemyAI.PATTERN_HUNTER_CROSS_THRUST:
 			return {"label": "猎手·交叉穿刺", "color": Color(0.62, 0.72, 1.0)}
+		EnemyAI.PATTERN_HUNTER_SLOW_BARRAGE:
+			return {"label": "猎手·慢速弹幕", "color": Color(0.36, 0.74, 1.0)}
 		EnemyAI.PATTERN_BURNER_ERUPTION:
 			return {"label": "燃烬者·灼地连爆", "color": Color(1.0, 0.50, 0.12)}
 		EnemyAI.PATTERN_BURNER_SCORCH_FIELD:

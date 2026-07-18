@@ -56,6 +56,7 @@ func _ready() -> void:
 	_test_damage_calculator()
 	_test_enemy_ai_targeting()
 	_test_enemy_attack_patterns()
+	_test_right_side_attack_origins_and_barrage()
 	_test_round_start_intents()
 	_test_enemy_intent_execution()
 	_test_battle_unit_clamp()
@@ -146,6 +147,7 @@ func _test_enemy_attack_patterns() -> void:
 	var target := _make_unit(0, 0, 5)
 	var enemy := _make_unit(10, 0, 5)
 	var hunter_patterns: Dictionary = {}
+	var hunter_barrage_subtypes: Dictionary = {}
 	var burner_patterns: Dictionary = {}
 	var mutant_patterns: Dictionary = {}
 	var params_valid: bool = true
@@ -153,6 +155,8 @@ func _test_enemy_attack_patterns() -> void:
 		enemy.ai_type = EnemyStats.AIType.HUNTER
 		var hunter_intent: Dictionary = EnemyAI.decide_intent(enemy, [target])
 		hunter_patterns[hunter_intent.attack_pattern] = true
+		if hunter_intent.attack_pattern == EnemyAI.PATTERN_HUNTER_SLOW_BARRAGE:
+			hunter_barrage_subtypes[hunter_intent.pattern_params.subtype] = true
 		params_valid = params_valid and _attack_pattern_params_valid(hunter_intent)
 		enemy.ai_type = EnemyStats.AIType.BURNER
 		var burner_intent: Dictionary = EnemyAI.decide_intent(enemy, [target])
@@ -162,9 +166,14 @@ func _test_enemy_attack_patterns() -> void:
 		var mutant_intent: Dictionary = EnemyAI.decide_intent(enemy, [target])
 		mutant_patterns[mutant_intent.attack_pattern] = true
 		params_valid = params_valid and _attack_pattern_params_valid(mutant_intent)
-	_check("猎手随机覆盖两套固定攻击流程", hunter_patterns.size() == 2
+	_check("猎手随机覆盖三套固定攻击流程", hunter_patterns.size() == 3
 		and hunter_patterns.has(EnemyAI.PATTERN_HUNTER_LOCK_THRUST)
-		and hunter_patterns.has(EnemyAI.PATTERN_HUNTER_CROSS_THRUST))
+		and hunter_patterns.has(EnemyAI.PATTERN_HUNTER_CROSS_THRUST)
+		and hunter_patterns.has(EnemyAI.PATTERN_HUNTER_SLOW_BARRAGE))
+	_check("慢速弹幕随机覆盖直线与伪蒙特卡洛子类型",
+		hunter_barrage_subtypes.size() == 2
+		and hunter_barrage_subtypes.has(EnemyAI.BARRAGE_STRAIGHT)
+		and hunter_barrage_subtypes.has(EnemyAI.BARRAGE_MONTE_CARLO))
 	_check("燃烬者随机覆盖两套固定区域攻击流程", burner_patterns.size() == 2
 		and burner_patterns.has(EnemyAI.PATTERN_BURNER_ERUPTION)
 		and burner_patterns.has(EnemyAI.PATTERN_BURNER_SCORCH_FIELD))
@@ -190,6 +199,14 @@ func _attack_pattern_params_valid(intent: Dictionary) -> bool:
 				and params.telegraph >= 0.65 and params.telegraph <= 0.95 \
 				and params.active >= 0.25 and params.active <= 0.40 \
 				and params.width >= 38.0 and params.width <= 52.0
+		EnemyAI.PATTERN_HUNTER_SLOW_BARRAGE:
+			return params.hit_count == 3 \
+				and params.subtype in [EnemyAI.BARRAGE_STRAIGHT, EnemyAI.BARRAGE_MONTE_CARLO] \
+				and params.seed is int and params.bullet_count == 36 \
+				and params.bullet_speed == 240.0 and params.bullet_radius == 8.0 \
+				and params.spawn_interval == 0.10 and params.wander_interval == 0.22 \
+				and params.wander_vertical_speed == 110.0 \
+				and params.telegraph == 0.45 and params.active == 5.2 and params.gap == 0.25
 		EnemyAI.PATTERN_BURNER_ERUPTION:
 			return params.hit_count in [2, 3] \
 				and params.telegraph >= 0.50 and params.telegraph <= 0.72 \
@@ -223,6 +240,85 @@ func _attack_pattern_params_valid(intent: Dictionary) -> bool:
 				and params.aftershock_spacing >= 100.0 and params.aftershock_spacing <= 160.0
 		_:
 			return false
+
+func _test_right_side_attack_origins_and_barrage() -> void:
+	var arena := Rect2(48.0, 176.0, 864.0, 236.0)
+	var player := arena.get_center() + Vector2(0.0, arena.size.y * 0.24)
+	var origin := Vector2(arena.end.x - TIMING_CHECK.ENEMY_ORIGIN_INSET, arena.get_center().y)
+	var patterns: Array = [
+		[EnemyAI.PATTERN_HUNTER_LOCK_THRUST, {"hit_count": 2}],
+		[EnemyAI.PATTERN_HUNTER_CROSS_THRUST, {"hit_count": 2}],
+		[EnemyAI.PATTERN_HUNTER_SLOW_BARRAGE, {"subtype": EnemyAI.BARRAGE_STRAIGHT}],
+		[EnemyAI.PATTERN_BURNER_ERUPTION, {"hit_count": 2}],
+		[EnemyAI.PATTERN_BURNER_SCORCH_FIELD, {"hit_count": 2}],
+		[EnemyAI.PATTERN_MUTANT_SWEEP, {"hit_count": 2}],
+		[EnemyAI.PATTERN_MUTANT_CLEAVE, {"hit_count": 3}],
+		[EnemyAI.PATTERN_FALLBACK_THRUST, {}],
+	]
+	var all_from_right: bool = true
+	for entry: Array in patterns:
+		var stages: Array[Dictionary] = DefenseAttackPatterns.build(
+			entry[0], entry[1], arena, player, origin)
+		for stage: Dictionary in stages:
+			all_from_right = all_from_right and Vector2(stage.origin) == origin
+	_check("全部敌方攻击阶段共享右侧判定点", all_from_right)
+
+	var straight := TIMING_CHECK.new()
+	add_child(straight)
+	straight.start(BattleUnit.Stance.ATTACK, Rect2(0, 0, 960, 540),
+		EnemyAI.PATTERN_HUNTER_SLOW_BARRAGE, {
+			"subtype": EnemyAI.BARRAGE_STRAIGHT, "seed": 71,
+			"bullet_count": 36, "hit_count": 3,
+		})
+	var child_count: int = straight.get_child_count()
+	straight._phase = straight.Phase.ACTIVE
+	straight._phase_elapsed = 0.21
+	straight._update_barrage(0.01)
+	var straight_leftward: bool = true
+	for index in range(straight._bullets_spawned):
+		straight_leftward = straight_leftward and straight._bullet_velocities[index].x < 0.0
+	_check("直线慢速弹幕按 36 发上限复用紧凑数组且全部向左",
+		straight._bullet_positions.size() == 36 and straight._bullets_spawned == 3
+		and straight_leftward and straight.get_child_count() == child_count)
+	straight._finish_barrage_results()
+	_check("弹幕无接触时仍固定回传三个伤害槽",
+		straight._hit_results.size() == 3
+		and straight._hit_results.all(func(result): return not result.contact))
+	straight.free()
+
+	var random_a := TIMING_CHECK.new()
+	var random_b := TIMING_CHECK.new()
+	add_child(random_a)
+	add_child(random_b)
+	var random_params := {
+		"subtype": EnemyAI.BARRAGE_MONTE_CARLO, "seed": 20260718,
+		"bullet_count": 36, "hit_count": 3,
+	}
+	random_a.start(BattleUnit.Stance.ATTACK, Rect2(0, 0, 960, 540),
+		EnemyAI.PATTERN_HUNTER_SLOW_BARRAGE, random_params)
+	random_b.start(BattleUnit.Stance.ATTACK, Rect2(0, 0, 960, 540),
+		EnemyAI.PATTERN_HUNTER_SLOW_BARRAGE, random_params)
+	for timing in [random_a, random_b]:
+		timing._phase = timing.Phase.ACTIVE
+		timing._phase_elapsed = 0.41
+		timing._update_barrage(0.23)
+	_check("相同种子的伪蒙特卡洛弹幕可复现且保持左移",
+		random_a._bullet_positions == random_b._bullet_positions
+		and random_a._bullet_velocities == random_b._bullet_velocities
+		and random_a._bullet_velocities[0].x < 0.0
+		and not is_equal_approx(
+			TIMING_CHECK.barrage_vertical_speed(20260718, 0, 0, 110.0),
+			TIMING_CHECK.barrage_vertical_speed(20260718, 0, 1, 110.0)))
+	_check("慢速弹幕使用扫掠圆判定避免大 delta 穿透",
+		TIMING_CHECK.swept_circle_hits(
+			Vector2(100.0, 0.0), Vector2(-100.0, 0.0), Vector2.ZERO, 18.0))
+	random_a._barrage_results_recorded = 0
+	random_a._hit_results.clear()
+	for _contact in range(4):
+		random_a._resolve_barrage_contact()
+	_check("大量视觉弹幕最多结算三个伤害槽", random_a._hit_results.size() == 3)
+	random_a.free()
+	random_b.free()
 
 func _test_round_start_intents() -> void:
 	var controller := FleeBattleController.new()

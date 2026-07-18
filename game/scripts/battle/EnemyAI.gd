@@ -9,6 +9,9 @@ const TARGET_MODE_ALL: String = "all"
 
 const PATTERN_HUNTER_LOCK_THRUST: String = "hunter_lock_thrust"
 const PATTERN_HUNTER_CROSS_THRUST: String = "hunter_cross_thrust"
+const PATTERN_HUNTER_SLOW_BARRAGE: String = "hunter_slow_barrage"
+const BARRAGE_STRAIGHT: String = "straight"
+const BARRAGE_MONTE_CARLO: String = "monte_carlo"
 const PATTERN_BURNER_ERUPTION: String = "burner_eruption"
 const PATTERN_BURNER_SCORCH_FIELD: String = "burner_scorch_field"
 const PATTERN_MUTANT_SWEEP: String = "mutant_sweep"
@@ -36,7 +39,8 @@ static func decide_intent(enemy: BattleUnit, party_units: Array) -> Dictionary:
 static func _roll_attack_pattern(ai_type: EnemyStats.AIType) -> Dictionary:
 	match ai_type:
 		EnemyStats.AIType.HUNTER:
-			if randi() % 2 == 0:
+			var hunter_pattern: int = randi() % 3
+			if hunter_pattern == 0:
 				var offset := Vector2(randf_range(-48.0, 48.0), randf_range(-48.0, 48.0)).limit_length(48.0)
 				return {
 					"id": PATTERN_HUNTER_LOCK_THRUST,
@@ -49,15 +53,33 @@ static func _roll_attack_pattern(ai_type: EnemyStats.AIType) -> Dictionary:
 						"aim_offset": offset,
 					},
 				}
+			if hunter_pattern == 1:
+				return {
+					"id": PATTERN_HUNTER_CROSS_THRUST,
+					"params": {
+						"hit_count": 2,
+						"angle_degrees": randf_range(20.0, 35.0),
+						"stagger": randf_range(0.16, 0.30),
+						"telegraph": randf_range(0.65, 0.95),
+						"active": randf_range(0.25, 0.40),
+						"width": randf_range(38.0, 52.0),
+					},
+				}
 			return {
-				"id": PATTERN_HUNTER_CROSS_THRUST,
+				"id": PATTERN_HUNTER_SLOW_BARRAGE,
 				"params": {
-					"hit_count": 2,
-					"angle_degrees": randf_range(20.0, 35.0),
-					"stagger": randf_range(0.16, 0.30),
-					"telegraph": randf_range(0.65, 0.95),
-					"active": randf_range(0.25, 0.40),
-					"width": randf_range(38.0, 52.0),
+					"hit_count": 3,
+					"subtype": BARRAGE_STRAIGHT if randi() % 2 == 0 else BARRAGE_MONTE_CARLO,
+					"seed": randi() & 0x7fffffff,
+					"bullet_count": 36,
+					"bullet_speed": 240.0,
+					"bullet_radius": 8.0,
+					"spawn_interval": 0.10,
+					"wander_interval": 0.22,
+					"wander_vertical_speed": 110.0,
+					"telegraph": 0.45,
+					"active": 5.2,
+					"gap": 0.25,
 				},
 			}
 		EnemyStats.AIType.BURNER:

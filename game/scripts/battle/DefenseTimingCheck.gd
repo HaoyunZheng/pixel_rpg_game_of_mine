@@ -18,6 +18,8 @@ const HIT_STOP_PARRY: float = 0.06
 const INPUT_BUFFER_SECONDS: float = 0.10
 const PARRY_ACTION: StringName = &"ui_accept"
 const DODGE_ACTION: StringName = &"run"
+const ENEMY_ORIGIN_INSET: float = 32.0
+const MAX_BARRAGE_BULLETS: int = 36
 # ponytail: 单一比例在统一相位入口缩放，避免逐攻击模板复制时长。
 const ACTION_DURATION_SCALE: float = 1.5
 # ponytail: 只限制碰撞采样距离；流程时长仍按秒累计，不依赖固定 tick。
@@ -29,6 +31,7 @@ var _stance: BattleUnit.Stance = BattleUnit.Stance.ATTACK
 var _running: bool = false
 var _arena_rect: Rect2 = Rect2()
 var _player_position: Vector2 = Vector2.ZERO
+var _enemy_origin: Vector2 = Vector2.ZERO
 var _last_direction: Vector2 = Vector2.DOWN
 var _stages: Array[Dictionary] = []
 var _stage_index: int = 0
@@ -53,12 +56,30 @@ var _hazard_draw_from: Vector2 = Vector2.ZERO
 var _hazard_draw_to: Vector2 = Vector2.ZERO
 var _hazard_draw_center: Vector2 = Vector2.ZERO
 var _hazard_draw_radius: float = 0.0
+var _hazard_guide_to: Vector2 = Vector2.ZERO
 var _pattern_label: String = "直线突击"
 var _attack_color: Color = Color(1.0, 0.38, 0.22)
 var _feedback_text: String = ""
 var _feedback_color: Color = Color.WHITE
 var _feedback_until: float = -1.0
 var _hit_stop_remaining: float = 0.0
+
+# ponytail: 36 发共享一个 Control 的紧凑数组；超过此上限再考虑独立弹幕组件或池。
+var _bullet_positions: PackedVector2Array = PackedVector2Array()
+var _bullet_previous_positions: PackedVector2Array = PackedVector2Array()
+var _bullet_velocities: PackedVector2Array = PackedVector2Array()
+var _bullet_ages: PackedFloat32Array = PackedFloat32Array()
+var _bullet_active: PackedByteArray = PackedByteArray()
+var _bullets_spawned: int = 0
+var _bullet_subtype: String = EnemyAI.BARRAGE_STRAIGHT
+var _bullet_seed: int = 1
+var _bullet_speed: float = 240.0
+var _bullet_radius: float = 8.0
+var _bullet_spawn_interval: float = 0.10
+var _bullet_wander_interval: float = 0.22
+var _bullet_wander_speed: float = 110.0
+var _barrage_hit_count: int = 3
+var _barrage_results_recorded: int = 0
 
 var _player_area: Area2D
 var _hazard_area: Area2D
@@ -93,8 +114,10 @@ func start(
 	if _arena_rect.size.x < 240.0 or _arena_rect.size.y < 120.0:
 		_arena_rect = focus_rect.grow(-32.0)
 	_player_position = _arena_rect.get_center() + Vector2(0.0, _arena_rect.size.y * 0.24)
+	_enemy_origin = Vector2(_arena_rect.end.x - ENEMY_ORIGIN_INSET, _arena_rect.get_center().y)
 	_player_area.position = _player_position
-	_stages = DefenseAttackPatterns.build(pattern_id, pattern_params, _arena_rect, _player_position)
+	_stages = DefenseAttackPatterns.build(
+		pattern_id, pattern_params, _arena_rect, _player_position, _enemy_origin)
 	_stage_index = 0
 	_phase = Phase.TELEGRAPH
 	_phase_elapsed = 0.0
@@ -109,6 +132,7 @@ func start(
 	_feedback_text = ""
 	_feedback_until = -1.0
 	_hit_stop_remaining = 0.0
+	_clear_barrage()
 	_hit_results.clear()
 	_running = true
 	_prepare_stage()
@@ -143,9 +167,13 @@ func _physics_process(delta: float) -> void:
 		_move_player(step)
 		remaining -= step
 		if _phase == Phase.ACTIVE:
-			_update_active_hazard()
-			if not _stage_contact_resolved and _hazard_hits_player():
-				_resolve_contact()
+			var stage: Dictionary = _stages[_stage_index]
+			if stage.kind == "barrage":
+				_update_barrage(step)
+			else:
+				_update_active_hazard()
+				if not _stage_contact_resolved and _hazard_hits_player():
+					_resolve_contact()
 		if _phase_elapsed + 0.0001 >= duration:
 			_advance_phase()
 		elif step <= 0.0:
@@ -266,29 +294,38 @@ func _prepare_stage() -> void:
 		return
 	var stage: Dictionary = _stages[_stage_index]
 	_stage_contact_resolved = false
+	_stage_start = Vector2(stage.origin)
+	_stage_end = Vector2(_arena_rect.position.x, _enemy_origin.y)
+	_hazard_guide_to = _stage_end
 	match stage.kind:
 		"aimed":
 			var target: Vector2 = _player_position + Vector2(stage.offset)
 			target = Vector2(
 				clampf(target.x, _arena_rect.position.x, _arena_rect.end.x),
 				clampf(target.y, _arena_rect.position.y, _arena_rect.end.y))
-			var direction: Vector2 = (target - Vector2(_arena_rect.get_center().x, _arena_rect.position.y)).normalized()
-			_stage_start = target - direction * _distance_to_arena_edge(target, -direction)
-			_stage_end = target + direction * _distance_to_arena_edge(target, direction)
+			var direction: Vector2 = (target - _enemy_origin).normalized()
+			if direction == Vector2.ZERO:
+				direction = Vector2.LEFT
+			_stage_end = _enemy_origin + direction * _distance_to_arena_edge(_enemy_origin, direction)
+			_hazard_guide_to = target
 		"cross":
-			var direction := Vector2.DOWN.rotated(float(stage.angle))
-			_stage_start = _arena_rect.get_center() - direction * _distance_to_arena_edge(_arena_rect.get_center(), -direction)
-			_stage_end = _arena_rect.get_center() + direction * _distance_to_arena_edge(_arena_rect.get_center(), direction)
+			var direction := Vector2.LEFT.rotated(float(stage.angle))
+			_stage_end = _enemy_origin + direction * _distance_to_arena_edge(_enemy_origin, direction)
+			_hazard_guide_to = _stage_end
 		"cleave":
 			_stage_start = Vector2(float(stage.x), _arena_rect.position.y)
 			_stage_end = Vector2(float(stage.x), _arena_rect.end.y)
+			_hazard_guide_to = Vector2(float(stage.x), _arena_rect.get_center().y)
 		"sweep":
-			_stage_start = _arena_rect.get_center()
 			var direction := Vector2.from_angle(float(stage.angle_from))
-			_stage_end = _stage_start + direction * _distance_to_arena_edge(_stage_start, direction)
+			_stage_end = _enemy_origin + direction * _distance_to_arena_edge(_enemy_origin, direction)
+			_hazard_guide_to = _stage_end
 		"area":
 			_hazard_draw_center = Vector2(stage.center)
 			_hazard_draw_radius = float(stage.radius)
+			_hazard_guide_to = _hazard_draw_center
+		"barrage":
+			_prepare_barrage(stage)
 	_hazard_area.position = Vector2(-10000.0, -10000.0)
 	_hazard_draw_from = _stage_start
 	_hazard_draw_to = _stage_end
@@ -306,10 +343,14 @@ func _advance_phase() -> void:
 		Phase.TELEGRAPH:
 			_phase = Phase.ACTIVE
 			_active_progress = 0.0
-			_update_active_hazard()
+			if _stages[_stage_index].kind != "barrage":
+				_update_active_hazard()
 			_emit_attack_particles()
 		Phase.ACTIVE:
-			if not _stage_contact_resolved:
+			if _stages[_stage_index].kind == "barrage":
+				_finish_barrage_results()
+				_clear_barrage()
+			elif not _stage_contact_resolved:
 				_record_result(false, DefenseTimingRules.Outcome.SUCCESS)
 			_hazard_area.position = Vector2(-10000.0, -10000.0)
 			_phase = Phase.GAP
@@ -327,8 +368,8 @@ func _update_active_hazard() -> void:
 	if stage.kind == "sweep":
 		var angle: float = lerpf(float(stage.angle_from), float(stage.angle_to), progress)
 		var direction := Vector2.from_angle(angle)
-		var radius: float = _distance_to_arena_edge(_arena_rect.get_center(), direction)
-		_set_hazard_segment(_arena_rect.get_center(), _arena_rect.get_center() + direction * radius, float(stage.width))
+		var radius: float = _distance_to_arena_edge(_enemy_origin, direction)
+		_set_hazard_segment(_enemy_origin, _enemy_origin + direction * radius, float(stage.width))
 	elif stage.kind == "area":
 		_set_hazard_circle(Vector2(stage.center), float(stage.radius))
 	else:
@@ -336,6 +377,96 @@ func _update_active_hazard() -> void:
 			_stage_start.lerp(_stage_end, previous_progress),
 			_stage_start.lerp(_stage_end, progress),
 			float(stage.width))
+
+func _prepare_barrage(stage: Dictionary) -> void:
+	var bullet_count: int = clampi(int(stage.bullet_count), 1, MAX_BARRAGE_BULLETS)
+	_bullet_positions.resize(bullet_count)
+	_bullet_previous_positions.resize(bullet_count)
+	_bullet_velocities.resize(bullet_count)
+	_bullet_ages.resize(bullet_count)
+	_bullet_active.resize(bullet_count)
+	_bullet_active.fill(0)
+	_bullets_spawned = 0
+	_bullet_subtype = String(stage.subtype)
+	_bullet_seed = int(stage.seed)
+	_bullet_speed = maxf(1.0, float(stage.bullet_speed))
+	_bullet_radius = maxf(1.0, float(stage.bullet_radius))
+	_bullet_spawn_interval = maxf(0.01, float(stage.spawn_interval))
+	_bullet_wander_interval = maxf(0.01, float(stage.wander_interval))
+	_bullet_wander_speed = maxf(0.0, float(stage.wander_vertical_speed))
+	_barrage_hit_count = clampi(int(stage.hit_count), 1, 3)
+	_barrage_results_recorded = 0
+	_hazard_guide_to = Vector2(_arena_rect.position.x, _enemy_origin.y)
+
+func _clear_barrage() -> void:
+	_bullet_positions.clear()
+	_bullet_previous_positions.clear()
+	_bullet_velocities.clear()
+	_bullet_ages.clear()
+	_bullet_active.clear()
+	_bullets_spawned = 0
+
+func _update_barrage(delta: float) -> void:
+	while _bullets_spawned < _bullet_positions.size() \
+			and float(_bullets_spawned) * _bullet_spawn_interval <= _phase_elapsed + 0.0001:
+		_spawn_barrage_bullet(_bullets_spawned)
+		_bullets_spawned += 1
+	var top: float = _arena_rect.position.y + _bullet_radius
+	var bottom: float = _arena_rect.end.y - _bullet_radius
+	for index in range(_bullets_spawned):
+		if _bullet_active[index] == 0:
+			continue
+		var previous: Vector2 = _bullet_positions[index]
+		var age: float = _bullet_ages[index] + delta
+		var velocity: Vector2 = _bullet_velocities[index]
+		if _bullet_subtype == EnemyAI.BARRAGE_MONTE_CARLO:
+			var segment: int = floori(age / _bullet_wander_interval)
+			velocity.y = barrage_vertical_speed(
+				_bullet_seed, index, segment, _bullet_wander_speed)
+		var position: Vector2 = previous + velocity * delta
+		if position.y < top:
+			position.y = top
+			velocity.y = absf(velocity.y)
+		elif position.y > bottom:
+			position.y = bottom
+			velocity.y = -absf(velocity.y)
+		_bullet_previous_positions[index] = previous
+		_bullet_positions[index] = position
+		_bullet_velocities[index] = velocity
+		_bullet_ages[index] = age
+		if position.x < _arena_rect.position.x - _bullet_radius:
+			_bullet_active[index] = 0
+			continue
+		if swept_circle_hits(previous, position, _player_position, PLAYER_RADIUS + _bullet_radius):
+			_bullet_active[index] = 0
+			_resolve_barrage_contact()
+
+func _spawn_barrage_bullet(index: int) -> void:
+	var velocity := Vector2(-_bullet_speed, 0.0)
+	if _bullet_subtype == EnemyAI.BARRAGE_STRAIGHT:
+		var lane: float = fposmod(float(index) * 0.61803398875 + 0.5, 1.0)
+		var target := Vector2(
+			_arena_rect.position.x,
+			lerpf(_arena_rect.position.y + _bullet_radius, _arena_rect.end.y - _bullet_radius, lane))
+		velocity = (target - _enemy_origin).normalized() * _bullet_speed
+	else:
+		velocity.y = barrage_vertical_speed(_bullet_seed, index, 0, _bullet_wander_speed)
+	_bullet_positions[index] = _enemy_origin
+	_bullet_previous_positions[index] = _enemy_origin
+	_bullet_velocities[index] = velocity
+	_bullet_ages[index] = 0.0
+	_bullet_active[index] = 1
+
+static func barrage_vertical_speed(
+		seed_value: int, bullet_index: int, segment_index: int, max_speed: float) -> float:
+	var sample_hash: int = hash(Vector3i(seed_value, bullet_index, segment_index))
+	var normalized: float = float(posmod(sample_hash, 20_001)) / 10_000.0 - 1.0
+	return normalized * max_speed
+
+static func swept_circle_hits(
+		from: Vector2, to: Vector2, target: Vector2, combined_radius: float) -> bool:
+	var closest: Vector2 = Geometry2D.get_closest_point_to_segment(target, from, to)
+	return closest.distance_squared_to(target) <= combined_radius * combined_radius
 
 func _set_hazard_segment(from: Vector2, to: Vector2, width: float) -> void:
 	var delta: Vector2 = to - from
@@ -385,8 +516,45 @@ func _hazard_hits_player() -> bool:
 
 func _resolve_contact() -> void:
 	var invulnerable: bool = _stance == BattleUnit.Stance.DODGE and _total_elapsed <= _hit_invulnerable_until
-	var reaction_age: float = _total_elapsed - _reaction_started_at if _reaction_started_at >= 0.0 else -1.0
-	var outcome := classify_contact(_stance, reaction_age, invulnerable)
+	var outcome := _classify_current_contact(invulnerable)
+	_apply_contact_impact(outcome)
+	_record_result(not invulnerable, outcome)
+	if _stance == BattleUnit.Stance.DEFEND and outcome == DefenseTimingRules.Outcome.FAILURE:
+		# ponytail: 失败后只保留当前段，让受击反馈有时间播完。
+		_stages.resize(_stage_index + 1)
+		_stages[_stage_index].gap = maxf(0.35, float(_stages[_stage_index].gap))
+
+func _resolve_barrage_contact() -> void:
+	if _stance == BattleUnit.Stance.DODGE and _total_elapsed <= _hit_invulnerable_until:
+		return
+	if _barrage_results_recorded >= _barrage_hit_count:
+		return
+	var outcome := _classify_current_contact(false)
+	_apply_contact_impact(outcome)
+	_append_hit_result(
+		_barrage_results_recorded, _barrage_hit_count, true, outcome)
+	_barrage_results_recorded += 1
+	if _stance == BattleUnit.Stance.DEFEND and outcome == DefenseTimingRules.Outcome.FAILURE:
+		while _barrage_results_recorded < _barrage_hit_count:
+			_append_hit_result(
+				_barrage_results_recorded, _barrage_hit_count, true,
+				DefenseTimingRules.Outcome.FAILURE)
+			_barrage_results_recorded += 1
+		_phase_elapsed = _phase_duration()
+
+func _finish_barrage_results() -> void:
+	while _barrage_results_recorded < _barrage_hit_count:
+		_append_hit_result(
+			_barrage_results_recorded, _barrage_hit_count, false,
+			DefenseTimingRules.Outcome.SUCCESS)
+		_barrage_results_recorded += 1
+
+func _classify_current_contact(hit_invulnerable: bool) -> DefenseTimingRules.Outcome:
+	var reaction_age: float = _total_elapsed - _reaction_started_at \
+		if _reaction_started_at >= 0.0 else -1.0
+	return classify_contact(_stance, reaction_age, hit_invulnerable)
+
+func _apply_contact_impact(outcome: DefenseTimingRules.Outcome) -> void:
 	_emit_impact_particles(outcome)
 	if outcome == DefenseTimingRules.Outcome.FAILURE:
 		_hit_stop_remaining = HIT_STOP_FAILURE
@@ -394,25 +562,24 @@ func _resolve_contact() -> void:
 	elif _stance == BattleUnit.Stance.DEFEND:
 		_hit_stop_remaining = HIT_STOP_PARRY if outcome == DefenseTimingRules.Outcome.PERFECT else HIT_STOP_BLOCK
 		impact_feedback.emit(16.0 if outcome == DefenseTimingRules.Outcome.PERFECT else 7.0)
-	if invulnerable:
-		_record_result(false, outcome)
-	else:
-		_record_result(true, outcome)
 	if _stance == BattleUnit.Stance.DODGE and outcome == DefenseTimingRules.Outcome.FAILURE:
 		_hit_invulnerable_until = _total_elapsed + HIT_INVULNERABILITY
-	if _stance == BattleUnit.Stance.DEFEND and outcome == DefenseTimingRules.Outcome.FAILURE:
-		# ponytail: 失败后只保留当前段，让受击反馈有时间播完。
-		_stages.resize(_stage_index + 1)
-		_stages[_stage_index].gap = maxf(0.35, float(_stages[_stage_index].gap))
 
 func _record_result(contact: bool, outcome: DefenseTimingRules.Outcome) -> void:
 	if _stage_contact_resolved:
 		return
 	_stage_contact_resolved = true
+	_append_hit_result(_stage_index, _stages.size(), contact, outcome)
+
+func _append_hit_result(
+		hit_index: int,
+		hit_count: int,
+		contact: bool,
+		outcome: DefenseTimingRules.Outcome) -> void:
 	_set_feedback(contact, outcome)
 	_hit_results.append({
-		"hit_index": _stage_index,
-		"hit_count": _stages.size(),
+		"hit_index": hit_index,
+		"hit_count": hit_count,
 		"contact": contact,
 		"contact_time": _total_elapsed,
 		"reaction_time": _reaction_started_at,
@@ -496,7 +663,16 @@ func _draw() -> void:
 	if _running and _stage_index < _stages.size():
 		var stage: Dictionary = _stages[_stage_index]
 		if _phase == Phase.TELEGRAPH:
-			if stage.kind == "area":
+			draw_dashed_line(_enemy_origin, _hazard_guide_to, Color(_attack_color, 0.46),
+				3.0, 16.0, true)
+			if stage.kind == "barrage":
+				for lane in range(5):
+					var lane_y: float = lerpf(
+						_arena_rect.position.y + 24.0, _arena_rect.end.y - 24.0,
+						float(lane) / 4.0)
+					draw_line(_enemy_origin, Vector2(_arena_rect.position.x, lane_y),
+						Color(_attack_color, 0.10), 4.0, true)
+			elif stage.kind == "area":
 				var warning_progress: float = clampf(_phase_elapsed / _phase_duration(), 0.0, 1.0)
 				draw_circle(_hazard_draw_center, _hazard_draw_radius, Color(_attack_color, 0.12))
 				draw_arc(_hazard_draw_center, _hazard_draw_radius, 0.0, TAU, 64, Color(_attack_color, 0.82), 5.0, true)
@@ -507,8 +683,8 @@ func _draw() -> void:
 				for index in range(9):
 					var angle: float = lerpf(float(stage.angle_from), float(stage.angle_to), float(index) / 8.0)
 					var direction := Vector2.from_angle(angle)
-					var radius: float = _distance_to_arena_edge(_arena_rect.get_center(), direction)
-					draw_line(_arena_rect.get_center(), _arena_rect.get_center() + direction * radius,
+					var radius: float = _distance_to_arena_edge(_enemy_origin, direction)
+					draw_line(_enemy_origin, _enemy_origin + direction * radius,
 						Color(_attack_color, 0.10), maxf(2.0, width * 0.16), true)
 			else:
 				var width: float = float(stage.width)
@@ -517,7 +693,16 @@ func _draw() -> void:
 				draw_dashed_line(_hazard_draw_from, _hazard_draw_to, Color(_attack_color, 0.50),
 					maxf(3.0, width * 0.22), 18.0, true)
 		else:
-			if stage.kind == "area":
+			if stage.kind == "barrage":
+				for index in range(_bullets_spawned):
+					if _bullet_active[index] == 0:
+						continue
+					draw_line(_bullet_previous_positions[index], _bullet_positions[index],
+						Color(_attack_color, 0.42), maxf(2.0, _bullet_radius * 0.65), true)
+					draw_circle(_bullet_positions[index], _bullet_radius, _attack_color)
+					draw_circle(_bullet_positions[index] + Vector2(-2.0, -2.0),
+						maxf(1.0, _bullet_radius * 0.28), _attack_color.lightened(0.55))
+			elif stage.kind == "area":
 				draw_circle(_hazard_draw_center, _hazard_draw_radius, Color(_attack_color, 0.52))
 				draw_arc(_hazard_draw_center, _hazard_draw_radius, 0.0, TAU, 64,
 					_attack_color.lightened(0.55), 7.0, true)
@@ -525,6 +710,8 @@ func _draw() -> void:
 				var width: float = float(stage.width)
 				draw_line(_hazard_draw_from, _hazard_draw_to, Color(_attack_color, 0.72), width + 8.0, true)
 				draw_line(_hazard_draw_from, _hazard_draw_to, _attack_color.lightened(0.55), maxf(3.0, width * 0.22), true)
+	draw_circle(_enemy_origin, 9.0, Color(0.18, 0.03, 0.04, 0.96))
+	draw_arc(_enemy_origin, 11.0, 0.0, TAU, 24, Color(0.96, 0.28, 0.24), 3.0, true)
 	var font := ThemeDB.fallback_font
 	draw_string(font, _arena_rect.position + Vector2(16.0, 28.0),
 		"%s  %d/%d" % [_pattern_label, mini(_stage_index + 1, _stages.size()), _stages.size()],
