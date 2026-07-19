@@ -7,6 +7,9 @@
 layer = 10
 script = ExtResource("1_inv")
 
+[node name="UISFX" type="AudioStreamPlayer" parent="."]
+bus = &"UI"
+
 [node name="Mask" type="ColorRect" parent="."]
 layout_mode = 3
 anchors_preset = 15
