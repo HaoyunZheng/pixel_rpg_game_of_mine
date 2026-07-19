@@ -16,6 +16,7 @@ signal dialogue_finished(dialogue_id: String)
 const REGISTRY: Dictionary = {
 	"forest_wanderer": "res://dialogue/timelines/forest_wanderer.dtl",
 }
+const TYPEWRITER_SFX: AudioStreamWAV = preload("res://assets/derived/audio/sfx/interface/speaking.wav")
 
 var _active_id: String = ""
 ## 是否有对话正在进行（场景层据此互斥：屏蔽移动 / 二次触发）。
@@ -45,7 +46,12 @@ func start(dialogue_id: String, context: Dictionary = {}) -> bool:
 	if not Dialogic.timeline_ended.is_connected(_on_timeline_ended):
 		Dialogic.timeline_ended.connect(_on_timeline_ended)
 
-	Dialogic.start(timeline_path)
+	var layout: Node = Dialogic.start(timeline_path)
+	if layout != null:
+		if layout.is_node_ready():
+			_configure_typewriter_sound()
+		else:
+			layout.ready.connect(_configure_typewriter_sound, CONNECT_ONE_SHOT)
 	dialogue_started.emit(dialogue_id)
 	Log.info("DialogueManager", "对话开始: %s" % dialogue_id)
 	return true
@@ -59,3 +65,14 @@ func _on_timeline_ended() -> void:
 
 	dialogue_finished.emit(ended_id)
 	Log.info("DialogueManager", "对话结束: %s" % ended_id)
+
+func _configure_typewriter_sound() -> void:
+	var sounds: Array[AudioStream] = [TYPEWRITER_SFX]
+	for node in get_tree().get_nodes_in_group(&"dialogic_type_sounds"):
+		if node is DialogicNode_TypeSounds:
+			var type_sound := node as DialogicNode_TypeSounds
+			type_sound.sounds = sounds
+			type_sound.mode = DialogicNode_TypeSounds.Modes.INTERRUPT
+			type_sound.play_every_character = 1
+			type_sound.volume_db = -10.0
+			type_sound.bus = &"UI"
