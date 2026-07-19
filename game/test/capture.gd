@@ -15,6 +15,7 @@ extends SceneTree
 ##   --frames   截第一张前先 settle 的帧数（等 _ready/动画/物理就位）
 ##   --shots    截几张（静态场景 1 张即可；动态场景多张看变化）
 ##   --interval 多张之间间隔的帧数
+##   --width / --height  可选窗口尺寸；成对设置时先切换到窗口模式
 ##
 ## 产出：res://screenshots/<task>/frame_000.png ...（已 .gdignore + .gitignore）
 ##
@@ -37,6 +38,13 @@ func _run() -> void:
 	var settle: int = int(args.get("frames", "8"))
 	var shots: int = maxi(1, int(args.get("shots", "1")))
 	var interval: int = maxi(1, int(args.get("interval", "6")))
+	var width: int = int(args.get("width", "0"))
+	var height: int = int(args.get("height", "0"))
+	if width > 0 and height > 0:
+		await create_timer(0.6).timeout
+		root.mode = Window.MODE_WINDOWED
+		await create_timer(0.25).timeout
+		root.size = Vector2i(width, height)
 
 	var packed := load(scene_path) as PackedScene
 	if packed == null:
