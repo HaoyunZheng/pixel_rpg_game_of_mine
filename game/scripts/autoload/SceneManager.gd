@@ -11,6 +11,7 @@ var _pending_scene: String = ""
 var _pending_data: Dictionary = {}
 
 func _ready() -> void:
+	process_mode = Node.PROCESS_MODE_ALWAYS  # ponytail: 背包暂停玩法时，全局音乐仍继续。
 	Log.info("SceneManager", "场景管理单例已加载")
 	_start_bgm()
 	# 用 CanvasLayer 保证 overlay 始终在最上层，不受场景切换影响

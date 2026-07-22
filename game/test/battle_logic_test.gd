@@ -1390,12 +1390,17 @@ func _test_inventory_lifecycle() -> void:
 	var music_bus := AudioServer.get_bus_index(&"Music")
 	var original_volume := AudioServer.get_bus_volume_db(music_bus)
 	var inventory_scene := load("res://scenes/ui/InventoryUI.tscn") as PackedScene
+	var piano_bgm := get_node("/root/SceneManager/PianoBGM") as AudioStreamPlayer
+	var wind_bgm := get_node("/root/SceneManager/WindAndSnowBGM") as AudioStreamPlayer
 
 	var normal := inventory_scene.instantiate() as InventoryUI
 	add_child(normal)
 	normal.open()
-	_check("背包打开时暂停游戏并降低音乐",
-		get_tree().paused and AudioServer.get_bus_volume_db(music_bus) < original_volume)
+	_check("背包打开时暂停游戏且音乐以70%音量继续",
+		get_tree().paused
+		and is_equal_approx(db_to_linear(AudioServer.get_bus_volume_db(music_bus)),
+			db_to_linear(original_volume) * InventoryUI.INVENTORY_MUSIC_FACTOR)
+		and piano_bgm.can_process() and wind_bgm.can_process())
 	await normal.close()
 	_check("正常关闭恢复暂停与音量",
 		not get_tree().paused
