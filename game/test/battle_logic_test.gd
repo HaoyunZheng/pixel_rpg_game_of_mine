@@ -305,6 +305,10 @@ func _test_right_side_attack_origins_and_barrage() -> void:
 			"subtype": EnemyAI.BARRAGE_STRAIGHT, "seed": 71,
 			"bullet_count": 36, "hit_count": 3,
 		})
+	var query_id: int = straight._hazard_query.get_instance_id()
+	straight._hazard_hits_player()
+	_check("连续物理判定复用同一查询参数",
+		straight._hazard_query.get_instance_id() == query_id)
 	var child_count: int = straight.get_child_count()
 	straight._advance_phase()
 	_check("慢速弹幕可从预警态无错切入活跃态",

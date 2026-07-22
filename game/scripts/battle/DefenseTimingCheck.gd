@@ -97,6 +97,8 @@ var _hazard_shape: Shape2D
 var _hazard_shape_node: CollisionShape2D
 var _hazard_rect_shape: RectangleShape2D
 var _hazard_circle_shape: CircleShape2D
+# ponytail: Demo 上限为 36 发，同一判定器内复用查询参数直到场景释放。
+var _hazard_query := PhysicsShapeQueryParameters2D.new()
 var _trail_particles: GPUParticles2D
 var _impact_particles: GPUParticles2D
 # ponytail: 单元测试会脱离场景直接实例化脚本，此时音效节点可缺省。
@@ -300,6 +302,9 @@ func _create_collision_areas() -> void:
 	_hazard_area.add_child(_hazard_shape_node)
 	_hazard_area.position = Vector2(-10000.0, -10000.0)
 	add_child(_hazard_area)
+	_hazard_query.collision_mask = 1 << 30
+	_hazard_query.collide_with_areas = true
+	_hazard_query.collide_with_bodies = false
 
 func _prepare_stage() -> void:
 	if _stage_index >= _stages.size():
@@ -509,13 +514,9 @@ func _distance_to_arena_edge(origin: Vector2, direction: Vector2) -> float:
 	return maxf(0.0, distance)
 
 func _hazard_hits_player() -> bool:
-	var query := PhysicsShapeQueryParameters2D.new()
-	query.shape = _hazard_shape
-	query.transform = _hazard_area.global_transform
-	query.collision_mask = 1 << 30
-	query.collide_with_areas = true
-	query.collide_with_bodies = false
-	for hit: Dictionary in get_world_2d().direct_space_state.intersect_shape(query, 2):
+	_hazard_query.shape = _hazard_shape
+	_hazard_query.transform = _hazard_area.global_transform
+	for hit: Dictionary in get_world_2d().direct_space_state.intersect_shape(_hazard_query, 2):
 		if hit.get("collider") == _player_area:
 			return true
 	return false

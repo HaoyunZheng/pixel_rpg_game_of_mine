@@ -48,9 +48,8 @@ func _physics_process(delta: float) -> void:
 
 	var target := patrol_points[_current_index]
 	var to_target := target - global_position
-	var dist := to_target.length()
 
-	if dist < 2.0:
+	if to_target.length_squared() < 4.0:
 		# 到达当前目标点，切换到下一个
 		_current_index += _direction
 		if _current_index >= patrol_points.size():
@@ -67,7 +66,6 @@ func _physics_process(delta: float) -> void:
 
 	velocity = to_target.normalized() * move_speed
 	_update_facing()
-	_play_idle_for_facing()
 	move_and_slide()
 
 func _setup_sprite() -> void:
@@ -93,7 +91,11 @@ func _update_facing() -> void:
 		return
 	# 把朝向角分到 8 个 45° 扇区，圆整到最近的方向
 	var octant := wrapi(roundi(velocity.angle() / (PI / 4.0)), 0, 8)
-	_facing_name = DIRECTION_NAMES[octant]
+	var facing_name: String = DIRECTION_NAMES[octant]
+	if facing_name == _facing_name:
+		return
+	_facing_name = facing_name
+	_play_idle_for_facing()
 
 func _play_idle_for_facing() -> void:
 	if _sprite == null or _sprite.sprite_frames == null:

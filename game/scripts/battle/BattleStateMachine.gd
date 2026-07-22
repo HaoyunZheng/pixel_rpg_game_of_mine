@@ -26,7 +26,6 @@ func _transition_to(new_state: MacroState) -> void:
 	match new_state:
 		MacroState.ENTRY: _on_entry()
 		MacroState.ROUND_START: _on_round_start()
-		MacroState.TURN_LOOP: _on_turn_loop()
 		MacroState.BATTLE_END: _on_battle_end()
 
 func _on_entry() -> void:
@@ -64,9 +63,6 @@ func _calculate_turn_order() -> void:
 	_turn_order = all_units
 	var names: Array = _turn_order.map(func(u): return u.display_name)
 	Log.info("BattleState", "行动顺序: %s" % " → ".join(names))
-
-func _on_turn_loop() -> void:
-	pass
 
 func request_next_turn() -> void:
 	_transition_to(MacroState.ROUND_START)

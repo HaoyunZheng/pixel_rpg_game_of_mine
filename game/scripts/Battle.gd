@@ -24,7 +24,6 @@ var _enemy_units: Array = []
 var _session: BattleSession = null
 var _turn_order: Array = []
 var _turn_index: int = 0
-var _current_actor: BattleUnit = null
 var _enemy_keys: Array[String] = []          # 本场敌方阵容 key 列表（1~N 体）
 var _enemy_intents: Dictionary = {}
 var _battle_started: bool = false
@@ -147,10 +146,10 @@ func _start_turn_loop() -> void:
 	if _macro_sm.check_battle_end():
 		return
 	while _turn_index < _turn_order.size():
-		_current_actor = _turn_order[_turn_index]
+		var current_actor: BattleUnit = _turn_order[_turn_index]
 		_turn_index += 1
-		if not _current_actor.is_dead():
-			_process_turn(_current_actor)
+		if not current_actor.is_dead():
+			_process_turn(current_actor)
 			return
 	_macro_sm.request_next_turn()
 
