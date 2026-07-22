@@ -99,8 +99,9 @@ var _hazard_rect_shape: RectangleShape2D
 var _hazard_circle_shape: CircleShape2D
 var _trail_particles: GPUParticles2D
 var _impact_particles: GPUParticles2D
-@onready var _block_sfx_player: AudioStreamPlayer = $BlockSFX
-@onready var _perfect_sfx_player: AudioStreamPlayer = $PerfectSFX
+# ponytail: 单元测试会脱离场景直接实例化脚本，此时音效节点可缺省。
+@onready var _block_sfx_player: AudioStreamPlayer = get_node_or_null("BlockSFX")
+@onready var _perfect_sfx_player: AudioStreamPlayer = get_node_or_null("PerfectSFX")
 
 func _ready() -> void:
 	set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
@@ -577,6 +578,9 @@ func _apply_contact_impact(outcome: DefenseTimingRules.Outcome) -> void:
 		_hit_invulnerable_until = _total_elapsed + HIT_INVULNERABILITY
 
 func _play_block_sfx(outcome: DefenseTimingRules.Outcome) -> void:
+	if _block_sfx_player == null \
+			or (outcome == DefenseTimingRules.Outcome.PERFECT and _perfect_sfx_player == null):
+		return
 	if outcome == DefenseTimingRules.Outcome.PERFECT:
 		_block_sfx_player.stream = HEAVY_IMPACT_SFX
 		_block_sfx_player.volume_db = -8.0
