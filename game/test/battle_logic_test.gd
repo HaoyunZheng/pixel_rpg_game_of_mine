@@ -1396,7 +1396,7 @@ func _test_inventory_lifecycle() -> void:
 	var normal := inventory_scene.instantiate() as InventoryUI
 	add_child(normal)
 	normal.open()
-	_check("背包打开时暂停游戏且音乐以70%音量继续",
+	_check("背包打开时暂停游戏且音乐以50%音量继续",
 		get_tree().paused
 		and is_equal_approx(db_to_linear(AudioServer.get_bus_volume_db(music_bus)),
 			db_to_linear(original_volume) * InventoryUI.INVENTORY_MUSIC_FACTOR)
