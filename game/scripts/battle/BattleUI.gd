@@ -880,7 +880,7 @@ func _first_living_party():
 			return member
 	return null
 
-func _format_timing_result(target: BattleUnit, result: Dictionary) -> String:
+static func _format_timing_result(target: BattleUnit, result: Dictionary) -> String:
 	var outcome_text: String = "失败"
 	var hit_count: int = int(result.get("hit_count", 0))
 	var success_count: int = int(result.get("success_count", 0))

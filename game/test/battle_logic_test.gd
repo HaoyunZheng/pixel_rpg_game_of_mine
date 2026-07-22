@@ -92,6 +92,8 @@ func _ready() -> void:
 	_test_battle_session_transactions()
 	_test_inventory_pagination()
 	_test_inventory_detail_layout()
+	await _test_inventory_lifecycle()
+	await _cleanup_test_nodes()
 	print("[test] 结果：%s" % ("全部通过 ✅" if _fails == 0 else "%d 项失败 ❌" % _fails))
 	get_tree().quit(_fails)
 
@@ -117,6 +119,12 @@ func _make_skill(power: int, dmg_type: SkillData.DamageType) -> SkillData:
 	s.damage_type = dmg_type
 	s.skill_type = SkillData.SkillType.ATTACK
 	return s
+
+func _cleanup_test_nodes() -> void:
+	for child: Node in get_children():
+		child.queue_free()
+	await get_tree().process_frame
+	await get_tree().process_frame
 
 func _clear_gamedata_inventory(gd: Node) -> void:
 	for slot: InventoryState.Slot in gd.get_inventory_slots():
@@ -1079,12 +1087,10 @@ func _test_enemy_damage_waits_for_timing() -> void:
 		and summary.get("outcome", TIMING_RULES.Outcome.PERFECT) == TIMING_RULES.Outcome.FAILURE
 		and summary.get("damage", 0) == 7
 		and summary.get("mp_change", 0) == -2)
-	var result_ui := BattleUI.new()
 	target.display_name = "主角"
 	_check("混合多段结果显示部分成功与实际伤害",
-		result_ui._format_timing_result(target, summary)
+		BattleUI._format_timing_result(target, summary)
 		== "主角 部分成功 2/3｜7 伤害｜MP -2")
-	result_ui.free()
 	sm.free()
 	controller.free()
 
@@ -1375,3 +1381,41 @@ func _test_inventory_detail_layout() -> void:
 	_check("操作菜单严格嵌入 footer 分区", inv._action_menu_box.position == footer.position
 		and inv._action_menu_box.size == footer.size)
 	inv.queue_free()
+
+func _test_inventory_lifecycle() -> void:
+	var music_bus := AudioServer.get_bus_index(&"Music")
+	var original_volume := AudioServer.get_bus_volume_db(music_bus)
+	var inventory_scene := load("res://scenes/ui/InventoryUI.tscn") as PackedScene
+
+	var normal := inventory_scene.instantiate() as InventoryUI
+	add_child(normal)
+	normal.open()
+	_check("背包打开时暂停游戏并降低音乐",
+		get_tree().paused and AudioServer.get_bus_volume_db(music_bus) < original_volume)
+	await normal.close()
+	_check("正常关闭恢复暂停与音量",
+		not get_tree().paused
+		and is_equal_approx(AudioServer.get_bus_volume_db(music_bus), original_volume))
+	normal.queue_free()
+	await get_tree().process_frame
+
+	get_tree().paused = true
+	var nested := inventory_scene.instantiate() as InventoryUI
+	add_child(nested)
+	nested.open()
+	await nested.close()
+	_check("背包不会解除其它系统已有的暂停", get_tree().paused)
+	nested.queue_free()
+	get_tree().paused = false
+	await get_tree().process_frame
+
+	var interrupted := inventory_scene.instantiate() as InventoryUI
+	add_child(interrupted)
+	interrupted.open()
+	interrupted.close()
+	interrupted.queue_free()
+	await get_tree().process_frame
+	await get_tree().create_timer(InventoryUI.FADE_DURATION + 0.05).timeout
+	_check("关闭动画中释放仍恢复暂停与音量",
+		not get_tree().paused
+		and is_equal_approx(AudioServer.get_bus_volume_db(music_bus), original_volume))

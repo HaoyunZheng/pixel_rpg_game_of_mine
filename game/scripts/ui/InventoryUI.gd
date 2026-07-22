@@ -47,6 +47,9 @@ var _focus_index_by_category: Dictionary = {}
 var _page_index_by_category: Dictionary = {}
 var _menu_index: int = 0
 var _is_open: bool = false
+var _is_closing: bool = false
+var _pause_claim_active: bool = false
+var _tree_was_paused: bool = false
 var _music_bus_index: int = -1
 var _music_volume_before_open: float = 0.0
 
@@ -87,6 +90,10 @@ func _ready() -> void:
 	_refresh_detail()
 
 
+func _exit_tree() -> void:
+	_release_open_side_effects()
+
+
 ## Stage 等比 contain 铺屏并居中：背景图与所有控件锁定在 1664×936 同坐标系，分辨率/宽高比无关。
 func _fit_stage() -> void:
 	var vp: Vector2 = get_viewport().get_visible_rect().size
@@ -100,9 +107,11 @@ func _fit_stage() -> void:
 # ───────────────────────────────────────────── 打开 / 关闭
 
 func open() -> void:
-	if _is_open:
+	if _is_open or _is_closing:
 		return
 	_is_open = true
+	_tree_was_paused = get_tree().paused
+	_pause_claim_active = true
 	_state = UIState.PREVIEW
 	visible = true
 	get_tree().paused = true
@@ -120,14 +129,15 @@ func close() -> void:
 	if not _is_open:
 		return
 	_is_open = false
-	_restore_music()
+	_is_closing = true
 	_play_ui_sfx(SFX_ZIP, -2.0)
 	var tween := create_tween()
 	tween.set_pause_mode(Tween.TWEEN_PAUSE_PROCESS)
 	tween.tween_property(_stage, "modulate:a", 0.0, FADE_DURATION)
 	await tween.finished
 	visible = false
-	get_tree().paused = false
+	_is_closing = false
+	_release_open_side_effects()
 
 
 func is_open() -> bool:
@@ -154,6 +164,16 @@ func _restore_music() -> void:
 		return
 	AudioServer.set_bus_volume_db(_music_bus_index, _music_volume_before_open)
 	_music_bus_index = -1
+
+
+func _release_open_side_effects() -> void:
+	_restore_music()
+	if not _pause_claim_active:
+		return
+	_pause_claim_active = false
+	var tree := get_tree()
+	if tree != null:
+		tree.paused = _tree_was_paused
 
 
 # ───────────────────────────────────────────── 版式锚点取值（layout.json）

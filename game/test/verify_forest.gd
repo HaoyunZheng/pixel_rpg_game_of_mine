@@ -59,5 +59,13 @@ func _run() -> void:
 		push_error("[verify] ❌ 野外传送未触发，pending=%s" % str(pending))
 		fails += 1
 
+	scene.queue_free()
+	await process_frame
+	await process_frame
+	if cam and not cam.enabled and not cam.is_processing():
+		print("[verify] ✅ 场景释放后全局相机停止跟随")
+	else:
+		push_error("[verify] ❌ 场景释放后全局相机仍在处理")
+		fails += 1
 	print("[verify] 结果：%s" % ("全部通过 ✅" if fails == 0 else "%d 项失败 ❌" % fails))
 	quit(fails)

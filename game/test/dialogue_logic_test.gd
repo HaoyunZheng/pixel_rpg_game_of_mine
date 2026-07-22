@@ -18,6 +18,8 @@ func _ready() -> void:
 	_test_sample_resources_and_inputs()
 	await _test_sample_branch_loop()
 	Dialogic.VAR.reset()
+	await get_tree().process_frame
+	await get_tree().process_frame
 	print("[test] 结果：%s" % ("全部通过 ✅" if _fails == 0 else "%d 项失败 ❌" % _fails))
 	get_tree().quit(_fails)
 
