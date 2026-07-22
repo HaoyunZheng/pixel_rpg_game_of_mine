@@ -1,10 +1,11 @@
-[gd_scene load_steps=10 format=3]
+[gd_scene load_steps=11 format=3]
 
 [ext_resource type="PackedScene" path="res://scenes/ForestClearingMap.tscn" id="1_map"]
 [ext_resource type="Script" path="res://scripts/ForestClearing.gd" id="2_forest"]
 [ext_resource type="Script" path="res://scripts/characters/PlayerController.gd" id="3_player"]
 [ext_resource type="SpriteFrames" path="res://assets/sprites/hooded_player/hooded_player_frames.tres" id="4_player_frames"]
 [ext_resource type="Script" path="res://scripts/characters/InteractableNPC.gd" id="5_npc"]
+[ext_resource type="FontFile" path="res://assets/ui/fonts/fusion-pixel-font/fusion-pixel-12px-proportional-zh_hans.ttf" id="6_font"]
 
 [sub_resource type="CircleShape2D" id="CircleShape2D_npc"]
 radius = 56.0
@@ -69,6 +70,7 @@ theme_override_colors/font_color = Color(0.85, 1, 0.88, 1)
 theme_override_colors/font_shadow_color = Color(0.05, 0.2, 0.08, 0.8)
 theme_override_constants/shadow_offset_x = 1
 theme_override_constants/shadow_offset_y = 1
+theme_override_fonts/font = ExtResource("6_font")
 theme_override_font_sizes/font_size = 12
 horizontal_alignment = 1
 vertical_alignment = 1
@@ -101,6 +103,7 @@ theme_override_colors/font_color = Color(0.95, 1, 0.92, 1)
 theme_override_colors/font_shadow_color = Color(0, 0.15, 0.05, 0.85)
 theme_override_constants/shadow_offset_x = 1
 theme_override_constants/shadow_offset_y = 1
+theme_override_fonts/font = ExtResource("6_font")
 theme_override_font_sizes/font_size = 13
 horizontal_alignment = 1
 vertical_alignment = 1
