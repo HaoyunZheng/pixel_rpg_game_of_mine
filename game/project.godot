@@ -24,9 +24,9 @@ Log="*res://scripts/autoload/Log.gd"
 GameData="*res://scripts/autoload/GameData.gd"
 SceneManager="*res://scripts/autoload/SceneManager.gd"
 GameCamera="*res://scripts/autoload/GameCamera.gd"
-PhantomCameraManager="*res://addons/phantom_camera/scripts/managers/phantom_camera_manager.gd"
 Dialogic="*uid://ds2q0uclmolvu"
 DialogueManager="*res://scripts/autoload/DialogueManager.gd"
+PhantomCameraManager="*res://addons/phantom_camera/scripts/managers/phantom_camera_manager.gd"
 
 [dialogic]
 
@@ -36,12 +36,10 @@ directories/dch_directory={
 directories/dtl_directory={
 "forest_wanderer": "res://dialogue/timelines/forest_wanderer.dtl"
 }
-layout/default_style="res://dialogue/styles/project_dialogue_style.tres"
 layout/style_directory={
 "": "res://dialogue/styles/project_dialogue_style.tres",
 "Project Dialogue": "res://dialogue/styles/project_dialogue_style.tres"
 }
-layout/style_list=Array[String](["res://dialogue/styles/project_dialogue_style.tres"])
 text/input_action="dialogic_default_action"
 variables={
 "story": {
@@ -51,6 +49,42 @@ variables={
 "flags": {
 "met_forest_wanderer": false
 }
+}
+}
+layout/default_style="res://dialogue/styles/project_dialogue_style.tres"
+layout/style_list=Array[String](["res://dialogue/styles/project_dialogue_style.tres"])
+glossary/default_case_sensitive=true
+extensions_folder="res://addons/dialogic_additions"
+text/letter_speed=0.01
+text/initial_text_reveal_skippable=true
+text/text_reveal_skip_delay=0.1
+text/advance_delay=0.1
+text/autoadvance_per_character_delay=0.1
+text/autoadvance_ignored_characters_enabled=true
+animations/join_default_length=0.5
+animations/join_default_wait=true
+animations/leave_default_length=0.5
+animations/leave_default_wait=true
+animations/cross_fade_default_length=0.5
+choices/autofocus_first=true
+choices/delay=0.2
+choices/reveal_delay=0
+choices/reveal_by_input=false
+save/autosave_delay=60.0
+save/encryption_on_exports_only=true
+text/autopauses={}
+audio/channel_defaults={
+"": {
+"audio_bus": "",
+"fade_length": 0.0,
+"loop": false,
+"volume": 0.0
+},
+"music": {
+"audio_bus": "",
+"fade_length": 0.0,
+"loop": true,
+"volume": 0.0
 }
 }
 
@@ -64,6 +98,10 @@ window/stretch/aspect="expand"
 [editor_plugins]
 
 enabled=PackedStringArray("res://addons/dialogic/plugin.cfg", "res://addons/godot_resource_groups/plugin.cfg", "res://addons/phantom_camera/plugin.cfg")
+
+[godot_resource_groups]
+
+auto_rebuild=true
 
 [input]
 

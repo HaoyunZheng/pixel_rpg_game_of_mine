@@ -3,14 +3,19 @@ extends Node
 ## 提供 change_scene(to_path, data) 接口，带全屏淡入淡出过渡。
 
 const TRANSITION_DURATION: float = 0.3
+const SOFT_PIANO_BGM: AudioStreamMP3 = preload("res://assets/derived/audio/music/soft_piano.mp3")
+const WIND_AND_SNOW_BGM: AudioStreamMP3 = preload("res://assets/derived/audio/ambience/wind_and_snow_clean.mp3")
 
 var _overlay: ColorRect
 var _tween: Tween
 var _pending_scene: String = ""
 var _pending_data: Dictionary = {}
+var _piano_player: AudioStreamPlayer
+var _wind_player: AudioStreamPlayer
 
 func _ready() -> void:
 	Log.info("SceneManager", "场景管理单例已加载")
+	_start_bgm()
 	# 用 CanvasLayer 保证 overlay 始终在最上层，不受场景切换影响
 	var canvas := CanvasLayer.new()
 	canvas.name = "TransitionCanvas"
@@ -25,6 +30,27 @@ func _ready() -> void:
 	_overlay.modulate.a = 0.0
 	_overlay.hide()
 	canvas.add_child(_overlay)
+
+func _start_bgm() -> void:
+	var piano_stream := SOFT_PIANO_BGM.duplicate() as AudioStreamMP3
+	piano_stream.loop = true
+	_piano_player = AudioStreamPlayer.new()
+	_piano_player.name = "PianoBGM"
+	_piano_player.stream = piano_stream
+	_piano_player.bus = &"Music"
+	add_child(_piano_player)
+	_piano_player.play()
+
+	var wind_stream := WIND_AND_SNOW_BGM.duplicate() as AudioStreamMP3
+	wind_stream.loop = true
+	_wind_player = AudioStreamPlayer.new()
+	_wind_player.name = "WindAndSnowBGM"
+	_wind_player.stream = wind_stream
+	_wind_player.bus = &"Music"
+	_wind_player.volume_db = -12.0
+	add_child(_wind_player)
+	_wind_player.play()
+	Log.info("SceneManager", "双层背景音乐已启动")
 
 ## 请求切换场景。data 字典会写入 GameData 供目标场景读取。
 func change_scene(to_path: String, data: Dictionary = {}) -> void:

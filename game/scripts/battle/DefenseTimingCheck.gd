@@ -15,6 +15,17 @@ const HIT_INVULNERABILITY: float = 0.50
 const HIT_STOP_FAILURE: float = 0.07
 const HIT_STOP_BLOCK: float = 0.035
 const HIT_STOP_PARRY: float = 0.06
+const BLOCK_SFX: Array[AudioStream] = [
+	preload("res://assets/derived/audio/sfx/combat/sword_hit_01.wav"),
+	preload("res://assets/derived/audio/sfx/combat/sword_hit_02.wav"),
+	preload("res://assets/derived/audio/sfx/combat/sword_hit_03.wav"),
+	preload("res://assets/derived/audio/sfx/combat/sword_hit_04.wav"),
+	preload("res://assets/derived/audio/sfx/combat/sword_hit_05.wav"),
+	preload("res://assets/derived/audio/sfx/combat/sword_hit_06.wav"),
+	preload("res://assets/derived/audio/sfx/combat/sword_hit_07.wav"),
+]
+const PERFECT_SLASH_SFX: AudioStreamWAV = preload("res://assets/derived/audio/sfx/combat/perfect_defense_slash.wav")
+const HEAVY_IMPACT_SFX: AudioStreamWAV = preload("res://assets/derived/audio/sfx/combat/heavy_iron_impact.wav")
 const INPUT_BUFFER_SECONDS: float = 0.10
 const PARRY_ACTION: StringName = &"ui_accept"
 const DODGE_ACTION: StringName = &"run"
@@ -88,6 +99,8 @@ var _hazard_rect_shape: RectangleShape2D
 var _hazard_circle_shape: CircleShape2D
 var _trail_particles: GPUParticles2D
 var _impact_particles: GPUParticles2D
+@onready var _block_sfx_player: AudioStreamPlayer = $BlockSFX
+@onready var _perfect_sfx_player: AudioStreamPlayer = $PerfectSFX
 
 func _ready() -> void:
 	set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
@@ -559,8 +572,22 @@ func _apply_contact_impact(outcome: DefenseTimingRules.Outcome) -> void:
 	elif _stance == BattleUnit.Stance.DEFEND:
 		_hit_stop_remaining = HIT_STOP_PARRY if outcome == DefenseTimingRules.Outcome.PERFECT else HIT_STOP_BLOCK
 		impact_feedback.emit(16.0 if outcome == DefenseTimingRules.Outcome.PERFECT else 7.0)
+		_play_block_sfx(outcome)
 	if _stance == BattleUnit.Stance.DODGE and outcome == DefenseTimingRules.Outcome.FAILURE:
 		_hit_invulnerable_until = _total_elapsed + HIT_INVULNERABILITY
+
+func _play_block_sfx(outcome: DefenseTimingRules.Outcome) -> void:
+	if outcome == DefenseTimingRules.Outcome.PERFECT:
+		_block_sfx_player.stream = HEAVY_IMPACT_SFX
+		_block_sfx_player.volume_db = -8.0
+		_block_sfx_player.play()
+		_perfect_sfx_player.stream = PERFECT_SLASH_SFX
+		_perfect_sfx_player.volume_db = -5.0
+		_perfect_sfx_player.play()
+	else:
+		_block_sfx_player.stream = BLOCK_SFX.pick_random()
+		_block_sfx_player.volume_db = -4.0
+		_block_sfx_player.play()
 
 func _record_result(contact: bool, outcome: DefenseTimingRules.Outcome) -> void:
 	if _stage_contact_resolved:

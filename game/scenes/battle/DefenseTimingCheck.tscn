@@ -11,3 +11,9 @@ grow_horizontal = 2
 grow_vertical = 2
 mouse_filter = 1
 script = ExtResource("1_timing")
+
+[node name="BlockSFX" type="AudioStreamPlayer" parent="."]
+bus = &"SFX"
+
+[node name="PerfectSFX" type="AudioStreamPlayer" parent="."]
+bus = &"SFX"

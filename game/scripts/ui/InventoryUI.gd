@@ -19,6 +19,13 @@ const FADE_DURATION: float = 0.15
 const DIALOG_POPUP_DURATION: float = 0.12
 const ACTION_MENU_ROW_HEIGHT: int = 42
 const ITEMS_PER_PAGE: int = 20
+const INVENTORY_MUSIC_FACTOR: float = 0.7
+const SFX_UNZIP: AudioStreamWAV = preload("res://assets/derived/audio/sfx/interface/unzip.wav")
+const SFX_ZIP: AudioStreamWAV = preload("res://assets/derived/audio/sfx/interface/zip.wav")
+const SFX_MOVE: AudioStreamWAV = preload("res://assets/derived/audio/sfx/interface/moving_ui.wav")
+const SFX_SHIFT: AudioStreamWAV = preload("res://assets/derived/audio/sfx/interface/shift_choice.wav")
+const SFX_EQUIP: AudioStreamWAV = preload("res://assets/derived/audio/sfx/interface/equip.wav")
+const SFX_UNEQUIP: AudioStreamWAV = preload("res://assets/derived/audio/sfx/interface/unequip.wav")
 
 enum UIState { PREVIEW, ACTION_MENU, DISCARD_CONFIRM }
 
@@ -32,6 +39,7 @@ enum UIState { PREVIEW, ACTION_MENU, DISCARD_CONFIRM }
 @onready var _detail_layer: Control = $Stage/Layers/Detail
 @onready var _dialog_layer: Control = $Stage/DialogLayer
 @onready var _dialog_panel: PanelContainer = $Stage/DialogLayer/Dialog
+@onready var _sfx_player: AudioStreamPlayer = $UISFX
 
 var _state: UIState = UIState.PREVIEW
 var _category_index: int = 0
@@ -39,6 +47,8 @@ var _focus_index_by_category: Dictionary = {}
 var _page_index_by_category: Dictionary = {}
 var _menu_index: int = 0
 var _is_open: bool = false
+var _music_bus_index: int = -1
+var _music_volume_before_open: float = 0.0
 
 var _layout: Dictionary = {}
 var _current_items: Array = []
@@ -99,6 +109,8 @@ func open() -> void:
 	_fit_stage()
 	_refresh_grid()
 	_refresh_detail()
+	_duck_music()
+	_play_ui_sfx(SFX_UNZIP, -2.0)
 	var tween := create_tween()
 	tween.set_pause_mode(Tween.TWEEN_PAUSE_PROCESS)
 	tween.tween_property(_stage, "modulate:a", 1.0, FADE_DURATION)
@@ -108,6 +120,8 @@ func close() -> void:
 	if not _is_open:
 		return
 	_is_open = false
+	_restore_music()
+	_play_ui_sfx(SFX_ZIP, -2.0)
 	var tween := create_tween()
 	tween.set_pause_mode(Tween.TWEEN_PAUSE_PROCESS)
 	tween.tween_property(_stage, "modulate:a", 0.0, FADE_DURATION)
@@ -118,6 +132,28 @@ func close() -> void:
 
 func is_open() -> bool:
 	return _is_open
+
+
+func _play_ui_sfx(stream: AudioStream, volume_db: float) -> void:
+	_sfx_player.stream = stream
+	_sfx_player.volume_db = volume_db
+	_sfx_player.play()
+
+
+func _duck_music() -> void:
+	_music_bus_index = AudioServer.get_bus_index(&"Music")
+	if _music_bus_index < 0:
+		return
+	_music_volume_before_open = AudioServer.get_bus_volume_db(_music_bus_index)
+	var reduced_linear := db_to_linear(_music_volume_before_open) * INVENTORY_MUSIC_FACTOR
+	AudioServer.set_bus_volume_db(_music_bus_index, linear_to_db(reduced_linear))
+
+
+func _restore_music() -> void:
+	if _music_bus_index < 0:
+		return
+	AudioServer.set_bus_volume_db(_music_bus_index, _music_volume_before_open)
+	_music_bus_index = -1
 
 
 # ───────────────────────────────────────────── 版式锚点取值（layout.json）
@@ -638,8 +674,13 @@ func _update_menu_selection() -> void:
 # ───────────────────────────────────────────── 状态切换
 
 func _enter_action_menu() -> void:
-	if _focused_slot().is_empty():
+	var slot: Dictionary = _focused_slot()
+	if slot.is_empty():
 		return
+	var item: ItemData = slot.item
+	if item != null and (item.category == ItemData.ItemCategory.CONSUMABLE \
+			or InventoryWidgets.is_equipment_category(item.category)):
+		_play_ui_sfx(SFX_MOVE, -8.0)
 	_state = UIState.ACTION_MENU
 	_menu_index = 0
 	_update_slot_styles()
@@ -751,11 +792,12 @@ func _execute_menu_action(opt: Dictionary) -> void:
 		"use":
 			GameData.use_item(item.id)
 		"equip":
-			GameData.equip_item(item.id)
+			if GameData.equip_item(item.id):
+				_play_ui_sfx(SFX_EQUIP, -8.0)
 		"unequip":
 			var equip_slot: String = InventoryWidgets.EQUIP_SLOT_BY_CATEGORY.get(item.category, "")
-			if not equip_slot.is_empty():
-				GameData.unequip_item(equip_slot)
+			if not equip_slot.is_empty() and GameData.unequip_item(equip_slot):
+				_play_ui_sfx(SFX_UNEQUIP, -6.0)
 		"discard":
 			_open_discard_dialog(item, count)
 		_:
@@ -843,6 +885,7 @@ func _move_focus(dx: int, dy: int) -> void:
 		_set_focus_index(new_idx)
 		_update_slot_styles()
 		_refresh_detail()
+		_play_ui_sfx(SFX_MOVE, -12.0)
 		return
 
 	if dy != 0:
@@ -855,6 +898,7 @@ func _move_focus(dx: int, dy: int) -> void:
 		_set_focus_index(new_idx)
 		_update_slot_styles()
 		_refresh_detail()
+		_play_ui_sfx(SFX_MOVE, -12.0)
 
 
 func _switch_page(direction: int, row: int) -> void:
@@ -864,6 +908,7 @@ func _switch_page(direction: int, row: int) -> void:
 	if next_page < 0 or next_page >= page_count:
 		return
 	_set_page_index(next_page)
+	_play_ui_sfx(SFX_SHIFT, -10.0)
 	_refresh_grid()
 	if _current_items.is_empty():
 		_refresh_detail()
@@ -878,6 +923,7 @@ func _switch_page(direction: int, row: int) -> void:
 func _switch_category(direction: int) -> void:
 	var n: int = InventoryWidgets.CATEGORY_ORDER.size()
 	_category_index = posmod(_category_index + direction, n)
+	_play_ui_sfx(SFX_SHIFT, -10.0)
 	_update_tab_styles()
 	_refresh_grid()
 	_refresh_detail()
@@ -913,8 +959,11 @@ func _move_menu_selection(step: int) -> void:
 	for _i in range(n):
 		idx = posmod(idx + step, n)
 		if not _menu_options[idx].disabled:
+			if idx == _menu_index:
+				return
 			_menu_index = idx
 			_update_menu_selection()
+			_play_ui_sfx(SFX_MOVE, -12.0)
 			return
 
 
