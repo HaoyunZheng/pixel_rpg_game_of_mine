@@ -90,7 +90,7 @@ func _ready() -> void:
 	_test_inventory()
 	_test_equipment_battle_copy()
 	_test_battle_session_transactions()
-	_test_inventory_pagination()
+	await _test_inventory_pagination()
 	_test_inventory_detail_layout()
 	await _test_inventory_lifecycle()
 	await _cleanup_test_nodes()
@@ -1336,9 +1336,17 @@ func _test_inventory_pagination() -> void:
 
 	var inv: InventoryUI = load("res://scenes/ui/InventoryUI.tscn").instantiate()
 	add_child(inv)
-	inv._refresh_grid()
+	inv.open()
+	_check("背包打开默认位于物品页网格",
+		inv._top_page_index == InventoryUI.ITEMS_PAGE_INDEX
+		and inv._browse_level == inv.BrowseLevel.GRID)
 	_check("第 1 页只显示 20 种物品", inv._current_items.size() == 20)
 	_check("多页分类显示页码", inv._grid_hint_layer.get_node_or_null("PageIndicator") != null)
+	_check("物品格下移且小类框位于顶层标签与网格之间",
+		float(inv._layout.wells[0][1]) == 254.0
+		and float(inv._layout.subcategories[0][1]) >= 195.0
+		and float(inv._layout.subcategories[0][1]) + float(inv._layout.subcategories[0][3])
+			< float(inv._layout.wells[0][1]))
 
 	inv._set_focus_index(4)
 	inv._move_focus(1, 0)
@@ -1348,18 +1356,47 @@ func _test_inventory_pagination() -> void:
 	_check("末页右边缘不循环", inv._get_page_index() == 1 and inv._get_focus_index() == 0)
 	inv._move_focus(-1, 0)
 	_check("左边缘返回上一页同行末格", inv._get_page_index() == 0 and inv._get_focus_index() == 4)
-
 	inv._move_focus(1, 0)
-	inv._handle_preview_input(KEY_E)
-	_check("E 切换到下一分类", inv._category_index == 1)
-	inv._handle_preview_input(KEY_Q)
-	_check("Q 切换到上一分类", inv._category_index == 0)
+
+	inv._browse_level = inv.BrowseLevel.SUBCATEGORY
+	inv._handle_preview_input(KEY_RIGHT)
+	_check("右方向切换到下一小类", inv._category_index == 1)
+	inv._handle_preview_input(KEY_LEFT)
+	_check("左方向切换到上一小类", inv._category_index == 0)
 	_check("切换分类后恢复分类页码", inv._get_page_index() == 1)
 	_check("切换分类后恢复分类焦点", inv._get_focus_index() == 0)
+
+	inv._browse_level = inv.BrowseLevel.GRID
+	inv._set_focus_index(0)
+	inv._handle_preview_input(KEY_UP)
+	_check("网格第一行按上不进入小类框", inv._browse_level == inv.BrowseLevel.GRID)
+	inv._handle_preview_input(KEY_X)
+	_check("X 从网格返回小类", inv._browse_level == inv.BrowseLevel.SUBCATEGORY)
+	inv._handle_preview_input(KEY_X)
+	_check("X 从小类返回顶层标签", inv._browse_level == inv.BrowseLevel.TOP_TABS)
+	inv._handle_preview_input(KEY_Z)
+	inv._handle_preview_input(KEY_Z)
+	_check("Z 从物品页顶层依次进入小类和网格",
+		inv._browse_level == inv.BrowseLevel.GRID)
+	inv._handle_preview_input(KEY_Q)
+	_check("Q 切换到空白顶层页并提升焦点",
+		inv._top_page_index == 0 and inv._browse_level == inv.BrowseLevel.TOP_TABS
+		and not inv._subcategory_layer.visible and not inv._grid_layer.visible
+		and not inv._grid_hint_layer.visible and not inv._detail_layer.visible
+		and inv._bg.texture.resource_path == InventoryWidgets.TEX_BG_BLANK)
+	inv._handle_preview_input(KEY_E)
+	_check("E 切回物品页但保留顶层焦点",
+		inv._top_page_index == InventoryUI.ITEMS_PAGE_INDEX
+		and inv._browse_level == inv.BrowseLevel.TOP_TABS
+		and inv._subcategory_layer.visible and inv._grid_layer.visible
+		and inv._bg.texture.resource_path == InventoryWidgets.TEX_BG_CLEAN)
 
 	gd.remove_item("page_weapon_20")
 	inv._refresh_grid()
 	_check("删除末页最后一项后页码钳制", inv._get_page_index() == 0 and inv._current_items.size() == 20)
+	inv._handle_preview_input(KEY_X)
+	_check("顶层按 X 关闭背包", not inv.is_open())
+	await get_tree().create_timer(InventoryUI.FADE_DURATION + 0.05).timeout
 	inv.queue_free()
 
 func _test_inventory_detail_layout() -> void:

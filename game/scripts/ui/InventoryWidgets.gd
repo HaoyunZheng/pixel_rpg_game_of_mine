@@ -15,6 +15,7 @@ const TEX_CHIP: String = ASSET_DIR_BATTLE + "chip_status.png"
 # ── 背包专属手绘资产（账簿底图 + 离线生成的版式数据层）──
 const ASSET_DIR_INV: String = "res://assets/ui/inventory/"
 const TEX_BG_CLEAN: String = ASSET_DIR_INV + "bg_inventory_field_ledger_clean.png"  # clean-plate（铲掉画死的静态标签）
+const TEX_BG_BLANK: String = ASSET_DIR_INV + "bg_inventory_field_ledger_blank.png"  # 非物品页（隐去井格）
 const LAYOUT_PATH: String = ASSET_DIR_INV + "layout.json"                            # tools/ui_layout_extract.py 产出
 const STAGE_W: float = 1664.0   # 背景图原生宽（Stage 锁定坐标系，控件与底图同坐标）
 const STAGE_H: float = 936.0
@@ -73,6 +74,8 @@ const CATEGORY_ORDER: Array[ItemData.ItemCategory] = [
 	ItemData.ItemCategory.KEY_ITEM,
 ]
 
+const TOP_PAGE_NAMES: Array[String] = ["队伍角色", "物品", "任务", "（待定）", "系统设置"]
+
 # 装备槽位映射（与 InventoryState 槽位键一致）
 const EQUIP_SLOT_BY_CATEGORY: Dictionary = {
 	ItemData.ItemCategory.WEAPON: "weapon",
@@ -105,6 +108,7 @@ const STR_DISCARD_HINT: String = "[Z] 确认　[X] 取消"
 const STR_PLACEHOLDER_ICON: String = "?"
 const STR_QUANTITY_FMT: String = "×%d"
 const STR_PAGE_FMT: String = "第 %d / %d 页"
+const STR_GRID_NAV_HINT: String = "[X] 返回上一级　[Q/E] 切页面"
 
 # ───────────────────────────────────────────── 切片加载（缺失回退 null）
 
@@ -180,6 +184,15 @@ static func make_tab_style(selected: bool) -> StyleBoxFlat:
 		sb.bg_color = Color(0.16, 0.145, 0.18)
 		sb.border_color = Color(0.04, 0.03, 0.055)
 		sb.set_border_width_all(2)
+	return sb
+
+
+## 小类暂用无底色像素白框；当前小类只加粗，不增加新美术状态。
+static func make_subcategory_style(selected: bool) -> StyleBoxFlat:
+	var sb := StyleBoxFlat.new()
+	sb.bg_color = Color(0, 0, 0, 0)
+	sb.border_color = Color.WHITE if selected else COL_BONE
+	sb.set_border_width_all(4 if selected else 2)
 	return sb
 
 # ───────────────────────────────────────────── ③ ItemSlot（行囊格，§3）
