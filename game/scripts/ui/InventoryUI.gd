@@ -51,7 +51,7 @@ var _music_bus_index: int = -1
 var _music_volume_before_open: float = 0.0
 
 var _layout: Dictionary = {}
-var _current_items: Array = []
+var _current_items: Array[InventoryState.Slot] = []
 var _menu_options: Array = []
 var _action_menu_box: GridContainer = null
 var _pending_discard_item: ItemData = null
@@ -230,7 +230,7 @@ func _update_tab_styles() -> void:
 
 func _count_item_kinds(category: ItemData.ItemCategory) -> int:
 	var n := 0
-	for slot in GameData.inventory:
+	for slot in GameData.get_inventory_slots():
 		if slot.item != null and slot.item.category == category:
 			n += 1
 	return n
@@ -242,10 +242,10 @@ func _current_category() -> ItemData.ItemCategory:
 	return InventoryWidgets.CATEGORY_ORDER[_category_index]
 
 
-func _gather_current_items() -> Array:
-	var items: Array = []
+func _gather_current_items() -> Array[InventoryState.Slot]:
+	var items: Array[InventoryState.Slot] = []
 	var category: ItemData.ItemCategory = _current_category()
-	for slot in GameData.inventory:
+	for slot in GameData.get_inventory_slots():
 		if slot.item != null and slot.item.category == category:
 			items.append(slot)
 	return items
@@ -258,7 +258,7 @@ func _refresh_grid() -> void:
 		child.queue_free()
 	_slot_nodes.clear()
 
-	var category_items: Array = _gather_current_items()
+	var category_items: Array[InventoryState.Slot] = _gather_current_items()
 	var wells: Array = _layout.get("wells", [])
 	var page_count: int = maxi(1, ceili(category_items.size() / float(ITEMS_PER_PAGE)))
 	var page_index: int = clampi(_get_page_index(), 0, page_count - 1)
@@ -319,7 +319,7 @@ func _make_page_indicator(wells: Array, page_index: int, page_count: int) -> Lab
 
 
 ## 物品格：井尺寸的 Control，含 焦点/选中描边 overlay + 居中图标 + 数量角标（无格底，画好的井透出）。
-func _build_item_slot(slot: Dictionary, rect: Rect2) -> Control:
+func _build_item_slot(slot: InventoryState.Slot, rect: Rect2) -> Control:
 	var item: ItemData = slot.item
 	var count: int = slot.count
 
@@ -400,10 +400,10 @@ func _set_focus_index(idx: int) -> void:
 	_focus_index_by_category[_category_index] = idx
 
 
-func _focused_slot() -> Dictionary:
+func _focused_slot() -> InventoryState.Slot:
 	var idx: int = _get_focus_index()
 	if idx < 0 or idx >= _current_items.size():
-		return {}
+		return null
 	return _current_items[idx]
 
 
@@ -420,12 +420,12 @@ func _refresh_detail() -> void:
 		child.queue_free()
 	_action_menu_box = null
 
-	if GameData.inventory.is_empty():
+	if GameData.get_inventory_slots().is_empty():
 		_add_detail_empty_hint()
 		return
 
-	var slot: Dictionary = _focused_slot()
-	if slot.is_empty():
+	var slot := _focused_slot()
+	if slot == null:
 		_add_detail_empty_hint()
 		return
 
@@ -674,8 +674,8 @@ func _update_menu_selection() -> void:
 # ───────────────────────────────────────────── 状态切换
 
 func _enter_action_menu() -> void:
-	var slot: Dictionary = _focused_slot()
-	if slot.is_empty():
+	var slot := _focused_slot()
+	if slot == null:
 		return
 	var item: ItemData = slot.item
 	if item != null and (item.category == ItemData.ItemCategory.CONSUMABLE \
@@ -783,8 +783,8 @@ func _cancel_discard() -> void:
 # ───────────────────────────────────────────── 操作执行（单一写入者）
 
 func _execute_menu_action(opt: Dictionary) -> void:
-	var slot: Dictionary = _focused_slot()
-	if slot.is_empty():
+	var slot := _focused_slot()
+	if slot == null:
 		return
 	var item: ItemData = slot.item
 	var count: int = slot.count
@@ -811,7 +811,7 @@ func _on_inventory_changed(_a = null, _b = null) -> void:
 		return
 	_update_tab_styles()
 	_refresh_grid()
-	if _state == UIState.ACTION_MENU and _focused_slot().is_empty():
+	if _state == UIState.ACTION_MENU and _focused_slot() == null:
 		_state = UIState.PREVIEW
 		_menu_options.clear()
 		_action_menu_box = null

@@ -79,7 +79,7 @@ func _on_tree_changed() -> void:
 	if current_root:
 		# 写入 GameData
 		if _pending_data.has("scene_name"):
-			GameData.current_scene_name = _pending_data["scene_name"]
+			GameData.set_current_scene_name(_pending_data["scene_name"])
 		# 通知当前场景数据已就绪（延迟一帧，确保场景 _ready 已执行）
 		call_deferred("_notify_scene_enter", current_root)
 	_fade_in()
@@ -99,4 +99,4 @@ func _on_fade_in_complete() -> void:
 	_overlay.hide()
 	_pending_scene = ""
 	_pending_data = {}
-	Log.info("SceneManager", "场景切换完成: %s" % GameData.current_scene_name)
+	Log.info("SceneManager", "场景切换完成: %s" % GameData.get_current_scene_name())

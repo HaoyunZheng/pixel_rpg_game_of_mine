@@ -73,7 +73,7 @@ const CATEGORY_ORDER: Array[ItemData.ItemCategory] = [
 	ItemData.ItemCategory.KEY_ITEM,
 ]
 
-# 装备槽位映射（与 GameData.equipment 字典键一致）
+# 装备槽位映射（与 InventoryState 槽位键一致）
 const EQUIP_SLOT_BY_CATEGORY: Dictionary = {
 	ItemData.ItemCategory.WEAPON: "weapon",
 	ItemData.ItemCategory.ARMOR: "armor",

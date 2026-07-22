@@ -369,7 +369,7 @@ func _show_item_menu() -> void:
 	_menu_mode = MENU_MODE_ITEM
 	_clear_menu_highlight()
 	_render_central_options_header("✦ 选择物品（Z确认 / X返回）")
-	for slot in GameData.inventory:
+	for slot in battle_controller.get_inventory_slots():
 		var item: ItemData = slot.item
 		if item.category != ItemData.ItemCategory.CONSUMABLE:
 			continue
@@ -385,7 +385,7 @@ func _create_item_action(item: ItemData) -> Callable:
 		_start_target_select(target_type, func(t): _turn_state_machine.select_command(BattleCommands.ITEM, item); _turn_state_machine.select_target(t))
 
 func _has_battle_usable_items() -> bool:
-	for slot in GameData.inventory:
+	for slot in battle_controller.get_inventory_slots():
 		if slot.count > 0 and slot.item.item_type != ItemData.ItemType.PALLIATIVE and slot.item.category == ItemData.ItemCategory.CONSUMABLE:
 			return true
 	return false

@@ -43,7 +43,7 @@ func _test_start_guards() -> void:
 	_check("初始无对话进行", dm.is_active() == false)
 	_check("未登记 id 返回 false", dm.start("__not_registered__") == false)
 	_check("失败后仍无对话进行", dm.is_active() == false)
-	GameData.flags.erase("legacy_dialogue_hook")
+	GameData.set_flag("legacy_dialogue_hook", false)
 	GameData.set_bond("companion", 2)
 	var started: bool = dm.start("forest_wanderer", {
 		"set_flags": PackedStringArray(["legacy_dialogue_hook"]),
@@ -102,7 +102,7 @@ func _test_sample_branch_loop() -> void:
 	Dialogic.Text.text_started.connect(_on_text_started)
 	Dialogic.Choices.question_shown.connect(_on_question_shown)
 	Dialogic.VAR.reset()
-	GameData.defeated_enemies.erase("Enemy1")
+	GameData.set_enemy_defeated("Enemy1", false)
 
 	var first_cautious := await _play_sample(1)
 	_check("首次对话显示两个选择", first_cautious and _question.get("choices", []).size() == 2)
@@ -130,7 +130,7 @@ func _test_sample_branch_loop() -> void:
 	_check("Enemy1 世界条件分支可结束", enemy_condition)
 	_check("Timeline 读取 Enemy1 世界事实", _texts.any(func(text: String) -> bool: return "荒野里的猎手已经倒下" in text))
 
-	GameData.defeated_enemies.erase("Enemy1")
+	GameData.set_enemy_defeated("Enemy1", false)
 	Dialogic.Text.text_started.disconnect(_on_text_started)
 	Dialogic.Choices.question_shown.disconnect(_on_question_shown)
 

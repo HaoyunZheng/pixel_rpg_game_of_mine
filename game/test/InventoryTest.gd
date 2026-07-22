@@ -47,7 +47,8 @@ func _ready() -> void:
 
 
 func _make_test_items(category_index: int, item_count: int) -> void:
-	GameData.inventory.clear()
+	for slot: InventoryState.Slot in GameData.get_inventory_slots():
+		GameData.remove_item(slot.item.id, slot.count)
 	var category: ItemData.ItemCategory = InventoryWidgets.CATEGORY_ORDER[category_index]
 	for i in range(item_count):
 		var item := ItemData.new()

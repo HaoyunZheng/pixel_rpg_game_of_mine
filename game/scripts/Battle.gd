@@ -3,7 +3,6 @@ extends Node2D
 
 const WILDERNESS_SCENE_PATH: String = "res://scenes/Wilderness.tscn"
 const FOREST_SCENE_PATH: String = "res://scenes/ForestClearing.tscn"
-const BATTLE_UNIT_SCRIPT := preload("res://scripts/battle/BattleUnit.gd")
 const DEFAULT_ENEMY_KEY: String = "Enemy1"
 const DATA_KEY_SCENE_NAME: String = "scene_name"
 const DATA_KEY_FROM: String = "from"
@@ -22,16 +21,14 @@ const ENEMY_RESOURCE_PATHS: Dictionary = {
 
 var _party_units: Array = []
 var _enemy_units: Array = []
+var _session: BattleSession = null
 var _turn_order: Array = []
 var _turn_index: int = 0
 var _current_actor: BattleUnit = null
-var _enemy_key: String = DEFAULT_ENEMY_KEY   # 遭遇标识（用于胜利后标记野外敌人已击败）
 var _enemy_keys: Array[String] = []          # 本场敌方阵容 key 列表（1~N 体）
 var _enemy_intents: Dictionary = {}
 var _battle_started: bool = false
 var _battle_exiting: bool = false
-# §B.2 战斗数据隔离：开战时快照背包，失败时回滚物品消耗
-var _inventory_snapshot: Array[Dictionary] = []
 
 func _ready() -> void:
 	Log.info("Battle", "战斗场景已加载（P2）")
@@ -55,7 +52,6 @@ func on_scene_enter(data: Dictionary) -> void:
 		return
 	_battle_started = true
 	Log.info("Battle", "进入战斗，数据: %s" % data)
-	_enemy_key = data.get(DATA_KEY_ENEMY_KEY, data.get(LEGACY_DATA_KEY_ENEMY, DEFAULT_ENEMY_KEY))
 	_enemy_keys = _resolve_enemy_keys(data)
 	_init_battle()
 	_macro_sm.start_battle()
@@ -63,20 +59,14 @@ func on_scene_enter(data: Dictionary) -> void:
 func _init_battle() -> void:
 	_turn_index = 0
 	_turn_order.clear()
-	_inventory_snapshot = GameData.duplicate_inventory()
-	_party_units.clear()
-	var equipment_bonuses: Dictionary = GameData.get_equipment_bonuses()
-	for i in range(GameData.party_members.size()):
-		var combat_bonuses: Dictionary = equipment_bonuses if i == 0 else {}
-		_party_units.append(BATTLE_UNIT_SCRIPT.from_party_member(
-			GameData.party_members[i], combat_bonuses))
-
-	_enemy_units.clear()
+	_session = GameData.create_battle_session(_enemy_keys)
+	_party_units = _session.party_units
+	_enemy_units = _session.enemy_units
 	_enemy_intents.clear()
 	for key in _enemy_keys:
 		var enemy_stats = _lookup_enemy_stats(key)
 		if enemy_stats:
-			_enemy_units.append(BATTLE_UNIT_SCRIPT.from_enemy_stats(enemy_stats))
+			_enemy_units.append(BattleUnit.from_enemy_stats(enemy_stats))
 
 	_battle_ui.setup(_party_units, _enemy_units, self, _micro_sm)
 	_macro_sm.setup(self)
@@ -94,7 +84,8 @@ func _resolve_enemy_keys(data: Dictionary) -> Array[String]:
 			if k is String and not (k as String).is_empty():
 				keys.append(k)
 	if keys.is_empty():
-		keys.append(_enemy_key)
+		var fallback = data.get(DATA_KEY_ENEMY_KEY, data.get(LEGACY_DATA_KEY_ENEMY, DEFAULT_ENEMY_KEY))
+		keys.append(fallback if fallback is String and not fallback.is_empty() else DEFAULT_ENEMY_KEY)
 	return keys
 
 func _lookup_enemy_stats(enemy_key: String):
@@ -114,6 +105,12 @@ func get_enemy_units() -> Array:
 
 func get_turn_order() -> Array:
 	return _turn_order.duplicate()
+
+func get_inventory_slots() -> Array[InventoryState.Slot]:
+	return _session.inventory.get_slots() if _session != null else []
+
+func consume_item(item_id: String) -> bool:
+	return _session != null and _session.inventory.remove_item(item_id, 1)
 
 func freeze_enemy_intents(turn_order: Array) -> void:
 	_enemy_intents.clear()
@@ -168,7 +165,6 @@ func _process_turn(actor: BattleUnit) -> void:
 func _on_turn_finished() -> void:
 	if _battle_exiting:
 		return
-	_sync_party_to_gamedata()
 	_battle_ui.refresh()
 	_start_turn_loop()
 
@@ -176,7 +172,7 @@ func _on_action_executed(result: Dictionary) -> void:
 	if not result.get("fled", false) or _battle_exiting:
 		return
 	_battle_exiting = true
-	_sync_party_to_gamedata()
+	GameData.settle_battle(_session, BattleSession.Outcome.FLED)
 	Log.info("Battle", "逃跑成功，立即返回野外")
 	SceneManager.change_scene(WILDERNESS_SCENE_PATH, {
 		DATA_KEY_SCENE_NAME: "Wilderness",
@@ -185,27 +181,13 @@ func _on_action_executed(result: Dictionary) -> void:
 		"fled": true,
 	})
 
-func _sync_party_to_gamedata() -> void:
-	for i in range(min(_party_units.size(), GameData.party_members.size())):
-		GameData.party_members[i].hp = _party_units[i].hp
-		GameData.party_members[i].mp = _party_units[i].mp
-		GameData.party_members[i].status_effects = _party_units[i].status_effects.duplicate()
-
 func _on_battle_ended(victory: bool) -> void:
 	Log.info("Battle", "战斗结束，胜利: %s" % victory)
 	_battle_ui.show_battle_result(victory)
-	if victory:
-		GameData.mark_enemy_defeated(_enemy_key)
-	if not victory:
-		_reset_party_hp_mp()
-		GameData.restore_inventory(_inventory_snapshot)
+	GameData.settle_battle(
+		_session,
+		BattleSession.Outcome.VICTORY if victory else BattleSession.Outcome.DEFEAT)
 	await get_tree().create_timer(2.0).timeout
 	var return_scene_path := WILDERNESS_SCENE_PATH if victory else FOREST_SCENE_PATH
 	var return_data := {DATA_KEY_SCENE_NAME: "Wilderness" if victory else "ForestClearing", DATA_KEY_FROM: "battle", "victory": victory}
 	SceneManager.change_scene(return_scene_path, return_data)
-
-func _reset_party_hp_mp() -> void:
-	for member in GameData.party_members:
-		member.hp = member.max_hp
-		member.mp = member.max_mp
-		member.status_effects.clear()

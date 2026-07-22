@@ -142,7 +142,9 @@ func _execute_action() -> Dictionary:
 		BattleCommands.ITEM:
 			if _pending_item != null and not action_targets.is_empty():
 				var target: BattleUnit = action_targets[0]
-				if GameData.remove_item(_pending_item.id, 1):
+				if battle_controller != null \
+						and battle_controller.has_method("consume_item") \
+						and battle_controller.consume_item(_pending_item.id):
 					result.item = _pending_item
 					match _pending_item.effect_type:
 						ItemData.EffectType.HEAL_HP:

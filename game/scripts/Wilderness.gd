@@ -20,7 +20,7 @@ func _ready() -> void:
 	GameCamera.set_map(_player, MAP_RECT)
 	_remove_defeated_enemies()
 
-## 移除已被击败的明雷敌人实例（胜利后由 GameData.defeated_enemies 记录）
+## 移除已被击败的明雷敌人实例（胜利后由 GameData 记录）
 func _remove_defeated_enemies() -> void:
 	var enemies_root: Node = get_node_or_null("Enemies")
 	if enemies_root == null:
