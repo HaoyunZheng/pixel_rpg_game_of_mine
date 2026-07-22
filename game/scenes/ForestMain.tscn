@@ -1,0 +1,51 @@
+[gd_scene load_steps=8 format=3]
+
+[ext_resource type="Script" path="res://scripts/ForestMain.gd" id="1_forest_main"]
+[ext_resource type="PackedScene" path="res://scenes/ForestMainMap.tscn" id="2_map"]
+[ext_resource type="Script" path="res://scripts/characters/PlayerController.gd" id="3_player"]
+[ext_resource type="SpriteFrames" path="res://assets/sprites/hooded_player/hooded_player_frames.tres" id="4_player_frames"]
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_player"]
+size = Vector2(40, 40)
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_sensor"]
+size = Vector2(44, 44)
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_gate"]
+size = Vector2(128, 64)
+
+[node name="ForestMain" type="Node2D"]
+y_sort_enabled = true
+script = ExtResource("1_forest_main")
+
+[node name="Map" parent="." instance=ExtResource("2_map")]
+
+[node name="Player" type="CharacterBody2D" parent="." groups=["player"]]
+position = Vector2(2368, 1888)
+script = ExtResource("3_player")
+sprite_frames = ExtResource("4_player_frames")
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Player"]
+shape = SubResource("RectangleShape2D_player")
+
+[node name="Visual" type="ColorRect" parent="Player"]
+offset_left = -20.0
+offset_top = -20.0
+offset_right = 20.0
+offset_bottom = 20.0
+color = Color(0.22, 0.52, 0.82, 1)
+
+[node name="GateSensor" type="Area2D" parent="Player"]
+collision_layer = 0
+collision_mask = 4
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Player/GateSensor"]
+shape = SubResource("RectangleShape2D_sensor")
+
+[node name="ForestClearingGate" type="Area2D" parent="."]
+position = Vector2(2368, 2016)
+collision_layer = 4
+collision_mask = 0
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="ForestClearingGate"]
+shape = SubResource("RectangleShape2D_gate")
