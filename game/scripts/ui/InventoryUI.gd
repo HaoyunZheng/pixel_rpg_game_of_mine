@@ -290,10 +290,11 @@ func _build_subcategories() -> void:
 func _update_subcategory_styles() -> void:
 	for i in range(_subcategory_nodes.size()):
 		var panel: Panel = _subcategory_nodes[i]
-		var selected: bool = i == _category_index
-		panel.add_theme_stylebox_override("panel", InventoryWidgets.make_subcategory_style(selected))
+		var current: bool = i == _category_index
+		var focused: bool = current and _browse_level == BrowseLevel.SUBCATEGORY
+		panel.add_theme_stylebox_override("panel", InventoryWidgets.make_subcategory_style(focused))
 		var label: Label = panel.get_node("Caption")
-		label.add_theme_color_override("font_color", Color.WHITE if selected else InventoryWidgets.COL_BONE)
+		label.add_theme_color_override("font_color", Color.WHITE if current else Color(InventoryWidgets.COL_BONE, 0.75))
 
 
 func _update_page_visibility() -> void:
@@ -365,7 +366,8 @@ func _refresh_grid() -> void:
 
 func _make_grid_empty_hint(wells: Array) -> Control:
 	var label := InventoryWidgets.make_empty_category_hint()
-	if wells.size() >= 20:
+	label.name = "EmptyCategoryHint"
+	if not wells.is_empty():
 		var first: Rect2 = _rect_of(wells[0])
 		var last: Rect2 = _rect_of(wells[wells.size() - 1])
 		label.position = first.position

@@ -187,12 +187,12 @@ static func make_tab_style(selected: bool) -> StyleBoxFlat:
 	return sb
 
 
-## 小类暂用无底色像素白框；当前小类只加粗，不增加新美术状态。
-static func make_subcategory_style(selected: bool) -> StyleBoxFlat:
+## 小类暂用无底色像素白框；获得小类层焦点时才加粗，不增加新美术状态。
+static func make_subcategory_style(focused: bool) -> StyleBoxFlat:
 	var sb := StyleBoxFlat.new()
 	sb.bg_color = Color(0, 0, 0, 0)
-	sb.border_color = Color.WHITE if selected else COL_BONE
-	sb.set_border_width_all(4 if selected else 2)
+	sb.border_color = Color.WHITE if focused else Color(COL_BONE, 0.65)
+	sb.set_border_width_all(4 if focused else 2)
 	return sb
 
 # ───────────────────────────────────────────── ③ ItemSlot（行囊格，§3）

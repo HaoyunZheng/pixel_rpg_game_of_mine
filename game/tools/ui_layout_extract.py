@@ -8,7 +8,7 @@
 
 产出（默认与背景图同目录，可用 --out-dir 改写）：
   layout.json                          —— 井格/顶层标签/小类框/页内分区（背景图原生像素）
-  bg_inventory_field_ledger_clean.png  —— 铲掉画死标签并下移井格的物品页 clean plate
+  bg_inventory_field_ledger_clean.png  —— 铲掉画死标签与首排井格、上移后三排的物品页 clean plate
   bg_inventory_field_ledger_blank.png  —— 隐去井格、供其它顶层空白页使用的 clean plate
   layout_debug.png                     —— 检测叠加图，离线一次性肉眼/agent 核对用
 
@@ -46,9 +46,13 @@ DEBUG_NAME = "layout_debug.png"
 GRID_ROI = (210, 200, 960, 770)
 EXPECT_COLS, EXPECT_ROWS = 5, 4
 WELL_W_RANGE, WELL_P_RANGE = (105, 130), (130, 150)         # 点阵拟合：格宽 / 周期搜索域
-GRID_Y_OFFSET = 30
+ITEM_GRID_Y_SHIFT = -44
 GRID_PATCH_MARGIN_X = 20
+GRID_PATCH_MARGIN_Y = 14
 BLANK_CONTENT_TOP = 210
+SUBCATEGORY_Y = 236
+SUBCATEGORY_W = 96
+SUBCATEGORY_H = 48
 PAGE_TAN = dict(r_min=138, g_min=100, rb_gap=38, gb_gap=20)  # 实测页主色 ~154,120,84
 
 # 标签：clean-plate 铲除区 + 锚点样式（锚点 = 井列中心）
@@ -133,8 +137,9 @@ def derive_tabs(wells):
 
 
 def derive_subcategories(wells):
-	"""复用下移后第一排井格作为五个方形小类。"""
-	return wells[:EXPECT_COLS]
+	"""沿用井列中心，生成比物品格更轻量的五个小类框。"""
+	return [[x + w // 2 - SUBCATEGORY_W // 2, SUBCATEGORY_Y,
+			 SUBCATEGORY_W, SUBCATEGORY_H] for x, _, w, _ in wells[:EXPECT_COLS]]
 
 
 def detect_page(arr):
@@ -174,7 +179,7 @@ def extract_layout(im):
 
 
 def build_clean_plate(im, wells):
-	"""铲除画死标签并整体下移井格块，返回新图（不落盘）。"""
+	"""铲除画死标签与首排井格，将后三排井格原尺寸上移。"""
 	arr = np.asarray(im).copy()
 	y0, y1 = TAB_STRIP_Y
 	y1 = min(y1, min(w[1] for w in wells) - 4)
@@ -189,16 +194,16 @@ def build_clean_plate(im, wells):
 		x += w
 		flip = not flip
 
-	# ponytail: 四行井格本就是连续画稿；整块平移只需修补顶部腾出的30px。
+	# ponytail: 复用原画后三排，整块平移即可保留井格尺寸、纹理和间距。
+	base = build_blank_plate(Image.fromarray(arr), wells)
+	remaining = wells[EXPECT_COLS:]
 	grid_x0 = max(0, min(w[0] for w in wells) - GRID_PATCH_MARGIN_X)
 	grid_x1 = min(arr.shape[1], max(w[0] + w[2] for w in wells) + GRID_PATCH_MARGIN_X)
-	grid_y0 = min(w[1] for w in wells)
-	grid_y1 = max(w[1] + w[3] for w in wells)
-	grid_patch = arr[grid_y0:grid_y1, grid_x0:grid_x1].copy()
-	fill_patch = arr[grid_y0 - GRID_Y_OFFSET:grid_y0, grid_x0:grid_x1].copy()
-	arr[grid_y0:grid_y0 + GRID_Y_OFFSET, grid_x0:grid_x1] = fill_patch
-	arr[grid_y0 + GRID_Y_OFFSET:grid_y1 + GRID_Y_OFFSET, grid_x0:grid_x1] = grid_patch
-	return Image.fromarray(arr)
+	source_y0 = min(w[1] for w in remaining) - GRID_PATCH_MARGIN_Y
+	source_y1 = max(w[1] + w[3] for w in remaining) + GRID_PATCH_MARGIN_Y
+	grid_patch = im.crop((grid_x0, source_y0, grid_x1, source_y1))
+	base.paste(grid_patch, (grid_x0, source_y0 + ITEM_GRID_Y_SHIFT))
+	return base
 
 
 def build_blank_plate(clean_img, wells):
@@ -207,12 +212,11 @@ def build_blank_plate(clean_img, wells):
 	x0 = max(0, min(w[0] for w in wells) - GRID_PATCH_MARGIN_X)
 	x1 = min(base.width, max(w[0] + w[2] for w in wells) + GRID_PATCH_MARGIN_X)
 	y0 = BLANK_CONTENT_TOP
-	y1 = max(w[1] + w[3] for w in wells)
-	source_y0 = min(w[1] for w in wells) - GRID_Y_OFFSET
-	source_y1 = min(w[1] for w in wells)
-	sample = base.crop((x0, source_y0, x1, source_y1))
-	# ponytail: 先把窄空白带压成低频色块再放大，避免重复井格边缘形成条纹。
-	texture = sample.resize((32, 2), Image.Resampling.LANCZOS).resize(
+	y1 = max(w[1] + w[3] for w in wells) + GRID_PATCH_MARGIN_Y
+	sample_x0 = max(w[0] + w[2] for w in wells) + 4
+	sample = base.crop((sample_x0, y0, x1, y1))
+	# ponytail: 压成 2×2 低频色块，避免边缘和接缝被放大成条纹。
+	texture = sample.resize((2, 2), Image.Resampling.LANCZOS).resize(
 		(x1 - x0, y1 - y0), Image.Resampling.BICUBIC)
 	overlay = base.copy()
 	overlay.paste(texture, (x0, y0))
@@ -259,14 +263,14 @@ def run(bg_path, out_dir=None, write_clean=True, write_debug=True, quiet=False):
 	os.makedirs(out_dir, exist_ok=True)
 
 	detected_wells, tabs, page, zones = extract_layout(im)
-	all_wells = [[x, y + GRID_Y_OFFSET, w, h] for x, y, w, h in detected_wells]
-	subcategories = derive_subcategories(all_wells)
-	wells = all_wells[EXPECT_COLS:]
+	subcategories = derive_subcategories(detected_wells)
+	wells = [[x, y + ITEM_GRID_Y_SHIFT, w, h]
+			 for x, y, w, h in detected_wells[EXPECT_COLS:]]
 
 	clean_img = build_clean_plate(im, detected_wells)
 	if write_clean:
 		clean_img.save(os.path.join(out_dir, CLEAN_NAME))
-		build_blank_plate(clean_img, all_wells).save(os.path.join(out_dir, BLANK_NAME))
+		build_blank_plate(clean_img, wells).save(os.path.join(out_dir, BLANK_NAME))
 
 	layout = dict(source=os.path.basename(bg_path), bg=CLEAN_NAME, bg_blank=BLANK_NAME,
 				  size=[im.width, im.height], wells=wells, tabs=tabs,

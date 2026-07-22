@@ -1342,12 +1342,25 @@ func _test_inventory_pagination() -> void:
 		and inv._browse_level == inv.BrowseLevel.GRID)
 	_check("第 1 页只显示 15 种物品", inv._current_items.size() == 15)
 	_check("多页分类显示页码", inv._grid_hint_layer.get_node_or_null("PageIndicator") != null)
-	_check("第一排五格作为方形小类且下方只保留 3×5 物品格",
+	var first_subcategory: Rect2 = inv._rect_of(inv._layout.subcategories[0])
+	var first_well: Rect2 = inv._rect_of(inv._layout.wells[0])
+	var last_well: Rect2 = inv._rect_of(inv._layout.wells[inv._layout.wells.size() - 1])
+	_check("小类轻于物品格且后三排原尺寸上移",
 		inv._layout.subcategories.size() == 5 and inv._layout.wells.size() == 15
-		and float(inv._layout.subcategories[0][1]) == 254.0
-		and absf(float(inv._layout.subcategories[0][2])
-			- float(inv._layout.subcategories[0][3])) <= 4.0
-		and float(inv._layout.wells[0][1]) == 392.0)
+		and first_subcategory == Rect2(257, 236, 96, 48)
+		and first_subcategory.size.x < first_well.size.x
+		and first_subcategory.size.y < first_well.size.y
+		and first_subcategory.get_center().x == first_well.get_center().x
+		and first_well == Rect2(246, 318, 118, 114)
+		and last_well == Rect2(818, 594, 118, 114))
+	inv._category_index = 2
+	inv._refresh_grid()
+	var empty_hint: Control = inv._grid_hint_layer.get_node("EmptyCategoryHint")
+	_check("空分类提示限制在 3×5 物品区内",
+		empty_hint.position == first_well.position
+		and empty_hint.size == last_well.end - first_well.position)
+	inv._category_index = 0
+	inv._refresh_grid()
 
 	inv._set_focus_index(4)
 	inv._move_focus(1, 0)
