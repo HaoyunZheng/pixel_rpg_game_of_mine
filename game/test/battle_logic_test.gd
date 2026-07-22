@@ -313,11 +313,23 @@ func _test_right_side_attack_origins_and_barrage() -> void:
 	straight._advance_phase()
 	_check("慢速弹幕可从预警态无错切入活跃态",
 		straight._phase == straight.Phase.ACTIVE)
+	straight._phase_elapsed = 0.0
+	straight._update_barrage(0.0)
+	var first_aim: Vector2 = straight._enemy_origin.direction_to(straight._player_position)
+	var first_velocity: Vector2 = straight._bullet_base_velocities[0]
+	straight._player_position += Vector2(0.0, -100.0)
 	straight._phase_elapsed = 0.21
-	straight._update_barrage(0.01)
+	straight._update_barrage(0.0)
 	var straight_leftward: bool = true
 	for index in range(straight._bullets_spawned):
 		straight_leftward = straight_leftward and straight._bullet_velocities[index].x < 0.0
+	var second_aim: Vector2 = straight._enemy_origin.direction_to(straight._player_position)
+	_check("弹幕生成时瞄准主角并仅影响后续弹体",
+		first_velocity == straight._bullet_base_velocities[0]
+		and absf(first_aim.angle_to(first_velocity.normalized()))
+			<= TIMING_CHECK.BARRAGE_AIM_SPREAD_RADIANS + 0.0001
+		and absf(second_aim.angle_to(straight._bullet_base_velocities[1].normalized()))
+			<= TIMING_CHECK.BARRAGE_AIM_SPREAD_RADIANS + 0.0001)
 	_check("直线慢速弹幕按 36 发上限复用紧凑数组且全部向左",
 		straight._bullet_positions.size() == 36 and straight._bullets_spawned == 3
 		and straight_leftward and straight.get_child_count() == child_count)
@@ -345,11 +357,16 @@ func _test_right_side_attack_origins_and_barrage() -> void:
 		timing._update_barrage(0.23)
 	_check("相同种子的伪蒙特卡洛弹幕可复现且保持左移",
 		random_a._bullet_positions == random_b._bullet_positions
+		and random_a._bullet_base_velocities == random_b._bullet_base_velocities
 		and random_a._bullet_velocities == random_b._bullet_velocities
 		and random_a._bullet_velocities[0].x < 0.0
 		and not is_equal_approx(
 			TIMING_CHECK.barrage_vertical_speed(20260718, 0, 0, 110.0),
 			TIMING_CHECK.barrage_vertical_speed(20260718, 0, 1, 110.0)))
+	var monte_carlo_base: Vector2 = random_a._bullet_base_velocities[0]
+	_check("伪蒙特卡洛游走不覆盖生成时的基础瞄准速度",
+		is_equal_approx(random_a._bullet_velocities[0].dot(monte_carlo_base.normalized()),
+			monte_carlo_base.length()))
 	_check("慢速弹幕使用扫掠圆判定避免大 delta 穿透",
 		TIMING_CHECK.swept_circle_hits(
 			Vector2(100.0, 0.0), Vector2(-100.0, 0.0), Vector2.ZERO, 18.0))

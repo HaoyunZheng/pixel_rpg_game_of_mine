@@ -31,6 +31,7 @@ const PARRY_ACTION: StringName = &"ui_accept"
 const DODGE_ACTION: StringName = &"run"
 const ENEMY_ORIGIN_INSET: float = 32.0
 const MAX_BARRAGE_BULLETS: int = 36
+const BARRAGE_AIM_SPREAD_RADIANS: float = PI / 15.0
 # ponytail: 单一比例在统一相位入口缩放，避免逐攻击模板复制时长。
 const ACTION_DURATION_SCALE: float = 1.5
 # ponytail: 只限制碰撞采样距离；流程时长仍按秒累计，不依赖固定 tick。
@@ -77,6 +78,7 @@ var _hit_stop_remaining: float = 0.0
 # ponytail: 36 发共享一个 Control 的紧凑数组；超过此上限再考虑独立弹幕组件或池。
 var _bullet_positions: PackedVector2Array = PackedVector2Array()
 var _bullet_previous_positions: PackedVector2Array = PackedVector2Array()
+var _bullet_base_velocities: PackedVector2Array = PackedVector2Array()
 var _bullet_velocities: PackedVector2Array = PackedVector2Array()
 var _bullet_ages: PackedFloat32Array = PackedFloat32Array()
 var _bullet_active: PackedByteArray = PackedByteArray()
@@ -394,6 +396,7 @@ func _prepare_barrage(stage: Dictionary) -> void:
 	var bullet_count: int = clampi(int(stage.bullet_count), 1, MAX_BARRAGE_BULLETS)
 	_bullet_positions.resize(bullet_count)
 	_bullet_previous_positions.resize(bullet_count)
+	_bullet_base_velocities.resize(bullet_count)
 	_bullet_velocities.resize(bullet_count)
 	_bullet_ages.resize(bullet_count)
 	_bullet_active.resize(bullet_count)
@@ -412,6 +415,7 @@ func _prepare_barrage(stage: Dictionary) -> void:
 func _clear_barrage() -> void:
 	_bullet_positions.clear()
 	_bullet_previous_positions.clear()
+	_bullet_base_velocities.clear()
 	_bullet_velocities.clear()
 	_bullet_ages.clear()
 	_bullet_active.clear()
@@ -429,20 +433,24 @@ func _update_barrage(delta: float) -> void:
 			continue
 		var previous: Vector2 = _bullet_positions[index]
 		var age: float = _bullet_ages[index] + delta
-		var velocity: Vector2 = _bullet_velocities[index]
+		var base_velocity: Vector2 = _bullet_base_velocities[index]
+		var velocity: Vector2 = base_velocity
 		if _bullet_subtype == EnemyAI.BARRAGE_MONTE_CARLO:
 			var segment: int = floori(age / _bullet_wander_interval)
-			velocity.y = barrage_vertical_speed(
+			velocity += base_velocity.orthogonal().normalized() * barrage_vertical_speed(
 				_bullet_seed, index, segment, _bullet_wander_speed)
 		var position: Vector2 = previous + velocity * delta
 		if position.y < top:
 			position.y = top
 			velocity.y = absf(velocity.y)
+			base_velocity.y = absf(base_velocity.y)
 		elif position.y > bottom:
 			position.y = bottom
 			velocity.y = -absf(velocity.y)
+			base_velocity.y = -absf(base_velocity.y)
 		_bullet_previous_positions[index] = previous
 		_bullet_positions[index] = position
+		_bullet_base_velocities[index] = base_velocity
 		_bullet_velocities[index] = velocity
 		_bullet_ages[index] = age
 		if position.x < _arena_rect.position.x - _bullet_radius:
@@ -453,17 +461,15 @@ func _update_barrage(delta: float) -> void:
 			_resolve_barrage_contact()
 
 func _spawn_barrage_bullet(index: int) -> void:
-	var velocity := Vector2(-_bullet_speed, 0.0)
-	if _bullet_subtype == EnemyAI.BARRAGE_STRAIGHT:
-		var lane: float = fposmod(float(index) * 0.61803398875 + 0.5, 1.0)
-		var target := Vector2(
-			_arena_rect.position.x,
-			lerpf(_arena_rect.position.y + _bullet_radius, _arena_rect.end.y - _bullet_radius, lane))
-		velocity = (target - _enemy_origin).normalized() * _bullet_speed
-	else:
-		velocity.y = barrage_vertical_speed(_bullet_seed, index, 0, _bullet_wander_speed)
+	var aim_direction: Vector2 = _enemy_origin.direction_to(_player_position)
+	if aim_direction == Vector2.ZERO:
+		aim_direction = Vector2.LEFT
+	var aim_offset: float = barrage_vertical_speed(
+		_bullet_seed, index, -1, BARRAGE_AIM_SPREAD_RADIANS)
+	var velocity: Vector2 = aim_direction.rotated(aim_offset) * _bullet_speed
 	_bullet_positions[index] = _enemy_origin
 	_bullet_previous_positions[index] = _enemy_origin
+	_bullet_base_velocities[index] = velocity
 	_bullet_velocities[index] = velocity
 	_bullet_ages[index] = 0.0
 	_bullet_active[index] = 1
