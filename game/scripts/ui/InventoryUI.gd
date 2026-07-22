@@ -45,7 +45,7 @@ enum BrowseLevel { TOP_TABS, SUBCATEGORY, GRID }
 @onready var _sfx_player: AudioStreamPlayer = $UISFX
 
 var _state: UIState = UIState.PREVIEW
-var _browse_level: BrowseLevel = BrowseLevel.GRID
+var _browse_level: BrowseLevel = BrowseLevel.TOP_TABS
 var _top_page_index: int = ITEMS_PAGE_INDEX
 var _category_index: int = 0
 var _focus_index_by_category: Dictionary = {}
@@ -121,7 +121,7 @@ func open() -> void:
 	_tree_was_paused = get_tree().paused
 	_pause_claim_active = true
 	_state = UIState.PREVIEW
-	_browse_level = BrowseLevel.GRID
+	_browse_level = BrowseLevel.TOP_TABS
 	_top_page_index = ITEMS_PAGE_INDEX
 	visible = true
 	get_tree().paused = true
@@ -930,12 +930,6 @@ func _handle_preview_input(keycode: Key) -> void:
 			get_viewport().set_input_as_handled()
 		KEY_DOWN, KEY_S:
 			_move_browse(0, 1)
-			get_viewport().set_input_as_handled()
-		KEY_Q:
-			_switch_top_page(-1)
-			get_viewport().set_input_as_handled()
-		KEY_E:
-			_switch_top_page(1)
 			get_viewport().set_input_as_handled()
 		CONFIRM_KEY:
 			_browse_confirm()

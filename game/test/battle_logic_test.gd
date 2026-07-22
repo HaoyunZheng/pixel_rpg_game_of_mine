@@ -1337,9 +1337,9 @@ func _test_inventory_pagination() -> void:
 	var inv: InventoryUI = load("res://scenes/ui/InventoryUI.tscn").instantiate()
 	add_child(inv)
 	inv.open()
-	_check("背包打开默认位于物品页网格",
+	_check("背包打开默认聚焦物品页顶层标签",
 		inv._top_page_index == InventoryUI.ITEMS_PAGE_INDEX
-		and inv._browse_level == inv.BrowseLevel.GRID)
+		and inv._browse_level == inv.BrowseLevel.TOP_TABS)
 	_check("第 1 页只显示 15 种物品", inv._current_items.size() == 15)
 	_check("多页分类显示页码", inv._grid_hint_layer.get_node_or_null("PageIndicator") != null)
 	var first_subcategory: Rect2 = inv._rect_of(inv._layout.subcategories[0])
@@ -1392,18 +1392,27 @@ func _test_inventory_pagination() -> void:
 	inv._handle_preview_input(KEY_Z)
 	_check("Z 从物品页顶层依次进入小类和网格",
 		inv._browse_level == inv.BrowseLevel.GRID)
-	inv._handle_preview_input(KEY_Q)
-	_check("Q 切换到空白顶层页并提升焦点",
+	inv._handle_preview_input(KEY_X)
+	inv._handle_preview_input(KEY_X)
+	inv._handle_preview_input(KEY_A)
+	_check("A 从物品页切换到上一顶层标签",
 		inv._top_page_index == 0 and inv._browse_level == inv.BrowseLevel.TOP_TABS
 		and not inv._subcategory_layer.visible and not inv._grid_layer.visible
 		and not inv._grid_hint_layer.visible and not inv._detail_layer.visible
 		and inv._bg.texture.resource_path == InventoryWidgets.TEX_BG_BLANK)
-	inv._handle_preview_input(KEY_E)
-	_check("E 切回物品页但保留顶层焦点",
+	inv._handle_preview_input(KEY_D)
+	_check("D 切回第二个物品标签",
 		inv._top_page_index == InventoryUI.ITEMS_PAGE_INDEX
 		and inv._browse_level == inv.BrowseLevel.TOP_TABS
 		and inv._subcategory_layer.visible and inv._grid_layer.visible
 		and inv._bg.texture.resource_path == InventoryWidgets.TEX_BG_CLEAN)
+	inv._handle_preview_input(KEY_RIGHT)
+	_check("右方向键切换到下一顶层标签", inv._top_page_index == 2)
+	inv._handle_preview_input(KEY_LEFT)
+	_check("左方向键切回第二个物品标签", inv._top_page_index == InventoryUI.ITEMS_PAGE_INDEX)
+	inv._handle_preview_input(KEY_Q)
+	inv._handle_preview_input(KEY_E)
+	_check("Q/E 不再切换顶层标签", inv._top_page_index == InventoryUI.ITEMS_PAGE_INDEX)
 
 	gd.remove_item("page_weapon_15")
 	inv._refresh_grid()
