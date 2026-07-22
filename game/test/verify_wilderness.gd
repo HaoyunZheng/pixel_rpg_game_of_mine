@@ -16,6 +16,8 @@ func _run() -> void:
 
 	var player: CharacterBody2D = scene.get_node("Player")
 	player.set_physics_process(false)  # 关掉自带输入驱动，手动测碰撞
+	for enemy in scene.get_node("Enemies").get_children():
+		enemy.get_node("BattleTrigger").monitorable = false  # 避免手动搬运玩家时误进战斗
 
 	var fails := 0
 
@@ -54,13 +56,33 @@ func _run() -> void:
 	var e1_start := enemy1.global_position
 	for _i in 30:
 		await physics_frame
-	if enemy1.global_position.distance_to(e1_start) > 10.0:
-		print("[verify] ✅ 敌人巡逻：Enemy1 位移 %.1f px" % enemy1.global_position.distance_to(e1_start))
+	var patrol_target: Vector2 = enemy1.get("_patrol_target")
+	if enemy1.global_position.distance_to(e1_start) > 10.0 \
+			and patrol_target.distance_to(e1_start) <= 140.0:
+		print("[verify] ✅ 敌人巡逻：Enemy1 在 140px 圆内移动")
 	else:
-		push_error("[verify] ❌ 敌人巡逻未移动")
+		push_error("[verify] ❌ 敌人未在 140px 圆内巡逻")
 		fails += 1
 
-	# E: 玩家右向镜像（右向源图头顶被裁，应改放左向帧并 flip_h）
+	# E: 进入 220px 感知圈后以 230px/s 追逐；追逐超时后改为返回放置点
+	player.global_position = enemy1.global_position + Vector2(100, 0)
+	await physics_frame
+	if is_equal_approx(enemy1.velocity.length(), 230.0) and enemy1.velocity.x > 0.0:
+		print("[verify] ✅ 敌人追逐：感知圈内以 230px/s 追向玩家")
+	else:
+		push_error("[verify] ❌ 敌人未以固定速度追逐：velocity=%s" % enemy1.velocity)
+		fails += 1
+
+	enemy1.set("_chase_elapsed", 6.0)
+	await physics_frame
+	var enemy_origin: Vector2 = enemy1.get("_origin")
+	if enemy1.velocity.dot(enemy1.global_position.direction_to(enemy_origin)) > 0.0:
+		print("[verify] ✅ 敌人归位：追逐超时后返回放置点")
+	else:
+		push_error("[verify] ❌ 敌人追逐超时后未归位")
+		fails += 1
+
+	# F: 玩家右向镜像（右向源图头顶被裁，应改放左向帧并 flip_h）
 	player.set("_facing", Vector2.RIGHT)
 	player.call("_play_idle_for_facing")
 	var spr: AnimatedSprite2D = player.get_node("Sprite")
@@ -70,7 +92,7 @@ func _run() -> void:
 		push_error("[verify] ❌ 右向镜像未生效：anim=%s flip_h=%s" % [spr.animation, spr.flip_h])
 		fails += 1
 
-	# F: 出口传送（把玩家放到左侧出口上，等 Area2D 重叠触发）
+	# G: 出口传送（把玩家放到左侧出口上，等 Area2D 重叠触发）
 	player.global_position = Vector2(544, 800)
 	for _i in 6:
 		await physics_frame
