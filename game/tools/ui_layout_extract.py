@@ -48,6 +48,7 @@ EXPECT_COLS, EXPECT_ROWS = 5, 4
 WELL_W_RANGE, WELL_P_RANGE = (105, 130), (130, 150)         # 点阵拟合：格宽 / 周期搜索域
 GRID_Y_OFFSET = 30
 GRID_PATCH_MARGIN_X = 20
+BLANK_CONTENT_TOP = 210
 PAGE_TAN = dict(r_min=138, g_min=100, rb_gap=38, gb_gap=20)  # 实测页主色 ~154,120,84
 
 # 标签：clean-plate 铲除区 + 锚点样式（锚点 = 井列中心）
@@ -55,7 +56,6 @@ TAB_STRIP_Y = (46, 219)
 TAB_STRIP_X = (235, 940)
 TAB_CLEAN_SRC_X = (384, 434)
 TAB_STYLE = dict(top=55, width=112, selected_scale=1.08, selected_lift=8)
-SUBCATEGORY_STYLE = dict(top=210, height=32)
 
 # 详情页内分区（相对页矩形的比例：x,y,w,h ∈ [0,1]）—— 声明式，换图按比例自适应。
 # 6 个分区分别对应羊皮纸页实际画稿的 6 个画死结构（梯度+目视核对），对应像素见行尾注释：
@@ -133,9 +133,8 @@ def derive_tabs(wells):
 
 
 def derive_subcategories(wells):
-	"""小类白框与五列井格对齐，位于顶层标签和下移后的网格之间。"""
-	top, height = SUBCATEGORY_STYLE["top"], SUBCATEGORY_STYLE["height"]
-	return [[x, top, w, height] for x, _, w, _ in wells[:EXPECT_COLS]]
+	"""复用下移后第一排井格作为五个方形小类。"""
+	return wells[:EXPECT_COLS]
 
 
 def detect_page(arr):
@@ -207,7 +206,7 @@ def build_blank_plate(clean_img, wells):
 	base = clean_img.convert("RGB").copy()
 	x0 = max(0, min(w[0] for w in wells) - GRID_PATCH_MARGIN_X)
 	x1 = min(base.width, max(w[0] + w[2] for w in wells) + GRID_PATCH_MARGIN_X)
-	y0 = SUBCATEGORY_STYLE["top"]
+	y0 = BLANK_CONTENT_TOP
 	y1 = max(w[1] + w[3] for w in wells)
 	source_y0 = min(w[1] for w in wells) - GRID_Y_OFFSET
 	source_y1 = min(w[1] for w in wells)
@@ -260,13 +259,14 @@ def run(bg_path, out_dir=None, write_clean=True, write_debug=True, quiet=False):
 	os.makedirs(out_dir, exist_ok=True)
 
 	detected_wells, tabs, page, zones = extract_layout(im)
-	wells = [[x, y + GRID_Y_OFFSET, w, h] for x, y, w, h in detected_wells]
-	subcategories = derive_subcategories(wells)
+	all_wells = [[x, y + GRID_Y_OFFSET, w, h] for x, y, w, h in detected_wells]
+	subcategories = derive_subcategories(all_wells)
+	wells = all_wells[EXPECT_COLS:]
 
 	clean_img = build_clean_plate(im, detected_wells)
 	if write_clean:
 		clean_img.save(os.path.join(out_dir, CLEAN_NAME))
-		build_blank_plate(clean_img, wells).save(os.path.join(out_dir, BLANK_NAME))
+		build_blank_plate(clean_img, all_wells).save(os.path.join(out_dir, BLANK_NAME))
 
 	layout = dict(source=os.path.basename(bg_path), bg=CLEAN_NAME, bg_blank=BLANK_NAME,
 				  size=[im.width, im.height], wells=wells, tabs=tabs,

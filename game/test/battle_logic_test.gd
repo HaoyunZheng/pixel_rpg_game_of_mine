@@ -1324,7 +1324,7 @@ func _test_battle_session_transactions() -> void:
 func _test_inventory_pagination() -> void:
 	var gd: Node = get_node("/root/GameData")
 	_clear_gamedata_inventory(gd)
-	for i in range(21):
+	for i in range(16):
 		var weapon := ItemData.new()
 		weapon.id = "page_weapon_%02d" % i
 		weapon.category = ItemData.ItemCategory.WEAPON
@@ -1340,13 +1340,14 @@ func _test_inventory_pagination() -> void:
 	_check("背包打开默认位于物品页网格",
 		inv._top_page_index == InventoryUI.ITEMS_PAGE_INDEX
 		and inv._browse_level == inv.BrowseLevel.GRID)
-	_check("第 1 页只显示 20 种物品", inv._current_items.size() == 20)
+	_check("第 1 页只显示 15 种物品", inv._current_items.size() == 15)
 	_check("多页分类显示页码", inv._grid_hint_layer.get_node_or_null("PageIndicator") != null)
-	_check("物品格下移且小类框位于顶层标签与网格之间",
-		float(inv._layout.wells[0][1]) == 254.0
-		and float(inv._layout.subcategories[0][1]) >= 195.0
-		and float(inv._layout.subcategories[0][1]) + float(inv._layout.subcategories[0][3])
-			< float(inv._layout.wells[0][1]))
+	_check("第一排五格作为方形小类且下方只保留 3×5 物品格",
+		inv._layout.subcategories.size() == 5 and inv._layout.wells.size() == 15
+		and float(inv._layout.subcategories[0][1]) == 254.0
+		and absf(float(inv._layout.subcategories[0][2])
+			- float(inv._layout.subcategories[0][3])) <= 4.0
+		and float(inv._layout.wells[0][1]) == 392.0)
 
 	inv._set_focus_index(4)
 	inv._move_focus(1, 0)
@@ -1391,9 +1392,9 @@ func _test_inventory_pagination() -> void:
 		and inv._subcategory_layer.visible and inv._grid_layer.visible
 		and inv._bg.texture.resource_path == InventoryWidgets.TEX_BG_CLEAN)
 
-	gd.remove_item("page_weapon_20")
+	gd.remove_item("page_weapon_15")
 	inv._refresh_grid()
-	_check("删除末页最后一项后页码钳制", inv._get_page_index() == 0 and inv._current_items.size() == 20)
+	_check("删除末页最后一项后页码钳制", inv._get_page_index() == 0 and inv._current_items.size() == 15)
 	inv._handle_preview_input(KEY_X)
 	_check("顶层按 X 关闭背包", not inv.is_open())
 	await get_tree().create_timer(InventoryUI.FADE_DURATION + 0.05).timeout
