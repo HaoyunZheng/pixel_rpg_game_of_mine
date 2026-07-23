@@ -43,6 +43,10 @@ func _test_registry() -> void:
 	var path: String = dm.REGISTRY.get("forest_wanderer", "")
 	_check("注册表含 forest_wanderer", not path.is_empty())
 	_check("forest_wanderer timeline 资源存在", ResourceLoader.exists(path))
+	for dialogue_id: String in ["forest_main_wood_sign", "forest_main_stone_sign"]:
+		var sign_path: String = dm.REGISTRY.get(dialogue_id, "")
+		_check("注册表含 %s" % dialogue_id, not sign_path.is_empty())
+		_check("%s timeline 资源存在" % dialogue_id, ResourceLoader.exists(sign_path))
 
 func _test_start_guards() -> void:
 	var dm := _dm()

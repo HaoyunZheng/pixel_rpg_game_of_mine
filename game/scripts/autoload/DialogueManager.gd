@@ -15,6 +15,8 @@ signal dialogue_finished(dialogue_id: String)
 ## dialogue_id → timeline 资源路径。外部只认 dialogue_id，路径变更只改这里。
 const REGISTRY: Dictionary = {
 	"forest_wanderer": "res://dialogue/timelines/forest_wanderer.dtl",
+	"forest_main_wood_sign": "res://dialogue/timelines/forest_main_wood_sign.dtl",
+	"forest_main_stone_sign": "res://dialogue/timelines/forest_main_stone_sign.dtl",
 }
 const TYPEWRITER_SFX: AudioStreamWAV = preload("res://assets/derived/audio/sfx/interface/speaking.wav")
 
