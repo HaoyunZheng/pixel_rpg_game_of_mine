@@ -23,11 +23,13 @@ func _run() -> void:
 	await physics_frame
 
 	var player: CharacterBody2D = scene.get_node("Player")
+	var game_data := root.get_node("GameData")
 	var map: Node2D = scene.get_node("Map")
 	var obstacles: StaticBody2D = map.get_node("Obstacles")
 	var bounds: StaticBody2D = map.get_node("Bounds")
 	var navigation_region: NavigationRegion2D = scene.get_node("NavigationRegion2D")
 	var enemies: Array[Node] = scene.get_node("Enemies").get_children()
+	var battle_sensor := player.get_node_or_null("BattleTrigger") as Area2D
 	player.set_physics_process(false)
 
 	_check(scene.y_sort_enabled and map.y_sort_enabled and map.get_node("Objects").y_sort_enabled,
@@ -37,6 +39,8 @@ func _run() -> void:
 		ground_below_player = ground_below_player and map.get_node("Ground_%d" % index).z_index < 0
 	_check(ground_below_player, "6 个地表层均绘制在玩家下方")
 	_check(player.global_position == ENTRY_POSITION, "玩家从南向石路内侧出生")
+	_check(battle_sensor != null and battle_sensor.collision_mask == 2,
+			"玩家具备仅感知敌人的战斗触发遮罩")
 	_check(obstacles.get_child_count() == 1189, "1135 棵树、52 块岩石和 2 块告示牌均有碰撞")
 	_check(bounds.get_child_count() == 5, "地图边界保留南侧两格宽入口缺口")
 
@@ -107,13 +111,34 @@ func _run() -> void:
 			and cam.limit_right == 3072 and cam.limit_bottom == 2048,
 			"全局相机保持 2x 并使用 3072×2048 边界")
 	await _verify_navigation_return(scene, player, obstacles, enemies)
+	game_data.mark_enemy_defeated("Enemy1_ForestMain_01")
+	scene.call("_remove_defeated_enemies")
+	await process_frame
+	_check(not scene.has_node("Enemies/Enemy1_ForestMain_01")
+			and scene.has_node("Enemies/Enemy1_ForestMain_02"),
+			"返回森林主地图后只移除已击败的具体敌人")
+	game_data.set_enemy_defeated("Enemy1_ForestMain_01", false)
+
+	var encountered := scene.get_node("Enemies/Enemy2_ForestMain_06") as CharacterBody2D
+	scene.call("_on_battle_trigger_area_entered", encountered.get_node("BattleTrigger"))
+	var sm := root.get_node_or_null("SceneManager")
+	var pending = sm.get("_pending_scene") if sm else ""
+	var pending_data: Dictionary = sm.get("_pending_data") if sm else {}
+	_check(pending is String and pending.contains("Battle")
+			and pending_data.get("enemy_key") == "Enemy2_ForestMain_06"
+			and pending_data.get("return_scene_path") == "res://scenes/ForestMain.tscn"
+			and pending_data.get("return_scene_name") == "ForestMain",
+			"触碰森林敌人时传入唯一键和 ForestMain 返回信息")
+	if sm:
+		sm.set("_pending_scene", "")
+		sm.set("_pending_data", {})
+	scene.set("_is_transitioning", false)
 
 	var gate: Area2D = scene.get_node("ForestClearingGate")
 	_check(gate.global_position == Vector2(2368, 2016) and not gate.has_node("Visual"), "南侧传送口透明且位置正确")
 	scene.call("_on_gate_sensor_area_entered", gate)
-	var sm := root.get_node_or_null("SceneManager")
-	var pending = sm.get("_pending_scene") if sm else ""
-	var pending_data: Dictionary = sm.get("_pending_data") if sm else {}
+	pending = sm.get("_pending_scene") if sm else ""
+	pending_data = sm.get("_pending_data") if sm else {}
 	_check(pending is String and pending.contains("ForestClearing") \
 			and pending_data.get("from", "") == "forest_main", "南侧传送口返回林间空地")
 
@@ -178,7 +203,7 @@ func _verify_enemies(scene: Node2D, player: CharacterBody2D, enemies: Array[Node
 	var chase_target := sample.get("_player") as Node2D
 	chase_target.global_position = Vector2(1600, 1655)
 	sample.call("_enter_chase")
-	for _frame in 3:
+	for _frame in 30:
 		await physics_frame
 		if is_equal_approx(sample.velocity.length(), 230.0):
 			break

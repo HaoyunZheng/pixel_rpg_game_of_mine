@@ -90,6 +90,7 @@ func _ready() -> void:
 	_test_inventory()
 	_test_equipment_battle_copy()
 	_test_battle_session_transactions()
+	_test_forest_battle_routing()
 	await _test_inventory_pagination()
 	_test_inventory_detail_layout()
 	await _test_inventory_lifecycle()
@@ -1320,6 +1321,48 @@ func _test_battle_session_transactions() -> void:
 		and gd.get_item_count(potion.id) == 2
 		and gd.get_party_member(0).hp == gd.get_party_member(0).max_hp
 		and gd.get_party_member(0).status_effects.is_empty())
+
+	var defeated_key := "Enemy1_ForestMain_01"
+	var surviving_key := "Enemy1_ForestMain_02"
+	gd.set_enemy_defeated(defeated_key, false)
+	gd.set_enemy_defeated(surviving_key, false)
+	var forest_victory: BattleSession = gd.create_battle_session([defeated_key] as Array[String])
+	_check("森林主地图胜利只标记当前唯一敌人",
+		gd.settle_battle(forest_victory, BattleSession.Outcome.VICTORY)
+		and gd.is_enemy_defeated(defeated_key)
+		and not gd.is_enemy_defeated(surviving_key))
+	gd.set_enemy_defeated(defeated_key, false)
+	var forest_flee: BattleSession = gd.create_battle_session([defeated_key] as Array[String])
+	_check("森林主地图逃跑不标记当前敌人",
+		gd.settle_battle(forest_flee, BattleSession.Outcome.FLED)
+		and not gd.is_enemy_defeated(defeated_key))
+
+func _test_forest_battle_routing() -> void:
+	var battle: Node = load("res://scenes/Battle.tscn").instantiate()
+	var supports_return_destination: bool = battle.has_method("_get_return_destination")
+	_check("战斗支持可选来源地图返回数据", supports_return_destination)
+	var hunter = battle.call("_lookup_enemy_stats", "Enemy1_ForestMain_12")
+	var mutant = battle.call("_lookup_enemy_stats", "Enemy2_ForestMain_12")
+	_check("森林唯一键按前缀解析猎手与变异兽资源",
+		hunter != null and hunter.resource_path.ends_with("enemy_hunter.tres")
+		and mutant != null and mutant.resource_path.ends_with("enemy_mutant.tres"))
+	if supports_return_destination:
+		var legacy: Dictionary = battle.call("_get_return_destination", true)
+		_check("Wilderness 未传来源数据时保持原返回值",
+			legacy.get("path") == "res://scenes/Wilderness.tscn"
+			and legacy.get("scene_name") == "Wilderness")
+		battle.set("_return_scene_path", "res://scenes/ForestMain.tscn")
+		battle.set("_return_scene_name", "ForestMain")
+		var victory: Dictionary = battle.call("_get_return_destination", true)
+		var fled: Dictionary = battle.call("_get_return_destination", false, true)
+		var defeat: Dictionary = battle.call("_get_return_destination", false)
+		_check("胜利和逃跑返回 ForestMain，失败返回 ForestClearing",
+			victory.get("path") == "res://scenes/ForestMain.tscn"
+			and victory.get("scene_name") == "ForestMain"
+			and fled == victory
+			and defeat.get("path") == "res://scenes/ForestClearing.tscn"
+			and defeat.get("scene_name") == "ForestClearing")
+	battle.free()
 
 func _test_inventory_pagination() -> void:
 	var gd: Node = get_node("/root/GameData")

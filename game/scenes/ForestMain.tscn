@@ -49,6 +49,13 @@ collision_mask = 4
 [node name="CollisionShape2D" type="CollisionShape2D" parent="Player/GateSensor"]
 shape = SubResource("RectangleShape2D_sensor")
 
+[node name="BattleTrigger" type="Area2D" parent="Player"]
+collision_layer = 0
+collision_mask = 2
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Player/BattleTrigger"]
+shape = SubResource("RectangleShape2D_sensor")
+
 [node name="ForestClearingGate" type="Area2D" parent="."]
 position = Vector2(2368, 2016)
 collision_layer = 4

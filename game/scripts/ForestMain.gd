@@ -2,6 +2,8 @@ extends ExplorableMap
 ## 森林主地图：负责玩家、返回入口和全局相机边界。
 
 const FOREST_CLEARING_SCENE := "res://scenes/ForestClearing.tscn"
+const FOREST_MAIN_SCENE := "res://scenes/ForestMain.tscn"
+const BATTLE_SCENE := "res://scenes/Battle.tscn"
 const MAP_RECT := Rect2(0, 0, 3072, 2048)
 const ENTRY_POSITION := Vector2(2368, 1888)
 const SOURCE_TO_BODY_OFFSET := Vector2(32, 44)
@@ -23,13 +25,16 @@ const MUTANT_SOURCES: Array[Vector2] = [
 
 @onready var _player: CharacterBody2D = $Player
 @onready var _gate_sensor: Area2D = $Player/GateSensor
+@onready var _battle_sensor: Area2D = $Player/BattleTrigger
 @onready var _enemies: Node2D = $Enemies
 
 
 func _ready() -> void:
 	Log.info("ForestMain", "森林主地图场景已加载")
 	_spawn_enemies()
+	_remove_defeated_enemies()
 	_gate_sensor.area_entered.connect(_on_gate_sensor_area_entered)
+	_battle_sensor.area_entered.connect(_on_battle_trigger_area_entered)
 	GameCamera.set_map(_player, MAP_RECT)
 
 
@@ -50,11 +55,34 @@ func _on_gate_sensor_area_entered(area: Area2D) -> void:
 	})
 
 
+func _on_battle_trigger_area_entered(area: Area2D) -> void:
+	var enemy := area.get_parent()
+	if _is_transitioning or area.name != "BattleTrigger" or enemy == null \
+			or not enemy.name.begins_with("Enemy"):
+		return
+	var enemy_key: String = enemy.get("encounter_key")
+	Log.info("ForestMain", "玩家触碰敌人 %s，进入战斗" % enemy_key)
+	_is_transitioning = true
+	SceneManager.change_scene(BATTLE_SCENE, {
+		"scene_name": "Battle",
+		"from": "forest_main",
+		"enemy_key": enemy_key,
+		"return_scene_path": FOREST_MAIN_SCENE,
+		"return_scene_name": "ForestMain",
+	})
+
+
 func _spawn_enemies() -> void:
 	for index in HUNTER_SOURCES.size():
 		_spawn_enemy(HUNTER_SOURCES[index], index + 1, true)
 	for index in MUTANT_SOURCES.size():
 		_spawn_enemy(MUTANT_SOURCES[index], index + 1, false)
+
+
+func _remove_defeated_enemies() -> void:
+	for enemy in _enemies.get_children():
+		if GameData.is_enemy_defeated(enemy.name):
+			enemy.queue_free()
 
 
 func _spawn_enemy(source_position: Vector2, index: int, is_hunter: bool) -> void:
