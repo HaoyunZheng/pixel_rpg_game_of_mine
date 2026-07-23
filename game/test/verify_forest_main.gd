@@ -26,6 +26,8 @@ func _run() -> void:
 	var map: Node2D = scene.get_node("Map")
 	var obstacles: StaticBody2D = map.get_node("Obstacles")
 	var bounds: StaticBody2D = map.get_node("Bounds")
+	var navigation_region: NavigationRegion2D = scene.get_node("NavigationRegion2D")
+	var enemies: Array[Node] = scene.get_node("Enemies").get_children()
 	player.set_physics_process(false)
 
 	_check(scene.y_sort_enabled and map.y_sort_enabled and map.get_node("Objects").y_sort_enabled,
@@ -57,6 +59,12 @@ func _run() -> void:
 	_check(_body_at(scene, player, Vector2(2200, 2028), bounds), "南边界非入口区域阻挡玩家")
 	_check(not _body_at(scene, player, Vector2(2368, 2028), bounds), "南侧入口缺口可通行")
 	_check(_body_at(scene, player, Vector2(16, 1024), bounds), "地图外边界阻挡玩家")
+	var navigation_polygon := navigation_region.navigation_polygon
+	_check(navigation_polygon != null and navigation_polygon.get_polygon_count() > 0 \
+			and navigation_polygon.agent_radius == 20.0 \
+			and navigation_polygon.baking_rect == Rect2(0, 0, 3072, 2048),
+			"导航网格已按 20px agent 半径离线烘焙")
+	await _verify_enemies(scene, player, enemies)
 
 	var signposts := scene.get_tree().get_nodes_in_group(&"signpost_npcs")
 	_check(signposts.size() == 2, "两块告示牌均实例化为 SignpostNPC")
@@ -98,6 +106,7 @@ func _run() -> void:
 			and cam.limit_left == 0 and cam.limit_top == 0 \
 			and cam.limit_right == 3072 and cam.limit_bottom == 2048,
 			"全局相机保持 2x 并使用 3072×2048 边界")
+	await _verify_navigation_return(scene, player, obstacles, enemies)
 
 	var gate: Area2D = scene.get_node("ForestClearingGate")
 	_check(gate.global_position == Vector2(2368, 2016) and not gate.has_node("Visual"), "南侧传送口透明且位置正确")
@@ -110,6 +119,138 @@ func _run() -> void:
 
 	print("[verify_forest_main] 结果：%s" % ("全部通过 ✅" if _fails == 0 else "%d 项失败 ❌" % _fails))
 	quit(_fails)
+
+
+func _verify_enemies(scene: Node2D, player: CharacterBody2D, enemies: Array[Node]) -> void:
+	var hunters := 0
+	var mutants := 0
+	var unique_keys := {}
+	var excluded_sources := [Vector2(2056, 1452), Vector2(2291, 1858)]
+	var all_configured := true
+	var all_agents := true
+	var all_visuals := true
+	var all_spawns_walkable := true
+	var all_patrol_targets_in_range := true
+	for enemy: CharacterBody2D in enemies:
+		var enemy_type: String = enemy.get_meta("enemy_type", "")
+		var is_hunter := enemy_type == "hunter"
+		hunters += 1 if is_hunter else 0
+		mutants += 0 if is_hunter else 1
+		var expected_prefix := "Enemy1_ForestMain_" if is_hunter else "Enemy2_ForestMain_"
+		var encounter_key: String = enemy.get("encounter_key")
+		unique_keys[encounter_key] = true
+		all_configured = all_configured \
+				and encounter_key == enemy.name and encounter_key.begins_with(expected_prefix) \
+				and enemy.get("move_speed") == (60.0 if is_hunter else 50.0) \
+				and enemy.get("patrol_radius") == 140.0 and enemy.get("wait_time") == 1.0 \
+				and enemy.get("detect_range") == 220.0 and enemy.get("chase_speed") == 230.0 \
+				and enemy.get("chase_duration") == 6.0 and enemy.get("chase_leash_radius") == 360.0
+		for excluded: Vector2 in excluded_sources:
+			all_configured = all_configured and not (enemy.get_meta("source_position") as Vector2).is_equal_approx(excluded)
+		var agent := enemy.get_node_or_null("NavigationAgent2D") as NavigationAgent2D
+		all_agents = all_agents and agent != null and agent.radius == 20.0 \
+				and not agent.avoidance_enabled
+		var collision := enemy.get_node("CollisionShape2D") as CollisionShape2D
+		var sprite := enemy.get_node("Sprite") as AnimatedSprite2D
+		var frame := sprite.sprite_frames.get_frame_texture(&"idle_down", 0)
+		var expected_frame_size := Vector2(64, 64) if is_hunter else Vector2(128, 128)
+		var expected_offset := Vector2(0, -12) if is_hunter else Vector2(0, -24)
+		all_visuals = all_visuals and collision.shape.size == Vector2(40, 40) \
+				and sprite.scale == Vector2.ONE and frame.get_size() == expected_frame_size \
+				and sprite.position == expected_offset
+		all_spawns_walkable = all_spawns_walkable and not _blocked_at(scene, player, enemy.global_position)
+		var origin: Vector2 = enemy.get("_origin")
+		var patrol_target: Vector2 = enemy.get("_patrol_target")
+		all_patrol_targets_in_range = all_patrol_targets_in_range \
+				and patrol_target.distance_to(origin) <= 140.01
+
+	_check(enemies.size() == 24 and hunters == 12 and mutants == 12,
+			"森林主地图恰有 12 个猎手和 12 个变异兽")
+	_check(unique_keys.size() == 24 and all_configured,
+			"24 个敌人使用稳定唯一键、约定速度与上一轮索敌参数")
+	_check(all_agents, "24 个敌人均使用 20px NavigationAgent2D 且未启用 avoidance")
+	_check(all_visuals, "猎手为 64px 帧，变异兽为 128px 帧且尺寸、偏移与碰撞统一")
+	_check(all_spawns_walkable, "24 个敌人的示意位置均调整到可行走落脚点")
+	_check(all_patrol_targets_in_range, "所有初始巡逻目标均位于 140px 放置点半径内")
+
+	var sample := scene.get_node("Enemies/Enemy1_ForestMain_11") as CharacterBody2D
+	var origin: Vector2 = sample.get("_origin")
+	var chase_target := sample.get("_player") as Node2D
+	chase_target.global_position = Vector2(1600, 1655)
+	sample.call("_enter_chase")
+	for _frame in 3:
+		await physics_frame
+		if is_equal_approx(sample.velocity.length(), 230.0):
+			break
+	_check(sample.get("_state") == 1 and is_equal_approx(sample.velocity.length(), 230.0) \
+			and sample.get("_path_refresh_timer") > 0.0 \
+			and sample.get("_path_refresh_timer") <= 0.25,
+			"玩家进入 220px 范围时敌人以 230px/s 追逐并按 0.25 秒刷新路径")
+	sample.set("_chase_elapsed", 5.99)
+	sample.call("_update_chase", 0.02)
+	var timed_out: bool = sample.get("_state") == 2
+	sample.set("_state", 1)
+	sample.global_position = origin + Vector2(361, 0)
+	sample.call("_update_chase", 0.0)
+	_check(timed_out and sample.get("_state") == 2,
+			"追逐达到 6 秒或离放置点超过 360px 后转为归位")
+	sample.global_position = origin
+	sample.set("_state", 0)
+
+
+func _verify_navigation_return(scene: Node2D, player: CharacterBody2D,
+		obstacles: StaticBody2D, enemies: Array[Node]) -> void:
+	for enemy: CharacterBody2D in enemies:
+		enemy.set_physics_process(false)
+		enemy.collision_layer = 0
+		enemy.collision_mask = 0
+	player.collision_layer = 0
+	player.collision_mask = 0
+
+	var route := _find_detour_route(scene, player, obstacles)
+	_check(not route.is_empty(), "导航网格能为代表树石生成绕行路径")
+	if route.is_empty():
+		return
+	var sample := enemies[0] as CharacterBody2D
+	sample.global_position = route[0]
+	sample.set("_origin", route[1])
+	sample.set("_state", 2)
+	sample.set("_path_refresh_timer", 0.0)
+	sample.set("_player", null)
+	sample.collision_mask = 1
+	sample.set_physics_process(true)
+	var returned := false
+	for _frame in 300:
+		await physics_frame
+		if sample.global_position.distance_to(route[1]) <= 2.1 and sample.get("_state") == 0:
+			returned = true
+			break
+	sample.set_physics_process(false)
+	_check(returned, "至少一个敌人能沿导航路径绕过树石返回放置点")
+
+
+func _find_detour_route(scene: Node2D, player: CharacterBody2D,
+		obstacles: StaticBody2D) -> Array[Vector2]:
+	var navigation_map := scene.get_world_2d().navigation_map
+	for collision: CollisionShape2D in obstacles.get_children():
+		var rectangle := collision.shape as RectangleShape2D
+		if rectangle == null:
+			continue
+		for axis: Vector2 in [Vector2.RIGHT, Vector2.DOWN]:
+			var clearance: float = rectangle.size.dot(axis.abs()) * 0.5 + 64.0
+			var start: Vector2 = collision.global_position - axis * clearance
+			var finish: Vector2 = collision.global_position + axis * clearance
+			if _blocked_at(scene, player, start) or _blocked_at(scene, player, finish):
+				continue
+			var path := NavigationServer2D.map_get_path(navigation_map, start, finish, true)
+			if path.size() < 3:
+				continue
+			var path_length := 0.0
+			for index in path.size() - 1:
+				path_length += path[index].distance_to(path[index + 1])
+			if path_length > start.distance_to(finish) + 8.0:
+				return [start, finish]
+	return []
 
 
 func _find_collision(obstacles: StaticBody2D, kind: String) -> CollisionShape2D:
