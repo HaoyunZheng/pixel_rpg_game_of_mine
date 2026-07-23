@@ -7,7 +7,7 @@ extends CharacterBody2D
 @export var patrol_radius: float = 140.0
 @export var wait_time: float = 1.0
 @export var detect_range: float = 220.0
-@export var chase_speed: float = 230.0
+@export var chase_speed: float = 200.0
 @export var chase_duration: float = 6.0
 @export var chase_leash_radius: float = 360.0
 @export var encounter_key: String = ""
@@ -101,7 +101,7 @@ func _update_return() -> void:
 		_wait_timer = wait_time
 		velocity = Vector2.ZERO
 		return
-	_move_towards(_origin, chase_speed)
+	_move_towards(_origin, move_speed)
 
 func _can_detect_player() -> bool:
 	return is_instance_valid(_player) \
@@ -117,7 +117,7 @@ func _enter_chase() -> void:
 func _enter_return() -> void:
 	_state = State.RETURN
 	_path_refresh_timer = 0.0
-	_move_towards(_origin, chase_speed)
+	_move_towards(_origin, move_speed)
 
 func _choose_patrol_target() -> void:
 	var offset := Vector2.from_angle(_rng.randf_range(0.0, TAU)) \

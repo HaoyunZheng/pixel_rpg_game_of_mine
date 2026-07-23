@@ -168,7 +168,7 @@ func _verify_enemies(scene: Node2D, player: CharacterBody2D, enemies: Array[Node
 				and encounter_key == enemy.name and encounter_key.begins_with(expected_prefix) \
 				and enemy.get("move_speed") == (60.0 if is_hunter else 50.0) \
 				and enemy.get("patrol_radius") == 140.0 and enemy.get("wait_time") == 1.0 \
-				and enemy.get("detect_range") == 220.0 and enemy.get("chase_speed") == 230.0 \
+				and enemy.get("detect_range") == 220.0 and enemy.get("chase_speed") == 200.0 \
 				and enemy.get("chase_duration") == 6.0 and enemy.get("chase_leash_radius") == 360.0
 		for excluded: Vector2 in excluded_sources:
 			all_configured = all_configured and not (enemy.get_meta("source_position") as Vector2).is_equal_approx(excluded)
@@ -205,20 +205,21 @@ func _verify_enemies(scene: Node2D, player: CharacterBody2D, enemies: Array[Node
 	sample.call("_enter_chase")
 	for _frame in 30:
 		await physics_frame
-		if is_equal_approx(sample.velocity.length(), 230.0):
+		if is_equal_approx(sample.velocity.length(), 200.0):
 			break
-	_check(sample.get("_state") == 1 and is_equal_approx(sample.velocity.length(), 230.0) \
+	_check(sample.get("_state") == 1 and is_equal_approx(sample.velocity.length(), 200.0) \
 			and sample.get("_path_refresh_timer") > 0.0 \
 			and sample.get("_path_refresh_timer") <= 0.25,
-			"玩家进入 220px 范围时敌人以 230px/s 追逐并按 0.25 秒刷新路径")
+			"玩家进入 220px 范围时敌人以 200px/s 追逐并按 0.25 秒刷新路径")
 	sample.set("_chase_elapsed", 5.99)
 	sample.call("_update_chase", 0.02)
 	var timed_out: bool = sample.get("_state") == 2
 	sample.set("_state", 1)
 	sample.global_position = origin + Vector2(361, 0)
 	sample.call("_update_chase", 0.0)
-	_check(timed_out and sample.get("_state") == 2,
-			"追逐达到 6 秒或离放置点超过 360px 后转为归位")
+	_check(timed_out and sample.get("_state") == 2 \
+			and is_equal_approx(sample.velocity.length(), sample.move_speed),
+			"追逐达到 6 秒或超过 360px 后按当前行走速度归位")
 	sample.global_position = origin
 	sample.set("_state", 0)
 

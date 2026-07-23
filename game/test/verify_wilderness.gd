@@ -64,11 +64,11 @@ func _run() -> void:
 		push_error("[verify] ❌ 敌人未在 140px 圆内巡逻")
 		fails += 1
 
-	# E: 进入 220px 感知圈后以 230px/s 追逐；追逐超时后改为返回放置点
+	# E: 进入 220px 感知圈后以 200px/s 追逐；追逐超时后按当前行走速度返回放置点
 	player.global_position = enemy1.global_position + Vector2(100, 0)
 	await physics_frame
-	if is_equal_approx(enemy1.velocity.length(), 230.0) and enemy1.velocity.x > 0.0:
-		print("[verify] ✅ 敌人追逐：感知圈内以 230px/s 追向玩家")
+	if is_equal_approx(enemy1.velocity.length(), 200.0) and enemy1.velocity.x > 0.0:
+		print("[verify] ✅ 敌人追逐：感知圈内以 200px/s 追向玩家")
 	else:
 		push_error("[verify] ❌ 敌人未以固定速度追逐：velocity=%s" % enemy1.velocity)
 		fails += 1
@@ -76,8 +76,9 @@ func _run() -> void:
 	enemy1.set("_chase_elapsed", 6.0)
 	await physics_frame
 	var enemy_origin: Vector2 = enemy1.get("_origin")
-	if enemy1.velocity.dot(enemy1.global_position.direction_to(enemy_origin)) > 0.0:
-		print("[verify] ✅ 敌人归位：追逐超时后返回放置点")
+	if is_equal_approx(enemy1.velocity.length(), enemy1.move_speed) \
+			and enemy1.velocity.dot(enemy1.global_position.direction_to(enemy_origin)) > 0.0:
+		print("[verify] ✅ 敌人归位：按当前行走速度返回放置点")
 	else:
 		push_error("[verify] ❌ 敌人追逐超时后未归位")
 		fails += 1
