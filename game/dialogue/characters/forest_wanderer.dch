@@ -19,7 +19,7 @@
 &"portraits": {
 "expression_01": {
 "export_overrides": {
-"image": "res://assets/derived/ghost_expressions/portraits/expression_01.tres"
+"image": "res://assets/derived/ghost_expressions/dialogue_portraits/expression_01.png"
 },
 "mirror": false,
 "offset": Vector2(0, 0),
@@ -28,7 +28,7 @@
 },
 "expression_02": {
 "export_overrides": {
-"image": "res://assets/derived/ghost_expressions/portraits/expression_02.tres"
+"image": "res://assets/derived/ghost_expressions/dialogue_portraits/expression_02.png"
 },
 "mirror": false,
 "offset": Vector2(0, 0),
@@ -37,7 +37,7 @@
 },
 "expression_03": {
 "export_overrides": {
-"image": "res://assets/derived/ghost_expressions/portraits/expression_03.tres"
+"image": "res://assets/derived/ghost_expressions/dialogue_portraits/expression_03.png"
 },
 "mirror": false,
 "offset": Vector2(0, 0),
@@ -46,7 +46,7 @@
 },
 "expression_04": {
 "export_overrides": {
-"image": "res://assets/derived/ghost_expressions/portraits/expression_04.tres"
+"image": "res://assets/derived/ghost_expressions/dialogue_portraits/expression_04.png"
 },
 "mirror": false,
 "offset": Vector2(0, 0),
@@ -55,7 +55,7 @@
 },
 "expression_05": {
 "export_overrides": {
-"image": "res://assets/derived/ghost_expressions/portraits/expression_05.tres"
+"image": "res://assets/derived/ghost_expressions/dialogue_portraits/expression_05.png"
 },
 "mirror": false,
 "offset": Vector2(0, 0),
@@ -64,7 +64,7 @@
 },
 "expression_06": {
 "export_overrides": {
-"image": "res://assets/derived/ghost_expressions/portraits/expression_06.tres"
+"image": "res://assets/derived/ghost_expressions/dialogue_portraits/expression_06.png"
 },
 "mirror": false,
 "offset": Vector2(0, 0),
@@ -73,7 +73,7 @@
 },
 "expression_07": {
 "export_overrides": {
-"image": "res://assets/derived/ghost_expressions/portraits/expression_07.tres"
+"image": "res://assets/derived/ghost_expressions/dialogue_portraits/expression_07.png"
 },
 "mirror": false,
 "offset": Vector2(0, 0),
@@ -82,7 +82,7 @@
 },
 "expression_08": {
 "export_overrides": {
-"image": "res://assets/derived/ghost_expressions/portraits/expression_08.tres"
+"image": "res://assets/derived/ghost_expressions/dialogue_portraits/expression_08.png"
 },
 "mirror": false,
 "offset": Vector2(0, 0),

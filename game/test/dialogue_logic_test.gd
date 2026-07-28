@@ -94,11 +94,19 @@ func _test_sample_resources_and_inputs() -> void:
 		var expression := "expression_%02d" % index
 		var portrait_info: Dictionary = character.portraits.get(expression, {})
 		var image_path := str(portrait_info.get("export_overrides", {}).get("image", ""))
-		var texture := load(image_path) as AtlasTexture if ResourceLoader.exists(image_path) else null
-		_check("%s 使用紫底抠图且尺寸统一" % expression,
+		var expected_path := "res://assets/derived/ghost_expressions/dialogue_portraits/%s.png" % expression
+		var texture := load(image_path) as Texture2D if ResourceLoader.exists(image_path) else null
+		_check("%s 直接使用独立紫底抠图且尺寸统一" % expression,
 			texture != null
 			and texture.get_size() == Vector2(360, 336)
-			and texture.atlas.resource_path.ends_with("ghost_expression_sheet_cutout.png"))
+			and image_path == expected_path)
+	var normal_image := (load(
+		"res://assets/derived/ghost_expressions/dialogue_portraits/expression_02.png"
+	) as Texture2D).get_image()
+	_check("紫底抠图保留蘑菇下沿与眼睛颜色",
+		normal_image.get_pixel(180, 95).a == 1.0
+		and normal_image.get_pixel(95, 195).a == 1.0
+		and normal_image.get_pixel(0, 0).a == 0.0)
 	_check("Z 可推进和确认选择", _action_has_key("ui_accept", KEY_Z))
 	_check("W/上方向可向上选择", _action_has_key("ui_up", KEY_W) and _action_has_key("ui_up", KEY_UP))
 	_check("S/下方向可向下选择", _action_has_key("ui_down", KEY_S) and _action_has_key("ui_down", KEY_DOWN))
