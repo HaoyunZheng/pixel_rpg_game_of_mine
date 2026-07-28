@@ -1,10 +1,11 @@
-[gd_scene load_steps=10 format=3]
+[gd_scene load_steps=11 format=3]
 
 [ext_resource type="PackedScene" path="res://scenes/ForestClearingMap.tscn" id="1_map"]
 [ext_resource type="Script" path="res://scripts/ForestClearing.gd" id="2_forest"]
 [ext_resource type="Script" path="res://scripts/characters/PlayerController.gd" id="3_player"]
 [ext_resource type="SpriteFrames" path="res://assets/sprites/hooded_player/hooded_player_frames.tres" id="4_player_frames"]
 [ext_resource type="Script" path="res://scripts/characters/InteractableNPC.gd" id="5_npc"]
+[ext_resource type="SpriteFrames" path="res://assets/derived/ghost_npc/ghost_idle_frames.tres" id="6_ghost_frames"]
 
 [sub_resource type="CircleShape2D" id="CircleShape2D_npc"]
 radius = 56.0
@@ -85,12 +86,11 @@ dialogue_id = "forest_wanderer"
 [node name="CollisionShape2D" type="CollisionShape2D" parent="Wanderer"]
 shape = SubResource("CircleShape2D_npc")
 
-[node name="Visual" type="ColorRect" parent="Wanderer"]
-offset_left = -16.0
-offset_top = -24.0
-offset_right = 16.0
-offset_bottom = 16.0
-color = Color(0.27, 0.62, 0.34, 1)
+[node name="Visual" type="AnimatedSprite2D" parent="Wanderer"]
+position = Vector2(0, -12)
+sprite_frames = ExtResource("6_ghost_frames")
+animation = &"idle"
+autoplay = "idle"
 
 [node name="Prompt" type="Label" parent="Wanderer"]
 offset_left = -24.0
