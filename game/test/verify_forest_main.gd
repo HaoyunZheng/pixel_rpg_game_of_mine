@@ -101,6 +101,14 @@ func _run() -> void:
 	var state_info: Dictionary = dialogic.get("current_state_info")
 	_check(dm.call("is_active") and "北行通往旧猎径" in str(state_info.get("text", "")),
 			"按 Z 可通过 DialogueManager 显示木牌信息")
+	var paused_enemy := scene.get_node("Enemies/Enemy1_ForestMain_01") as CharacterBody2D
+	paused_enemy.set("_state", 1)
+	paused_enemy.set("_player", player)
+	paused_enemy.set("_chase_elapsed", 0.0)
+	player.global_position = paused_enemy.global_position + Vector2(100, 0)
+	paused_enemy.call("_physics_process", 0.5)
+	_check(paused_enemy.velocity == Vector2.ZERO and paused_enemy.get("_chase_elapsed") == 0.0,
+			"告示牌或 NPC 对话期间敌人停止移动且暂停 AI 计时")
 	await dialogic.call("end_timeline", true)
 	player.global_position = ENTRY_POSITION
 	await physics_frame

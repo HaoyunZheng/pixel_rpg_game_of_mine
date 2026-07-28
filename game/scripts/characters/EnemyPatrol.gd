@@ -50,6 +50,11 @@ func _ready() -> void:
 	_choose_patrol_target()
 
 func _physics_process(delta: float) -> void:
+	if DialogueManager.is_active():
+		velocity = Vector2.ZERO
+		move_and_slide()
+		return
+
 	_path_refresh_timer -= delta
 	match _state:
 		State.PATROL:
