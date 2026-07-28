@@ -88,6 +88,7 @@ shape = SubResource("CircleShape2D_npc")
 
 [node name="Visual" type="AnimatedSprite2D" parent="Wanderer"]
 position = Vector2(0, -12)
+scale = Vector2(0.6, 0.6)
 sprite_frames = ExtResource("6_ghost_frames")
 animation = &"idle"
 autoplay = "idle"
