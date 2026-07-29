@@ -14,6 +14,7 @@ func _run() -> void:
 	root.add_child(scene)
 	var player: CharacterBody2D = scene.get_node("Player")
 	player.set_physics_process(false)
+	player.get_node("GateSensor").monitoring = false
 	var cam: Camera2D = root.get_node("GameCamera")  # 全局持久相机
 	DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path(OUT))
 
@@ -21,7 +22,7 @@ func _run() -> void:
 		{"name": "spawn", "pos": Vector2(736, 480)},
 		{"name": "gate_right_edge", "pos": Vector2(1248, 480)},
 		{"name": "left_edge", "pos": Vector2(96, 480)},
-		{"name": "top_edge", "pos": Vector2(736, 96)},
+		{"name": "north_gate", "pos": Vector2(768, 96)},
 	]
 
 	for _i in 10:

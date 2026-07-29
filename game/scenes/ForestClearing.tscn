@@ -1,4 +1,4 @@
-[gd_scene load_steps=11 format=3]
+[gd_scene load_steps=12 format=3]
 
 [ext_resource type="PackedScene" path="res://scenes/ForestClearingMap.tscn" id="1_map"]
 [ext_resource type="Script" path="res://scripts/ForestClearing.gd" id="2_forest"]
@@ -18,6 +18,9 @@ size = Vector2(44, 44)
 
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_gate"]
 size = Vector2(56, 56)
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_forest_main_gate"]
+size = Vector2(128, 64)
 
 [node name="ForestClearing" type="Node2D"]
 script = ExtResource("2_forest")
@@ -75,6 +78,14 @@ horizontal_alignment = 1
 vertical_alignment = 1
 text = "→
 野外"
+
+[node name="ForestMainGate" type="Area2D" parent="."]
+position = Vector2(768, 32)
+collision_layer = 4
+collision_mask = 0
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="ForestMainGate"]
+shape = SubResource("RectangleShape2D_forest_main_gate")
 
 [node name="Wanderer" type="Area2D" parent="."]
 position = Vector2(900, 480)
