@@ -1,18 +1,45 @@
 if {story.branches.forest_wanderer} == "unseen":
-	forest_wanderer (expression_02): 这片空地以前是有人住的，现在只剩下被风啃过的石阶。
-	forest_wanderer (expression_04): 你也是被梦催着来的吧。我看得出那种眼神。
-	forest_wanderer (expression_03): 往里走，路会越来越不像路。你打算怎么办？
-	- 先听听他的警告。
-		set {story.flags.met_forest_wanderer} = true
-		set {story.branches.forest_wanderer} = "cautious"
-		forest_wanderer (expression_08): 那就记住：看见没有影子的火，立刻回头。
-	- 我会继续前进。
-		set {story.flags.met_forest_wanderer} = true
-		set {story.branches.forest_wanderer} = "defiant"
-		forest_wanderer (expression_07): 我劝不住你。至少别把勇气错当成不死。
-elif {story.branches.forest_wanderer} == "cautious":
-	forest_wanderer (expression_02): 你还记得我的警告。谨慎不是退缩，活下来才有下一步。
+	forest_wanderer (expression_02): 呜哇！
+	forest_wanderer (expression_03): 不要攻击我！
+	forest_wanderer (expression_04): 不然……
+	forest_wanderer (expression_05): 不然我就要顶你了！
+	forest_wanderer (expression_05): 我的头顶撞人可是很痛的哦！
+	forest_wanderer (expression_03): ……
+	forest_wanderer (expression_03): 嗯……？
+	forest_wanderer (expression_02): 你好像跟其他那些带兜帽的家伙……不太一样？
+	forest_wanderer (expression_03): ……
+	forest_wanderer (expression_01): 好吧！\
+	乌迪决定相信你！
+	set {story.flags.met_forest_wanderer} = true
+	set {story.branches.forest_wanderer} = "greeted"
 else:
-	forest_wanderer (expression_05): 还是那副不会回头的眼神。希望你已经学会承担代价。
-if GameData.is_enemy_defeated("Enemy1"):
-	forest_wanderer (expression_01): 荒野里的猎手已经倒下了。那条路暂时安静，但不会永远安静。
+	- 对话
+		forest_wanderer (expression_02): 嗯？
+		forest_wanderer (expression_02): 乌迪在这里已经很久很久了
+		forest_wanderer (expression_02): 乌迪也不清楚自己是什么时候开始在这的
+		forest_wanderer (expression_02): 这里的树一直都是这样\
+		到了秋天的时候也不会掉叶子
+		forest_wanderer (expression_02): ……
+		forest_wanderer (expression_02): 在这里游荡的时候要小心哦
+		forest_wanderer (expression_01): 乌迪会为你加油的！
+	- 丢失的东西
+		forest_wanderer (expression_02): 这是一片很大的森林……
+		forest_wanderer (expression_03): 乌迪有很重要的东西丢在了森林里
+		forest_wanderer (expression_03): 但乌迪想不起来是什么了……
+		forest_wanderer (expression_02): 可能那些带着兜帽的猎手会知道？
+		forest_wanderer (expression_02): 但是他们看起来好可怕！\
+		乌迪不敢找他们要
+	- 头上的蘑菇
+		forest_wanderer (expression_02): ……
+		forest_wanderer (expression_05): ……
+		forest_wanderer (expression_06): ……？
+		forest_wanderer (expression_05): 怎么啦，一直看着乌迪？
+		forest_wanderer (expression_02): 哦？头上的这个蘑菇吗？
+		forest_wanderer (expression_05): 哼哼……这可是乌迪的武器哦
+		forest_wanderer (expression_02): 每次只要下雨的时候就会长出来
+		forest_wanderer (expression_04): 但是因为这里一直在下雨\
+		所以头上的蘑菇一直都在……
+		forest_wanderer (expression_05): ……应该蛮好吃的吧？
+		forest_wanderer (expression_04): 有时候睡觉的时候，会吸引游荡的野兽……
+		forest_wanderer (expression_05): 然后乌迪就会把它们顶飞出去！
+		forest_wanderer (expression_01): 哇哈哈！

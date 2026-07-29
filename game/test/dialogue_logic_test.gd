@@ -127,35 +127,27 @@ func _test_sample_branch_loop() -> void:
 	Dialogic.Text.text_started.connect(_on_text_started)
 	Dialogic.Choices.question_shown.connect(_on_question_shown)
 	Dialogic.VAR.reset()
-	GameData.defeated_enemies.erase("Enemy1")
 
-	var first_cautious := await _play_sample(1)
-	_check("首次对话显示两个选择", first_cautious and _question.get("choices", []).size() == 2)
-	_check("谨慎选择记录相遇状态", Dialogic.VAR.get_variable("story.flags.met_forest_wanderer") == true)
-	_check("谨慎选择写入 cautious 分支", Dialogic.VAR.get_variable("story.branches.forest_wanderer") == "cautious")
-	_check("谨慎选择进入对应回应", _texts.any(func(text: String) -> bool: return "看见没有影子的火" in text))
+	var first_greeting := await _play_sample()
+	_check("首次问候可结束", first_greeting)
+	_check("首次问候不显示日常选项", _question.is_empty())
+	_check("首次问候包含乌迪决定相信玩家", _texts.any(func(text: String) -> bool: return "乌迪决定相信你" in text))
+	_check("首次问候记录相遇状态", Dialogic.VAR.get_variable("story.flags.met_forest_wanderer") == true)
+	_check("首次问候写入 greeted 分支", Dialogic.VAR.get_variable("story.branches.forest_wanderer") == "greeted")
 
-	var cautious_repeat := await _play_sample()
-	_check("谨慎重复分支可结束", cautious_repeat)
-	_check("谨慎重复分支命中", _texts.any(func(text: String) -> bool: return "谨慎不是退缩" in text))
-	_check("重复分支不再显示首次选择", _question.is_empty())
+	var normal_chat := await _play_sample(1)
+	_check("再次对话显示三个日常选项", normal_chat and _question.get("choices", []).size() == 3)
+	_check("日常对话分支可进入", _texts.any(func(text: String) -> bool: return "乌迪在这里已经很久很久了" in text))
+	_check("再次对话不再显示首次问候", not _texts.any(func(text: String) -> bool: return "不要攻击我" in text))
 
-	Dialogic.VAR.reset()
-	var first_defiant := await _play_sample(2)
-	_check("强行前进选择可结束", first_defiant)
-	_check("强行前进写入 defiant 分支", Dialogic.VAR.get_variable("story.branches.forest_wanderer") == "defiant")
-	_check("强行前进进入对应回应", _texts.any(func(text: String) -> bool: return "勇气错当成不死" in text))
+	var lost_item_chat := await _play_sample(2)
+	_check("丢失的东西分支可进入", lost_item_chat and _texts.any(
+		func(text: String) -> bool: return "很重要的东西丢在了森林里" in text))
 
-	var defiant_repeat := await _play_sample()
-	_check("强行前进重复分支可结束", defiant_repeat)
-	_check("强行前进重复分支命中", _texts.any(func(text: String) -> bool: return "承担代价" in text))
+	var mushroom_chat := await _play_sample(3)
+	_check("头上的蘑菇分支可进入", mushroom_chat and _texts.any(
+		func(text: String) -> bool: return "这可是乌迪的武器" in text))
 
-	GameData.mark_enemy_defeated("Enemy1")
-	var enemy_condition := await _play_sample()
-	_check("Enemy1 世界条件分支可结束", enemy_condition)
-	_check("Timeline 读取 Enemy1 世界事实", _texts.any(func(text: String) -> bool: return "荒野里的猎手已经倒下" in text))
-
-	GameData.defeated_enemies.erase("Enemy1")
 	Dialogic.Text.text_started.disconnect(_on_text_started)
 	Dialogic.Choices.question_shown.disconnect(_on_question_shown)
 
