@@ -11,8 +11,8 @@
 "suffix": ""
 },
 &"default_portrait": "expression_02",
-&"description": "林间空地的流浪者",
-&"display_name": "流浪者",
+&"description": "林间空地的小幽灵",
+&"display_name": "乌迪",
 &"mirror": false,
 &"nicknames": [""],
 &"offset": Vector2(0, 0),
