@@ -83,6 +83,8 @@ func _test_cross_scene_persistence() -> void:
 	await get_tree().process_frame
 
 func _test_sample_resources_and_inputs() -> void:
+	_check("对话表情切换不使用渐变",
+		ProjectSettings.get_setting("dialogic/animations/cross_fade_default_length") == 0.0)
 	var character := load("res://dialogue/characters/forest_wanderer.dch")
 	var style := load("res://dialogue/styles/project_dialogue_style.tres")
 	_check("流浪者 Character 可加载", character is DialogicCharacter)
@@ -107,6 +109,10 @@ func _test_sample_resources_and_inputs() -> void:
 		normal_image.get_pixel(180, 95).a == 1.0
 		and normal_image.get_pixel(95, 195).a == 1.0
 		and normal_image.get_pixel(0, 0).a == 0.0)
+	var panic_image := (load(
+		"res://assets/derived/ghost_expressions/dialogue_portraits/expression_03.png"
+	) as Texture2D).get_image()
+	_check("慌张表情已移除头顶汗珠", panic_image.get_pixel(300, 110).a == 0.0)
 	_check("Z 可推进和确认选择", _action_has_key("ui_accept", KEY_Z))
 	_check("W/上方向可向上选择", _action_has_key("ui_up", KEY_W) and _action_has_key("ui_up", KEY_UP))
 	_check("S/下方向可向下选择", _action_has_key("ui_down", KEY_S) and _action_has_key("ui_down", KEY_DOWN))

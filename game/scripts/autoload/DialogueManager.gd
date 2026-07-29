@@ -19,6 +19,10 @@ const REGISTRY: Dictionary = {
 const TYPEWRITER_SFX: AudioStreamWAV = preload("res://assets/derived/audio/sfx/interface/speaking.wav")
 
 var _active_id: String = ""
+
+func _ready() -> void:
+	ProjectSettings.set_setting("dialogic/animations/cross_fade_default_length", 0.0)
+
 ## 是否有对话正在进行（场景层据此互斥：屏蔽移动 / 二次触发）。
 func is_active() -> bool:
 	return _active_id != ""
