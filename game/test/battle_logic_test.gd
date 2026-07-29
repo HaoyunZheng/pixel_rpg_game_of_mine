@@ -24,6 +24,7 @@ class FleeBattleController:
 	var wait_for_intent_preview: bool = false
 	var last_frozen_order: Array = []
 	var timing_summaries: Array[Dictionary] = []
+	var inventory_state := InventoryState.new()
 
 	func get_party_units() -> Array:
 		return party
@@ -35,6 +36,12 @@ class FleeBattleController:
 		var units: Array = party.duplicate()
 		units.append_array(enemies)
 		return units
+
+	func get_inventory_slots() -> Array[InventoryState.Slot]:
+		return inventory_state.get_slots()
+
+	func consume_item(item_id: String) -> bool:
+		return inventory_state.remove_item(item_id, 1)
 
 	func freeze_enemy_intents(turn_order: Array) -> void:
 		freeze_count += 1
@@ -82,8 +89,12 @@ func _ready() -> void:
 	_test_flee_turn_flow()
 	_test_inventory()
 	_test_equipment_battle_copy()
-	_test_inventory_pagination()
+	_test_battle_session_transactions()
+	_test_forest_battle_routing()
+	await _test_inventory_pagination()
 	_test_inventory_detail_layout()
+	await _test_inventory_lifecycle()
+	await _cleanup_test_nodes()
 	print("[test] 结果：%s" % ("全部通过 ✅" if _fails == 0 else "%d 项失败 ❌" % _fails))
 	get_tree().quit(_fails)
 
@@ -109,6 +120,18 @@ func _make_skill(power: int, dmg_type: SkillData.DamageType) -> SkillData:
 	s.damage_type = dmg_type
 	s.skill_type = SkillData.SkillType.ATTACK
 	return s
+
+func _cleanup_test_nodes() -> void:
+	for child: Node in get_children():
+		child.queue_free()
+	await get_tree().process_frame
+	await get_tree().process_frame
+
+func _clear_gamedata_inventory(gd: Node) -> void:
+	for slot: InventoryState.Slot in gd.get_inventory_slots():
+		gd.remove_item(slot.item.id, slot.count)
+	for slot: String in InventoryState.EQUIPMENT_SLOTS:
+		gd.unequip_item(slot)
 
 func _test_damage_calculator() -> void:
 	var calc := DamageCalculator.new()
@@ -283,15 +306,31 @@ func _test_right_side_attack_origins_and_barrage() -> void:
 			"subtype": EnemyAI.BARRAGE_STRAIGHT, "seed": 71,
 			"bullet_count": 36, "hit_count": 3,
 		})
+	var query_id: int = straight._hazard_query.get_instance_id()
+	straight._hazard_hits_player()
+	_check("连续物理判定复用同一查询参数",
+		straight._hazard_query.get_instance_id() == query_id)
 	var child_count: int = straight.get_child_count()
 	straight._advance_phase()
 	_check("慢速弹幕可从预警态无错切入活跃态",
 		straight._phase == straight.Phase.ACTIVE)
+	straight._phase_elapsed = 0.0
+	straight._update_barrage(0.0)
+	var first_aim: Vector2 = straight._enemy_origin.direction_to(straight._player_position)
+	var first_velocity: Vector2 = straight._bullet_base_velocities[0]
+	straight._player_position += Vector2(0.0, -100.0)
 	straight._phase_elapsed = 0.21
-	straight._update_barrage(0.01)
+	straight._update_barrage(0.0)
 	var straight_leftward: bool = true
 	for index in range(straight._bullets_spawned):
 		straight_leftward = straight_leftward and straight._bullet_velocities[index].x < 0.0
+	var second_aim: Vector2 = straight._enemy_origin.direction_to(straight._player_position)
+	_check("弹幕生成时瞄准主角并仅影响后续弹体",
+		first_velocity == straight._bullet_base_velocities[0]
+		and absf(first_aim.angle_to(first_velocity.normalized()))
+			<= TIMING_CHECK.BARRAGE_AIM_SPREAD_RADIANS + 0.0001
+		and absf(second_aim.angle_to(straight._bullet_base_velocities[1].normalized()))
+			<= TIMING_CHECK.BARRAGE_AIM_SPREAD_RADIANS + 0.0001)
 	_check("直线慢速弹幕按 36 发上限复用紧凑数组且全部向左",
 		straight._bullet_positions.size() == 36 and straight._bullets_spawned == 3
 		and straight_leftward and straight.get_child_count() == child_count)
@@ -319,11 +358,16 @@ func _test_right_side_attack_origins_and_barrage() -> void:
 		timing._update_barrage(0.23)
 	_check("相同种子的伪蒙特卡洛弹幕可复现且保持左移",
 		random_a._bullet_positions == random_b._bullet_positions
+		and random_a._bullet_base_velocities == random_b._bullet_base_velocities
 		and random_a._bullet_velocities == random_b._bullet_velocities
 		and random_a._bullet_velocities[0].x < 0.0
 		and not is_equal_approx(
 			TIMING_CHECK.barrage_vertical_speed(20260718, 0, 0, 110.0),
 			TIMING_CHECK.barrage_vertical_speed(20260718, 0, 1, 110.0)))
+	var monte_carlo_base: Vector2 = random_a._bullet_base_velocities[0]
+	_check("伪蒙特卡洛游走不覆盖生成时的基础瞄准速度",
+		is_equal_approx(random_a._bullet_velocities[0].dot(monte_carlo_base.normalized()),
+			monte_carlo_base.length()))
 	_check("慢速弹幕使用扫掠圆判定避免大 delta 穿透",
 		TIMING_CHECK.swept_circle_hits(
 			Vector2(100.0, 0.0), Vector2(-100.0, 0.0), Vector2.ZERO, 18.0))
@@ -1065,12 +1109,10 @@ func _test_enemy_damage_waits_for_timing() -> void:
 		and summary.get("outcome", TIMING_RULES.Outcome.PERFECT) == TIMING_RULES.Outcome.FAILURE
 		and summary.get("damage", 0) == 7
 		and summary.get("mp_change", 0) == -2)
-	var result_ui := BattleUI.new()
 	target.display_name = "主角"
 	_check("混合多段结果显示部分成功与实际伤害",
-		result_ui._format_timing_result(target, summary)
+		BattleUI._format_timing_result(target, summary)
 		== "主角 部分成功 2/3｜7 伤害｜MP -2")
-	result_ui.free()
 	sm.free()
 	controller.free()
 
@@ -1115,7 +1157,7 @@ func _test_flee_turn_flow() -> void:
 func _test_inventory() -> void:
 	# 自动加载单例在 --script 运行下不作为全局标识符暴露，按节点取（对齐 verify_*.gd）。
 	var gd: Node = get_node("/root/GameData")
-	gd.inventory.clear()
+	_clear_gamedata_inventory(gd)
 	var item := ItemData.new()
 	item.id = "test_potion"
 	item.category = ItemData.ItemCategory.CONSUMABLE
@@ -1137,26 +1179,28 @@ func _test_inventory() -> void:
 	gd.remove_item("test_potion", 3)
 	_check("扣到 0 移除槽位", gd.get_item_count("test_potion") == 0)
 
-	var member: Dictionary = gd.party_members[0]
+	var member: PartyMemberState = gd.get_party_member(0)
 	item.effect_type = ItemData.EffectType.HEAL_HP
 	item.effect_value = 20
 	item.usable = true
 	gd.add_item(item, 2)
-	member.hp = member.max_hp
+	gd.set_party_member_vitals(0, member.max_hp, member.max_mp)
 	_check("满 HP 时 can_use_item = false", gd.can_use_item(item.id) == false)
 	_check("满 HP 时 use_item = false", gd.use_item(item.id) == false)
 	_check("满 HP 不消耗物品", gd.get_item_count(item.id) == 2)
-	member.hp = member.max_hp - 10
+	gd.set_party_member_vitals(0, member.max_hp - 10, member.max_mp)
 	_check("缺 HP 时 can_use_item = true", gd.can_use_item(item.id) == true)
 	_check("缺 HP 时 use_item = true", gd.use_item(item.id) == true)
-	_check("使用后恢复并消耗 1 个", member.hp == member.max_hp and gd.get_item_count(item.id) == 1)
+	_check("使用后恢复并消耗 1 个",
+		gd.get_party_member(0).hp == member.max_hp and gd.get_item_count(item.id) == 1)
 	item.effect_type = ItemData.EffectType.HEAL_MP
-	member.mp = member.max_mp
+	gd.set_party_member_vitals(0, member.max_hp, member.max_mp)
 	_check("满 MP 时 use_item = false", gd.use_item(item.id) == false)
 	_check("满 MP 不消耗物品", gd.get_item_count(item.id) == 1)
-	member.mp = member.max_mp - 10
+	gd.set_party_member_vitals(0, member.max_hp, member.max_mp - 10)
 	_check("缺 MP 时 use_item = true", gd.use_item(item.id) == true)
-	_check("使用后恢复 MP 并消耗", member.mp == member.max_mp and gd.get_item_count(item.id) == 0)
+	_check("使用后恢复 MP 并消耗",
+		gd.get_party_member(0).mp == member.max_mp and gd.get_item_count(item.id) == 0)
 
 	var weapon_a := ItemData.new()
 	weapon_a.id = "test_weapon_a"
@@ -1173,10 +1217,10 @@ func _test_inventory() -> void:
 	gd.add_item(weapon_a)
 	gd.add_item(weapon_b)
 	gd.add_item(armor)
-	gd.equipment = {"weapon": "", "armor": "", "accessory": ""}
 	_check("装备第一把武器", gd.equip_item(weapon_a.id) == true)
 	_check("重复装备同一物品返回 false", gd.equip_item(weapon_a.id) == false)
-	_check("替换武器成功", gd.equip_item(weapon_b.id) == true and gd.equipment.weapon == weapon_b.id)
+	_check("替换武器成功", gd.equip_item(weapon_b.id) == true
+		and gd.get_equipped_item_id("weapon") == weapon_b.id)
 	_check("替换装备不移除旧物品", gd.get_item_count(weapon_a.id) == 1)
 	_check("装备护甲成功", gd.equip_item(armor.id) == true)
 	_check("未知槽位无法卸下", gd.unequip_item("unknown") == false)
@@ -1184,16 +1228,16 @@ func _test_inventory() -> void:
 	var bonuses: Dictionary = gd.get_equipment_bonuses()
 	_check("装备加成按当前三槽汇总", bonuses.atk == 5 and bonuses.def == 3)
 	_check("非法丢弃返回 false", gd.discard_item(weapon_b.id, 0) == false)
-	_check("失败丢弃不卸下装备", gd.equipment.weapon == weapon_b.id)
+	_check("失败丢弃不卸下装备", gd.get_equipped_item_id("weapon") == weapon_b.id)
 	_check("超量丢弃返回 false", gd.discard_item(weapon_b.id, 2) == false)
-	_check("超量丢弃仍不卸装", gd.equipment.weapon == weapon_b.id)
+	_check("超量丢弃仍不卸装", gd.get_equipped_item_id("weapon") == weapon_b.id)
 	_check("成功丢弃已装备物品", gd.discard_item(weapon_b.id, 1) == true)
-	_check("成功丢弃先卸装并移除", gd.equipment.weapon.is_empty() and gd.get_item_count(weapon_b.id) == 0)
+	_check("成功丢弃先卸装并移除",
+		gd.get_equipped_item_id("weapon").is_empty() and gd.get_item_count(weapon_b.id) == 0)
 
 func _test_equipment_battle_copy() -> void:
 	var gd: Node = get_node("/root/GameData")
-	gd.inventory.clear()
-	gd.equipment = {"weapon": "", "armor": "", "accessory": ""}
+	_clear_gamedata_inventory(gd)
 	var weapon := ItemData.new()
 	weapon.id = "battle_copy_weapon"
 	weapon.category = ItemData.ItemCategory.WEAPON
@@ -1207,8 +1251,8 @@ func _test_equipment_battle_copy() -> void:
 	gd.equip_item(weapon.id)
 	gd.equip_item(armor.id)
 
-	var player: Dictionary = gd.party_members[0]
-	var companion: Dictionary = gd.party_members[1]
+	var player: PartyMemberState = gd.get_party_member(0)
+	var companion: PartyMemberState = gd.get_party_member(1)
 	var base_player_atk: int = player.atk
 	var base_player_def: int = player.def
 	var bonuses: Dictionary = gd.get_equipment_bonuses()
@@ -1224,11 +1268,106 @@ func _test_equipment_battle_copy() -> void:
 	_check("队友战斗副本不应用主角装备", companion_battle.atk == companion.atk
 		and companion_battle.def == companion.def)
 
+func _test_battle_session_transactions() -> void:
+	var gd: Node = get_node("/root/GameData")
+	_clear_gamedata_inventory(gd)
+	var potion := ItemData.new()
+	potion.id = "session_potion"
+	potion.category = ItemData.ItemCategory.CONSUMABLE
+	gd.add_item(potion, 2)
+	var member := gd.get_party_member(0) as PartyMemberState
+	gd.set_party_member_vitals(0, member.max_hp - 5, member.max_mp - 3)
+	var poison := StatusEffect.new()
+	poison.type = StatusEffect.Type.POISON
+	poison.duration = 3
+	gd.set_party_member_status_effects(0, [poison] as Array[StatusEffect])
+	gd.set_enemy_defeated("Enemy1", false)
+	gd.set_enemy_defeated("Enemy2", false)
+
+	var victory: BattleSession = gd.create_battle_session(["Enemy1", "Enemy2"] as Array[String])
+	victory.party_units[0].hp -= 4
+	victory.party_units[0].status_effects[0].duration = 1
+	victory.inventory.remove_item(potion.id)
+	_check("战斗会话修改不提前污染全局",
+		gd.get_party_member(0).hp == member.max_hp - 5
+		and gd.get_party_member(0).status_effects[0].duration == 3
+		and gd.get_item_count(potion.id) == 2)
+	_check("胜利结算只执行一次",
+		gd.settle_battle(victory, BattleSession.Outcome.VICTORY)
+		and not gd.settle_battle(victory, BattleSession.Outcome.VICTORY))
+	_check("胜利提交队伍、背包与全部敌人 key",
+		gd.get_party_member(0).hp == member.max_hp - 9
+		and gd.get_party_member(0).status_effects[0].duration == 1
+		and gd.get_item_count(potion.id) == 1
+		and gd.is_enemy_defeated("Enemy1") and gd.is_enemy_defeated("Enemy2"))
+	victory.party_units[0].status_effects[0].duration = 0
+	_check("结算后全局与会话不共享状态资源",
+		gd.get_party_member(0).status_effects[0].duration == 1)
+
+	gd.set_enemy_defeated("Enemy1", false)
+	var fled: BattleSession = gd.create_battle_session(["Enemy1"] as Array[String])
+	fled.inventory.remove_item(potion.id)
+	_check("逃跑提交消耗但不标记敌人",
+		gd.settle_battle(fled, BattleSession.Outcome.FLED)
+		and gd.get_item_count(potion.id) == 0
+		and not gd.is_enemy_defeated("Enemy1"))
+
+	gd.add_item(potion, 2)
+	var defeated: BattleSession = gd.create_battle_session(["Enemy1"] as Array[String])
+	defeated.party_units[0].hp = 1
+	defeated.inventory.remove_item(potion.id)
+	_check("失败丢弃会话背包并重置队伍",
+		gd.settle_battle(defeated, BattleSession.Outcome.DEFEAT)
+		and gd.get_item_count(potion.id) == 2
+		and gd.get_party_member(0).hp == gd.get_party_member(0).max_hp
+		and gd.get_party_member(0).status_effects.is_empty())
+
+	var defeated_key := "Enemy1_ForestMain_01"
+	var surviving_key := "Enemy1_ForestMain_02"
+	gd.set_enemy_defeated(defeated_key, false)
+	gd.set_enemy_defeated(surviving_key, false)
+	var forest_victory: BattleSession = gd.create_battle_session([defeated_key] as Array[String])
+	_check("森林主地图胜利只标记当前唯一敌人",
+		gd.settle_battle(forest_victory, BattleSession.Outcome.VICTORY)
+		and gd.is_enemy_defeated(defeated_key)
+		and not gd.is_enemy_defeated(surviving_key))
+	gd.set_enemy_defeated(defeated_key, false)
+	var forest_flee: BattleSession = gd.create_battle_session([defeated_key] as Array[String])
+	_check("森林主地图逃跑不标记当前敌人",
+		gd.settle_battle(forest_flee, BattleSession.Outcome.FLED)
+		and not gd.is_enemy_defeated(defeated_key))
+
+func _test_forest_battle_routing() -> void:
+	var battle: Node = load("res://scenes/Battle.tscn").instantiate()
+	var supports_return_destination: bool = battle.has_method("_get_return_destination")
+	_check("战斗支持可选来源地图返回数据", supports_return_destination)
+	var hunter = battle.call("_lookup_enemy_stats", "Enemy1_ForestMain_12")
+	var mutant = battle.call("_lookup_enemy_stats", "Enemy2_ForestMain_12")
+	_check("森林唯一键按前缀解析猎手与变异兽资源",
+		hunter != null and hunter.resource_path.ends_with("enemy_hunter.tres")
+		and mutant != null and mutant.resource_path.ends_with("enemy_mutant.tres"))
+	if supports_return_destination:
+		var legacy: Dictionary = battle.call("_get_return_destination", true)
+		_check("Wilderness 未传来源数据时保持原返回值",
+			legacy.get("path") == "res://scenes/Wilderness.tscn"
+			and legacy.get("scene_name") == "Wilderness")
+		battle.set("_return_scene_path", "res://scenes/ForestMain.tscn")
+		battle.set("_return_scene_name", "ForestMain")
+		var victory: Dictionary = battle.call("_get_return_destination", true)
+		var fled: Dictionary = battle.call("_get_return_destination", false, true)
+		var defeat: Dictionary = battle.call("_get_return_destination", false)
+		_check("胜利和逃跑返回 ForestMain，失败返回 ForestClearing",
+			victory.get("path") == "res://scenes/ForestMain.tscn"
+			and victory.get("scene_name") == "ForestMain"
+			and fled == victory
+			and defeat.get("path") == "res://scenes/ForestClearing.tscn"
+			and defeat.get("scene_name") == "ForestClearing")
+	battle.free()
+
 func _test_inventory_pagination() -> void:
 	var gd: Node = get_node("/root/GameData")
-	gd.inventory.clear()
-	gd.equipment = {"weapon": "", "armor": "", "accessory": ""}
-	for i in range(21):
+	_clear_gamedata_inventory(gd)
+	for i in range(16):
 		var weapon := ItemData.new()
 		weapon.id = "page_weapon_%02d" % i
 		weapon.category = ItemData.ItemCategory.WEAPON
@@ -1240,9 +1379,31 @@ func _test_inventory_pagination() -> void:
 
 	var inv: InventoryUI = load("res://scenes/ui/InventoryUI.tscn").instantiate()
 	add_child(inv)
-	inv._refresh_grid()
-	_check("第 1 页只显示 20 种物品", inv._current_items.size() == 20)
+	inv.open()
+	_check("背包打开默认聚焦物品页顶层标签",
+		inv._top_page_index == InventoryUI.ITEMS_PAGE_INDEX
+		and inv._browse_level == inv.BrowseLevel.TOP_TABS)
+	_check("第 1 页只显示 15 种物品", inv._current_items.size() == 15)
 	_check("多页分类显示页码", inv._grid_hint_layer.get_node_or_null("PageIndicator") != null)
+	var first_subcategory: Rect2 = inv._rect_of(inv._layout.subcategories[0])
+	var first_well: Rect2 = inv._rect_of(inv._layout.wells[0])
+	var last_well: Rect2 = inv._rect_of(inv._layout.wells[inv._layout.wells.size() - 1])
+	_check("小类轻于物品格且后三排原尺寸上移",
+		inv._layout.subcategories.size() == 5 and inv._layout.wells.size() == 15
+		and first_subcategory == Rect2(257, 236, 96, 48)
+		and first_subcategory.size.x < first_well.size.x
+		and first_subcategory.size.y < first_well.size.y
+		and first_subcategory.get_center().x == first_well.get_center().x
+		and first_well == Rect2(246, 318, 118, 114)
+		and last_well == Rect2(818, 594, 118, 114))
+	inv._category_index = 2
+	inv._refresh_grid()
+	var empty_hint: Control = inv._grid_hint_layer.get_node("EmptyCategoryHint")
+	_check("空分类提示限制在 3×5 物品区内",
+		empty_hint.position == first_well.position
+		and empty_hint.size == last_well.end - first_well.position)
+	inv._category_index = 0
+	inv._refresh_grid()
 
 	inv._set_focus_index(4)
 	inv._move_focus(1, 0)
@@ -1252,24 +1413,61 @@ func _test_inventory_pagination() -> void:
 	_check("末页右边缘不循环", inv._get_page_index() == 1 and inv._get_focus_index() == 0)
 	inv._move_focus(-1, 0)
 	_check("左边缘返回上一页同行末格", inv._get_page_index() == 0 and inv._get_focus_index() == 4)
-
 	inv._move_focus(1, 0)
-	inv._handle_preview_input(KEY_E)
-	_check("E 切换到下一分类", inv._category_index == 1)
-	inv._handle_preview_input(KEY_Q)
-	_check("Q 切换到上一分类", inv._category_index == 0)
+
+	inv._browse_level = inv.BrowseLevel.SUBCATEGORY
+	inv._handle_preview_input(KEY_RIGHT)
+	_check("右方向切换到下一小类", inv._category_index == 1)
+	inv._handle_preview_input(KEY_LEFT)
+	_check("左方向切换到上一小类", inv._category_index == 0)
 	_check("切换分类后恢复分类页码", inv._get_page_index() == 1)
 	_check("切换分类后恢复分类焦点", inv._get_focus_index() == 0)
 
-	gd.remove_item("page_weapon_20")
+	inv._browse_level = inv.BrowseLevel.GRID
+	inv._set_focus_index(0)
+	inv._handle_preview_input(KEY_UP)
+	_check("网格第一行按上不进入小类框", inv._browse_level == inv.BrowseLevel.GRID)
+	inv._handle_preview_input(KEY_X)
+	_check("X 从网格返回小类", inv._browse_level == inv.BrowseLevel.SUBCATEGORY)
+	inv._handle_preview_input(KEY_X)
+	_check("X 从小类返回顶层标签", inv._browse_level == inv.BrowseLevel.TOP_TABS)
+	inv._handle_preview_input(KEY_Z)
+	inv._handle_preview_input(KEY_Z)
+	_check("Z 从物品页顶层依次进入小类和网格",
+		inv._browse_level == inv.BrowseLevel.GRID)
+	inv._handle_preview_input(KEY_X)
+	inv._handle_preview_input(KEY_X)
+	inv._handle_preview_input(KEY_A)
+	_check("A 从物品页切换到上一顶层标签",
+		inv._top_page_index == 0 and inv._browse_level == inv.BrowseLevel.TOP_TABS
+		and not inv._subcategory_layer.visible and not inv._grid_layer.visible
+		and not inv._grid_hint_layer.visible and not inv._detail_layer.visible
+		and inv._bg.texture.resource_path == InventoryWidgets.TEX_BG_BLANK)
+	inv._handle_preview_input(KEY_D)
+	_check("D 切回第二个物品标签",
+		inv._top_page_index == InventoryUI.ITEMS_PAGE_INDEX
+		and inv._browse_level == inv.BrowseLevel.TOP_TABS
+		and inv._subcategory_layer.visible and inv._grid_layer.visible
+		and inv._bg.texture.resource_path == InventoryWidgets.TEX_BG_CLEAN)
+	inv._handle_preview_input(KEY_RIGHT)
+	_check("右方向键切换到下一顶层标签", inv._top_page_index == 2)
+	inv._handle_preview_input(KEY_LEFT)
+	_check("左方向键切回第二个物品标签", inv._top_page_index == InventoryUI.ITEMS_PAGE_INDEX)
+	inv._handle_preview_input(KEY_Q)
+	inv._handle_preview_input(KEY_E)
+	_check("Q/E 不再切换顶层标签", inv._top_page_index == InventoryUI.ITEMS_PAGE_INDEX)
+
+	gd.remove_item("page_weapon_15")
 	inv._refresh_grid()
-	_check("删除末页最后一项后页码钳制", inv._get_page_index() == 0 and inv._current_items.size() == 20)
+	_check("删除末页最后一项后页码钳制", inv._get_page_index() == 0 and inv._current_items.size() == 15)
+	inv._handle_preview_input(KEY_X)
+	_check("顶层按 X 关闭背包", not inv.is_open())
+	await get_tree().create_timer(InventoryUI.FADE_DURATION + 0.05).timeout
 	inv.queue_free()
 
 func _test_inventory_detail_layout() -> void:
 	var gd: Node = get_node("/root/GameData")
-	gd.inventory.clear()
-	gd.equipment = {"weapon": "", "armor": "", "accessory": ""}
+	_clear_gamedata_inventory(gd)
 	var item := ItemData.new()
 	item.id = "layout_accessory"
 	item.display_name = "风蚀遗迹中无法辨认真名的古老守望者护符"
@@ -1307,3 +1505,46 @@ func _test_inventory_detail_layout() -> void:
 	_check("操作菜单严格嵌入 footer 分区", inv._action_menu_box.position == footer.position
 		and inv._action_menu_box.size == footer.size)
 	inv.queue_free()
+
+func _test_inventory_lifecycle() -> void:
+	var music_bus := AudioServer.get_bus_index(&"Music")
+	var original_volume := AudioServer.get_bus_volume_db(music_bus)
+	var inventory_scene := load("res://scenes/ui/InventoryUI.tscn") as PackedScene
+	var piano_bgm := get_node("/root/SceneManager/PianoBGM") as AudioStreamPlayer
+	var wind_bgm := get_node("/root/SceneManager/WindAndSnowBGM") as AudioStreamPlayer
+
+	var normal := inventory_scene.instantiate() as InventoryUI
+	add_child(normal)
+	normal.open()
+	_check("背包打开时暂停游戏且音乐以50%音量继续",
+		get_tree().paused
+		and is_equal_approx(db_to_linear(AudioServer.get_bus_volume_db(music_bus)),
+			db_to_linear(original_volume) * InventoryUI.INVENTORY_MUSIC_FACTOR)
+		and piano_bgm.can_process() and wind_bgm.can_process())
+	await normal.close()
+	_check("正常关闭恢复暂停与音量",
+		not get_tree().paused
+		and is_equal_approx(AudioServer.get_bus_volume_db(music_bus), original_volume))
+	normal.queue_free()
+	await get_tree().process_frame
+
+	get_tree().paused = true
+	var nested := inventory_scene.instantiate() as InventoryUI
+	add_child(nested)
+	nested.open()
+	await nested.close()
+	_check("背包不会解除其它系统已有的暂停", get_tree().paused)
+	nested.queue_free()
+	get_tree().paused = false
+	await get_tree().process_frame
+
+	var interrupted := inventory_scene.instantiate() as InventoryUI
+	add_child(interrupted)
+	interrupted.open()
+	interrupted.close()
+	interrupted.queue_free()
+	await get_tree().process_frame
+	await get_tree().create_timer(InventoryUI.FADE_DURATION + 0.05).timeout
+	_check("关闭动画中释放仍恢复暂停与音量",
+		not get_tree().paused
+		and is_equal_approx(AudioServer.get_bus_volume_db(music_bus), original_volume))

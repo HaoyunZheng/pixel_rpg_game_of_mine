@@ -7,13 +7,11 @@ const SOFT_PIANO_BGM: AudioStreamMP3 = preload("res://assets/derived/audio/music
 const WIND_AND_SNOW_BGM: AudioStreamMP3 = preload("res://assets/derived/audio/ambience/wind_and_snow_clean.mp3")
 
 var _overlay: ColorRect
-var _tween: Tween
 var _pending_scene: String = ""
 var _pending_data: Dictionary = {}
-var _piano_player: AudioStreamPlayer
-var _wind_player: AudioStreamPlayer
 
 func _ready() -> void:
+	process_mode = Node.PROCESS_MODE_ALWAYS  # ponytail: 背包暂停玩法时，全局音乐仍继续。
 	Log.info("SceneManager", "场景管理单例已加载")
 	_start_bgm()
 	# 用 CanvasLayer 保证 overlay 始终在最上层，不受场景切换影响
@@ -34,22 +32,22 @@ func _ready() -> void:
 func _start_bgm() -> void:
 	var piano_stream := SOFT_PIANO_BGM.duplicate() as AudioStreamMP3
 	piano_stream.loop = true
-	_piano_player = AudioStreamPlayer.new()
-	_piano_player.name = "PianoBGM"
-	_piano_player.stream = piano_stream
-	_piano_player.bus = &"Music"
-	add_child(_piano_player)
-	_piano_player.play()
+	var piano_player := AudioStreamPlayer.new()
+	piano_player.name = "PianoBGM"
+	piano_player.stream = piano_stream
+	piano_player.bus = &"Music"
+	add_child(piano_player)
+	piano_player.play()
 
 	var wind_stream := WIND_AND_SNOW_BGM.duplicate() as AudioStreamMP3
 	wind_stream.loop = true
-	_wind_player = AudioStreamPlayer.new()
-	_wind_player.name = "WindAndSnowBGM"
-	_wind_player.stream = wind_stream
-	_wind_player.bus = &"Music"
-	_wind_player.volume_db = -12.0
-	add_child(_wind_player)
-	_wind_player.play()
+	var wind_player := AudioStreamPlayer.new()
+	wind_player.name = "WindAndSnowBGM"
+	wind_player.stream = wind_stream
+	wind_player.bus = &"Music"
+	wind_player.volume_db = -12.0
+	add_child(wind_player)
+	wind_player.play()
 	Log.info("SceneManager", "双层背景音乐已启动")
 
 ## 请求切换场景。data 字典会写入 GameData 供目标场景读取。
@@ -63,11 +61,11 @@ func change_scene(to_path: String, data: Dictionary = {}) -> void:
 func _fade_out() -> void:
 	_overlay.modulate.a = 0.0
 	_overlay.show()
-	_tween = create_tween()
-	_tween.set_ease(Tween.EASE_IN_OUT)
-	_tween.set_trans(Tween.TRANS_LINEAR)
-	_tween.tween_property(_overlay, "modulate:a", 1.0, TRANSITION_DURATION)
-	_tween.finished.connect(_on_fade_out_complete)
+	var tween := create_tween()
+	tween.set_ease(Tween.EASE_IN_OUT)
+	tween.set_trans(Tween.TRANS_LINEAR)
+	tween.tween_property(_overlay, "modulate:a", 1.0, TRANSITION_DURATION)
+	tween.finished.connect(_on_fade_out_complete)
 
 func _on_fade_out_complete() -> void:
 	# 执行场景切换
@@ -79,7 +77,7 @@ func _on_tree_changed() -> void:
 	if current_root:
 		# 写入 GameData
 		if _pending_data.has("scene_name"):
-			GameData.current_scene_name = _pending_data["scene_name"]
+			GameData.set_current_scene_name(_pending_data["scene_name"])
 		# 通知当前场景数据已就绪（延迟一帧，确保场景 _ready 已执行）
 		call_deferred("_notify_scene_enter", current_root)
 	_fade_in()
@@ -89,14 +87,14 @@ func _notify_scene_enter(current_root: Node) -> void:
 		current_root.on_scene_enter(_pending_data.duplicate())
 
 func _fade_in() -> void:
-	_tween = create_tween()
-	_tween.set_ease(Tween.EASE_IN_OUT)
-	_tween.set_trans(Tween.TRANS_LINEAR)
-	_tween.tween_property(_overlay, "modulate:a", 0.0, TRANSITION_DURATION)
-	_tween.finished.connect(_on_fade_in_complete)
+	var tween := create_tween()
+	tween.set_ease(Tween.EASE_IN_OUT)
+	tween.set_trans(Tween.TRANS_LINEAR)
+	tween.tween_property(_overlay, "modulate:a", 0.0, TRANSITION_DURATION)
+	tween.finished.connect(_on_fade_in_complete)
 
 func _on_fade_in_complete() -> void:
 	_overlay.hide()
 	_pending_scene = ""
 	_pending_data = {}
-	Log.info("SceneManager", "场景切换完成: %s" % GameData.current_scene_name)
+	Log.info("SceneManager", "场景切换完成: %s" % GameData.get_current_scene_name())

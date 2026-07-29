@@ -7,8 +7,9 @@
   GDScript 里不写死任何摆放像素。美术换版(bg v2/v3) → 重跑本工具，代码零改。
 
 产出（默认与背景图同目录，可用 --out-dir 改写）：
-  layout.json                          —— 井格/标签锚点/页矩形/页内分区（背景图原生像素）
-  bg_inventory_field_ledger_clean.png  —— 铲掉画死静态标签的 clean plate（运行时实际背景）
+  layout.json                          —— 井格/顶层标签/小类框/页内分区（背景图原生像素）
+  bg_inventory_field_ledger_clean.png  —— 铲掉画死标签与首排井格、上移后三排的物品页 clean plate
+  bg_inventory_field_ledger_blank.png  —— 隐去井格、供其它顶层空白页使用的 clean plate
   layout_debug.png                     —— 检测叠加图，离线一次性肉眼/agent 核对用
 
 检测策略（只用经验证稳健的方法，不做逐像素阈值微调）：
@@ -31,12 +32,13 @@ import os
 import sys
 
 import numpy as np
-from PIL import Image, ImageDraw
+from PIL import Image, ImageDraw, ImageFilter
 
 # ════════════════════════════════ CONFIG（唯一调参面）════════════════════════════════
 
 DEFAULT_BG = "assets/ui/inventory/bg_inventory_field_ledger_v1.png"
 CLEAN_NAME = "bg_inventory_field_ledger_clean.png"   # 运行时实际背景（铲掉画死标签）
+BLANK_NAME = "bg_inventory_field_ledger_blank.png"   # 非物品页背景（不保留井格）
 LAYOUT_NAME = "layout.json"
 DEBUG_NAME = "layout_debug.png"
 
@@ -44,6 +46,13 @@ DEBUG_NAME = "layout_debug.png"
 GRID_ROI = (210, 200, 960, 770)
 EXPECT_COLS, EXPECT_ROWS = 5, 4
 WELL_W_RANGE, WELL_P_RANGE = (105, 130), (130, 150)         # 点阵拟合：格宽 / 周期搜索域
+ITEM_GRID_Y_SHIFT = -44
+GRID_PATCH_MARGIN_X = 20
+GRID_PATCH_MARGIN_Y = 14
+BLANK_CONTENT_TOP = 210
+SUBCATEGORY_Y = 236
+SUBCATEGORY_W = 96
+SUBCATEGORY_H = 48
 PAGE_TAN = dict(r_min=138, g_min=100, rb_gap=38, gb_gap=20)  # 实测页主色 ~154,120,84
 
 # 标签：clean-plate 铲除区 + 锚点样式（锚点 = 井列中心）
@@ -127,6 +136,12 @@ def derive_tabs(wells):
 	return dict(centers=centers, **TAB_STYLE)
 
 
+def derive_subcategories(wells):
+	"""沿用井列中心，生成比物品格更轻量的五个小类框。"""
+	return [[x + w // 2 - SUBCATEGORY_W // 2, SUBCATEGORY_Y,
+			 SUBCATEGORY_W, SUBCATEGORY_H] for x, _, w, _ in wells[:EXPECT_COLS]]
+
+
 def detect_page(arr):
 	r, gch, b = arr[:, :, 0].astype(int), arr[:, :, 1].astype(int), arr[:, :, 2].astype(int)
 	p = PAGE_TAN
@@ -164,7 +179,7 @@ def extract_layout(im):
 
 
 def build_clean_plate(im, wells):
-	"""铲除画死的静态标签 banner：用同条带干净背衬纹理隔块镜像平铺修补，返回新图（不落盘）。"""
+	"""铲除画死标签与首排井格，将后三排井格原尺寸上移。"""
 	arr = np.asarray(im).copy()
 	y0, y1 = TAB_STRIP_Y
 	y1 = min(y1, min(w[1] for w in wells) - 4)
@@ -178,10 +193,40 @@ def build_clean_plate(im, wells):
 		arr[y0:y1, x:x + w] = (patch[:, ::-1] if flip else patch)[:, :w]
 		x += w
 		flip = not flip
-	return Image.fromarray(arr)
+
+	# ponytail: 复用原画后三排，整块平移即可保留井格尺寸、纹理和间距。
+	base = build_blank_plate(Image.fromarray(arr), wells)
+	remaining = wells[EXPECT_COLS:]
+	grid_x0 = max(0, min(w[0] for w in wells) - GRID_PATCH_MARGIN_X)
+	grid_x1 = min(arr.shape[1], max(w[0] + w[2] for w in wells) + GRID_PATCH_MARGIN_X)
+	source_y0 = min(w[1] for w in remaining) - GRID_PATCH_MARGIN_Y
+	source_y1 = max(w[1] + w[3] for w in remaining) + GRID_PATCH_MARGIN_Y
+	grid_patch = im.crop((grid_x0, source_y0, grid_x1, source_y1))
+	base.paste(grid_patch, (grid_x0, source_y0 + ITEM_GRID_Y_SHIFT))
+	return base
 
 
-def build_debug_overlay(base_img, wells, tabs, page, zones):
+def build_blank_plate(clean_img, wells):
+	"""复用物品页 clean plate 的空皮革色调，遮去小类与井格区域。"""
+	base = clean_img.convert("RGB").copy()
+	x0 = max(0, min(w[0] for w in wells) - GRID_PATCH_MARGIN_X)
+	x1 = min(base.width, max(w[0] + w[2] for w in wells) + GRID_PATCH_MARGIN_X)
+	y0 = BLANK_CONTENT_TOP
+	y1 = max(w[1] + w[3] for w in wells) + GRID_PATCH_MARGIN_Y
+	sample_x0 = max(w[0] + w[2] for w in wells) + 4
+	sample = base.crop((sample_x0, y0, x1, y1))
+	# ponytail: 压成 2×2 低频色块，避免边缘和接缝被放大成条纹。
+	texture = sample.resize((2, 2), Image.Resampling.LANCZOS).resize(
+		(x1 - x0, y1 - y0), Image.Resampling.BICUBIC)
+	overlay = base.copy()
+	overlay.paste(texture, (x0, y0))
+	mask = Image.new("L", base.size, 0)
+	ImageDraw.Draw(mask).rectangle((x0 + 8, y0 + 8, x1 - 8, y1 - 8), fill=255)
+	mask = mask.filter(ImageFilter.GaussianBlur(8))
+	return Image.composite(overlay, base, mask)
+
+
+def build_debug_overlay(base_img, wells, tabs, subcategories, page, zones):
 	"""在给定底图（一般为 clean-plate）上叠画检测框，返回新图（不落盘）。"""
 	dbg = base_img.convert("RGB").copy()
 	d = ImageDraw.Draw(dbg)
@@ -192,6 +237,9 @@ def build_debug_overlay(base_img, wells, tabs, page, zones):
 		d.rectangle([cx - tw // 2, tabs["top"], cx + tw // 2, tabs["top"] + int(tw * 1.12)],
 					outline=DBG_TAB, width=2)
 		d.text((cx - 6, tabs["top"] + 4), f"T{i}", fill=(255, 200, 0))
+	for i, (x, y, w, h) in enumerate(subcategories):
+		d.rectangle([x, y, x + w, y + h], outline=DBG_TAB, width=2)
+		d.text((x + 4, y + 4), f"S{i}", fill=(255, 200, 0))
 	d.rectangle([page[0], page[1], page[0] + page[2], page[1] + page[3]], outline=DBG_PAGE, width=2)
 	for name, (x, y, w, h) in zones.items():
 		d.rectangle([x, y, x + w, y + h], outline=DBG_ZONE, width=2)
@@ -214,22 +262,28 @@ def run(bg_path, out_dir=None, write_clean=True, write_debug=True, quiet=False):
 	out_dir = out_dir or os.path.dirname(bg_path) or "."
 	os.makedirs(out_dir, exist_ok=True)
 
-	wells, tabs, page, zones = extract_layout(im)
+	detected_wells, tabs, page, zones = extract_layout(im)
+	subcategories = derive_subcategories(detected_wells)
+	wells = [[x, y + ITEM_GRID_Y_SHIFT, w, h]
+			 for x, y, w, h in detected_wells[EXPECT_COLS:]]
 
-	clean_img = build_clean_plate(im, wells)
+	clean_img = build_clean_plate(im, detected_wells)
 	if write_clean:
 		clean_img.save(os.path.join(out_dir, CLEAN_NAME))
+		build_blank_plate(clean_img, wells).save(os.path.join(out_dir, BLANK_NAME))
 
-	layout = dict(source=os.path.basename(bg_path), bg=CLEAN_NAME,
-				  size=[im.width, im.height], wells=wells, tabs=tabs, page=page, zones=zones)
+	layout = dict(source=os.path.basename(bg_path), bg=CLEAN_NAME, bg_blank=BLANK_NAME,
+				  size=[im.width, im.height], wells=wells, tabs=tabs,
+				  subcategories=subcategories, page=page, zones=zones)
 	with open(os.path.join(out_dir, LAYOUT_NAME), "w", encoding="utf-8") as f:
 		json.dump(layout, f, ensure_ascii=False, indent=1)
 
 	if write_debug:
-		build_debug_overlay(clean_img, wells, tabs, page, zones).save(os.path.join(out_dir, DEBUG_NAME))
+		build_debug_overlay(clean_img, wells, tabs, subcategories, page, zones).save(
+			os.path.join(out_dir, DEBUG_NAME))
 
 	if not quiet:
-		outs = [LAYOUT_NAME] + ([CLEAN_NAME] if write_clean else []) + ([DEBUG_NAME] if write_debug else [])
+		outs = [LAYOUT_NAME] + ([CLEAN_NAME, BLANK_NAME] if write_clean else []) + ([DEBUG_NAME] if write_debug else [])
 		print(f"[ui-layout] wells={len(wells)} tabs={tabs['centers']} page={page}")
 		print(f"[ui-layout] zones={zones}")
 		print(f"[ui-layout] 写出 {' / '.join(outs)} → {out_dir}")

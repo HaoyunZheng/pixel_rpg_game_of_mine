@@ -4,12 +4,12 @@ extends CanvasLayer
 ##
 ## 架构（混合方案）：
 ## - 华丽外观全部来自手绘账簿底图 clean-plate（书封/皮革/羊皮纸页/描边/装饰），由 Stage 等比锁定铺屏。
-## - 仅 5 样功能控件作为引擎控件叠在画好的槽位上：物品格、大类标签、详情图框、详情文字、弹出选择菜单。
+## - 顶层五页 + 物品页五小类叠在画好的槽位上；其余四页暂无内容。
 ## - 槽位坐标来自离线生成的 layout.json（tools/ui_layout_extract.py），代码读数据定位，不写死像素。
 ##   换美术 → 重跑工具即可，代码零改。
 ##
 ## - 暂停式覆盖层：open() 时 get_tree().paused = true，自身 process_mode = WHEN_PAUSED 仍可响应输入。
-## - 状态机：PREVIEW / ACTION_MENU / DISCARD_CONFIRM。
+## - 浏览层级：TOP_TABS / SUBCATEGORY / GRID；操作状态：PREVIEW / ACTION_MENU / DISCARD_CONFIRM。
 ## - 单一写入者：数据变更只经 GameData.use/equip/unequip/discard，UI 监听 4 信号刷新。
 ## - 纯键盘：方向键导航 + Z 确认 + X 取消/返回，逐级 X：弹窗→菜单→预览→关闭。
 
@@ -18,8 +18,9 @@ const CANCEL_KEY: Key = KEY_X
 const FADE_DURATION: float = 0.15
 const DIALOG_POPUP_DURATION: float = 0.12
 const ACTION_MENU_ROW_HEIGHT: int = 42
-const ITEMS_PER_PAGE: int = 20
-const INVENTORY_MUSIC_FACTOR: float = 0.7
+const ITEMS_PER_PAGE: int = 15
+const ITEMS_PAGE_INDEX: int = 1
+const INVENTORY_MUSIC_FACTOR: float = 0.5
 const SFX_UNZIP: AudioStreamWAV = preload("res://assets/derived/audio/sfx/interface/unzip.wav")
 const SFX_ZIP: AudioStreamWAV = preload("res://assets/derived/audio/sfx/interface/zip.wav")
 const SFX_MOVE: AudioStreamWAV = preload("res://assets/derived/audio/sfx/interface/moving_ui.wav")
@@ -28,12 +29,14 @@ const SFX_EQUIP: AudioStreamWAV = preload("res://assets/derived/audio/sfx/interf
 const SFX_UNEQUIP: AudioStreamWAV = preload("res://assets/derived/audio/sfx/interface/unequip.wav")
 
 enum UIState { PREVIEW, ACTION_MENU, DISCARD_CONFIRM }
+enum BrowseLevel { TOP_TABS, SUBCATEGORY, GRID }
 
 # ── 节点引用 ──
 @onready var _stage: Control = $Stage
 @onready var _bg: TextureRect = $Stage/Background
 @onready var _layers: Control = $Stage/Layers
 @onready var _tabs_layer: Control = $Stage/Layers/Tabs
+@onready var _subcategory_layer: Control = $Stage/Layers/Subcategories
 @onready var _grid_layer: Control = $Stage/Layers/Grid
 @onready var _grid_hint_layer: Control = $Stage/Layers/GridHint
 @onready var _detail_layer: Control = $Stage/Layers/Detail
@@ -42,22 +45,28 @@ enum UIState { PREVIEW, ACTION_MENU, DISCARD_CONFIRM }
 @onready var _sfx_player: AudioStreamPlayer = $UISFX
 
 var _state: UIState = UIState.PREVIEW
+var _browse_level: BrowseLevel = BrowseLevel.TOP_TABS
+var _top_page_index: int = ITEMS_PAGE_INDEX
 var _category_index: int = 0
 var _focus_index_by_category: Dictionary = {}
 var _page_index_by_category: Dictionary = {}
 var _menu_index: int = 0
 var _is_open: bool = false
+var _is_closing: bool = false
+var _pause_claim_active: bool = false
+var _tree_was_paused: bool = false
 var _music_bus_index: int = -1
 var _music_volume_before_open: float = 0.0
 
 var _layout: Dictionary = {}
-var _current_items: Array = []
+var _current_items: Array[InventoryState.Slot] = []
 var _menu_options: Array = []
 var _action_menu_box: GridContainer = null
 var _pending_discard_item: ItemData = null
 var _pending_discard_count: int = 0
 
-var _tab_nodes: Array = []      # 5 个标签 banner（TextureRect）
+var _tab_nodes: Array = []      # 5 个顶层页签 banner（TextureRect）
+var _subcategory_nodes: Array = []
 var _slot_nodes: Array = []     # 当前分类物品格 holder（按索引）
 
 
@@ -83,8 +92,14 @@ func _ready() -> void:
 	GameData.item_discarded.connect(_on_inventory_changed)
 
 	_build_tabs()
+	_build_subcategories()
 	_refresh_grid()
 	_refresh_detail()
+	_update_page_visibility()
+
+
+func _exit_tree() -> void:
+	_release_open_side_effects()
 
 
 ## Stage 等比 contain 铺屏并居中：背景图与所有控件锁定在 1664×936 同坐标系，分辨率/宽高比无关。
@@ -100,15 +115,21 @@ func _fit_stage() -> void:
 # ───────────────────────────────────────────── 打开 / 关闭
 
 func open() -> void:
-	if _is_open:
+	if _is_open or _is_closing:
 		return
 	_is_open = true
+	_tree_was_paused = get_tree().paused
+	_pause_claim_active = true
 	_state = UIState.PREVIEW
+	_browse_level = BrowseLevel.TOP_TABS
+	_top_page_index = ITEMS_PAGE_INDEX
 	visible = true
 	get_tree().paused = true
 	_fit_stage()
 	_refresh_grid()
 	_refresh_detail()
+	_update_page_visibility()
+	_update_browse_styles()
 	_duck_music()
 	_play_ui_sfx(SFX_UNZIP, -2.0)
 	var tween := create_tween()
@@ -120,14 +141,15 @@ func close() -> void:
 	if not _is_open:
 		return
 	_is_open = false
-	_restore_music()
+	_is_closing = true
 	_play_ui_sfx(SFX_ZIP, -2.0)
 	var tween := create_tween()
 	tween.set_pause_mode(Tween.TWEEN_PAUSE_PROCESS)
 	tween.tween_property(_stage, "modulate:a", 0.0, FADE_DURATION)
 	await tween.finished
 	visible = false
-	get_tree().paused = false
+	_is_closing = false
+	_release_open_side_effects()
 
 
 func is_open() -> bool:
@@ -156,6 +178,16 @@ func _restore_music() -> void:
 	_music_bus_index = -1
 
 
+func _release_open_side_effects() -> void:
+	_restore_music()
+	if not _pause_claim_active:
+		return
+	_pause_claim_active = false
+	var tree := get_tree()
+	if tree != null:
+		tree.paused = _tree_was_paused
+
+
 # ───────────────────────────────────────────── 版式锚点取值（layout.json）
 
 func _rect_of(arr) -> Rect2:
@@ -169,13 +201,13 @@ func _zone(zone_name: String) -> Rect2:
 	return Rect2()
 
 
-# ───────────────────────────────────────────── ① 分类标签（手绘 banner 叠在标签锚点）
+# ───────────────────────────────────────────── ① 顶层页签 + 物品小类
 
 func _build_tabs() -> void:
 	for child in _tabs_layer.get_children():
 		child.queue_free()
 	_tab_nodes.clear()
-	for i in range(InventoryWidgets.CATEGORY_ORDER.size()):
+	for i in range(InventoryWidgets.TOP_PAGE_NAMES.size()):
 		var banner := TextureRect.new()
 		banner.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 		banner.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
@@ -207,7 +239,7 @@ func _update_tab_styles() -> void:
 
 	for i in range(_tab_nodes.size()):
 		var banner: TextureRect = _tab_nodes[i]
-		var selected: bool = i == _category_index
+		var selected: bool = i == _top_page_index
 		var tex: Texture2D = InventoryWidgets.load_tab_texture(i, selected)
 		banner.texture = tex
 
@@ -223,17 +255,62 @@ func _update_tab_styles() -> void:
 		banner.modulate = Color(1, 1, 1, 1) if selected else Color(0.82, 0.82, 0.82, 0.94)
 
 		var label: Label = banner.get_node("Caption")
-		var count: int = _count_item_kinds(InventoryWidgets.CATEGORY_ORDER[i])
-		label.text = "%s\n%d" % [InventoryWidgets.get_category_name(InventoryWidgets.CATEGORY_ORDER[i]), count]
+		label.text = InventoryWidgets.TOP_PAGE_NAMES[i]
 		label.add_theme_color_override("font_color", InventoryWidgets.COL_GOLD if selected else InventoryWidgets.COL_BONE)
 
 
-func _count_item_kinds(category: ItemData.ItemCategory) -> int:
-	var n := 0
-	for slot in GameData.inventory:
-		if slot.item != null and slot.item.category == category:
-			n += 1
-	return n
+func _build_subcategories() -> void:
+	for child in _subcategory_layer.get_children():
+		child.queue_free()
+	_subcategory_nodes.clear()
+	var rects: Array = _layout.get("subcategories", [])
+	for i in range(InventoryWidgets.CATEGORY_ORDER.size()):
+		if i >= rects.size():
+			break
+		var panel := Panel.new()
+		var rect: Rect2 = _rect_of(rects[i])
+		panel.position = rect.position
+		panel.size = rect.size
+		panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
+
+		var label := Label.new()
+		label.name = "Caption"
+		label.text = InventoryWidgets.get_category_name(InventoryWidgets.CATEGORY_ORDER[i])
+		label.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+		label.add_theme_font_size_override("font_size", 15)
+		label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+		label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		panel.add_child(label)
+		_subcategory_layer.add_child(panel)
+		_subcategory_nodes.append(panel)
+	_update_subcategory_styles()
+
+
+func _update_subcategory_styles() -> void:
+	for i in range(_subcategory_nodes.size()):
+		var panel: Panel = _subcategory_nodes[i]
+		var current: bool = i == _category_index
+		var focused: bool = current and _browse_level == BrowseLevel.SUBCATEGORY
+		panel.add_theme_stylebox_override("panel", InventoryWidgets.make_subcategory_style(focused))
+		var label: Label = panel.get_node("Caption")
+		label.add_theme_color_override("font_color", Color.WHITE if current else Color(InventoryWidgets.COL_BONE, 0.75))
+
+
+func _update_page_visibility() -> void:
+	var show_items: bool = _top_page_index == ITEMS_PAGE_INDEX
+	_bg.texture = InventoryWidgets.load_tex(
+		InventoryWidgets.TEX_BG_CLEAN if show_items else InventoryWidgets.TEX_BG_BLANK)
+	_subcategory_layer.visible = show_items
+	_grid_layer.visible = show_items
+	_grid_hint_layer.visible = show_items
+	_detail_layer.visible = show_items
+
+
+func _update_browse_styles() -> void:
+	_update_tab_styles()
+	_update_subcategory_styles()
+	_update_slot_styles()
 
 
 # ───────────────────────────────────────────── ② 物品格（叠在画好的井上）
@@ -242,10 +319,10 @@ func _current_category() -> ItemData.ItemCategory:
 	return InventoryWidgets.CATEGORY_ORDER[_category_index]
 
 
-func _gather_current_items() -> Array:
-	var items: Array = []
+func _gather_current_items() -> Array[InventoryState.Slot]:
+	var items: Array[InventoryState.Slot] = []
 	var category: ItemData.ItemCategory = _current_category()
-	for slot in GameData.inventory:
+	for slot in GameData.get_inventory_slots():
 		if slot.item != null and slot.item.category == category:
 			items.append(slot)
 	return items
@@ -258,7 +335,7 @@ func _refresh_grid() -> void:
 		child.queue_free()
 	_slot_nodes.clear()
 
-	var category_items: Array = _gather_current_items()
+	var category_items: Array[InventoryState.Slot] = _gather_current_items()
 	var wells: Array = _layout.get("wells", [])
 	var page_count: int = maxi(1, ceili(category_items.size() / float(ITEMS_PER_PAGE)))
 	var page_index: int = clampi(_get_page_index(), 0, page_count - 1)
@@ -271,6 +348,7 @@ func _refresh_grid() -> void:
 
 	if _current_items.is_empty():
 		_grid_hint_layer.add_child(_make_grid_empty_hint(wells))
+		_grid_hint_layer.add_child(_make_grid_navigation_hint(wells, page_index, page_count))
 		return
 
 	for i in range(_current_items.size()):
@@ -279,8 +357,7 @@ func _refresh_grid() -> void:
 		var rect: Rect2 = _rect_of(wells[i])
 		var slot_node := _build_item_slot(_current_items[i], rect)
 		_grid_layer.add_child(slot_node)
-	if page_count > 1:
-		_grid_hint_layer.add_child(_make_page_indicator(wells, page_index, page_count))
+	_grid_hint_layer.add_child(_make_grid_navigation_hint(wells, page_index, page_count))
 
 	var focus_idx: int = clampi(_get_focus_index(), 0, mini(_current_items.size(), wells.size()) - 1)
 	_set_focus_index(focus_idx)
@@ -289,7 +366,8 @@ func _refresh_grid() -> void:
 
 func _make_grid_empty_hint(wells: Array) -> Control:
 	var label := InventoryWidgets.make_empty_category_hint()
-	if wells.size() >= 20:
+	label.name = "EmptyCategoryHint"
+	if not wells.is_empty():
 		var first: Rect2 = _rect_of(wells[0])
 		var last: Rect2 = _rect_of(wells[wells.size() - 1])
 		label.position = first.position
@@ -299,11 +377,13 @@ func _make_grid_empty_hint(wells: Array) -> Control:
 	return label
 
 
-func _make_page_indicator(wells: Array, page_index: int, page_count: int) -> Label:
+func _make_grid_navigation_hint(wells: Array, page_index: int, page_count: int) -> Label:
 	var label := Label.new()
-	label.name = "PageIndicator"
-	label.text = InventoryWidgets.STR_PAGE_FMT % [page_index + 1, page_count]
-	label.add_theme_font_size_override("font_size", 16)
+	label.name = "PageIndicator" if page_count > 1 else "NavigationHint"
+	var page_text: String = "%s　" % (InventoryWidgets.STR_PAGE_FMT % [page_index + 1, page_count]) \
+		if page_count > 1 else ""
+	label.text = page_text + InventoryWidgets.STR_GRID_NAV_HINT
+	label.add_theme_font_size_override("font_size", 14)
 	label.add_theme_color_override("font_color", InventoryWidgets.COL_BONE)
 	label.add_theme_constant_override("outline_size", 4)
 	label.add_theme_color_override("font_outline_color", Color(0.04, 0.03, 0.02))
@@ -313,13 +393,13 @@ func _make_page_indicator(wells: Array, page_index: int, page_count: int) -> Lab
 	if not wells.is_empty():
 		var first: Rect2 = _rect_of(wells[0])
 		var last: Rect2 = _rect_of(wells[wells.size() - 1])
-		label.position = Vector2(first.position.x, last.end.y + 6.0)
-		label.size = Vector2(last.end.x - first.position.x, 28.0)
+		label.position = Vector2(first.position.x, last.end.y + 2.0)
+		label.size = Vector2(last.end.x - first.position.x, 24.0)
 	return label
 
 
 ## 物品格：井尺寸的 Control，含 焦点/选中描边 overlay + 居中图标 + 数量角标（无格底，画好的井透出）。
-func _build_item_slot(slot: Dictionary, rect: Rect2) -> Control:
+func _build_item_slot(slot: InventoryState.Slot, rect: Rect2) -> Control:
 	var item: ItemData = slot.item
 	var count: int = slot.count
 
@@ -378,7 +458,7 @@ func _update_slot_styles() -> void:
 		if overlay == null:
 			continue
 		var slot_state: InventoryWidgets.SlotState = InventoryWidgets.SlotState.DEFAULT
-		if i == focus_idx:
+		if i == focus_idx and (_state != UIState.PREVIEW or _browse_level == BrowseLevel.GRID):
 			slot_state = InventoryWidgets.SlotState.SELECTED if _state != UIState.PREVIEW else InventoryWidgets.SlotState.FOCUSED
 		overlay.add_theme_stylebox_override("panel", InventoryWidgets.make_item_slot_focus_overlay(slot_state))
 
@@ -400,10 +480,10 @@ func _set_focus_index(idx: int) -> void:
 	_focus_index_by_category[_category_index] = idx
 
 
-func _focused_slot() -> Dictionary:
+func _focused_slot() -> InventoryState.Slot:
 	var idx: int = _get_focus_index()
 	if idx < 0 or idx >= _current_items.size():
-		return {}
+		return null
 	return _current_items[idx]
 
 
@@ -420,12 +500,12 @@ func _refresh_detail() -> void:
 		child.queue_free()
 	_action_menu_box = null
 
-	if GameData.inventory.is_empty():
+	if GameData.get_inventory_slots().is_empty():
 		_add_detail_empty_hint()
 		return
 
-	var slot: Dictionary = _focused_slot()
-	if slot.is_empty():
+	var slot := _focused_slot()
+	if slot == null:
 		_add_detail_empty_hint()
 		return
 
@@ -674,8 +754,8 @@ func _update_menu_selection() -> void:
 # ───────────────────────────────────────────── 状态切换
 
 func _enter_action_menu() -> void:
-	var slot: Dictionary = _focused_slot()
-	if slot.is_empty():
+	var slot := _focused_slot()
+	if slot == null:
 		return
 	var item: ItemData = slot.item
 	if item != null and (item.category == ItemData.ItemCategory.CONSUMABLE \
@@ -783,8 +863,8 @@ func _cancel_discard() -> void:
 # ───────────────────────────────────────────── 操作执行（单一写入者）
 
 func _execute_menu_action(opt: Dictionary) -> void:
-	var slot: Dictionary = _focused_slot()
-	if slot.is_empty():
+	var slot := _focused_slot()
+	if slot == null:
 		return
 	var item: ItemData = slot.item
 	var count: int = slot.count
@@ -809,9 +889,9 @@ func _execute_menu_action(opt: Dictionary) -> void:
 func _on_inventory_changed(_a = null, _b = null) -> void:
 	if not _is_open:
 		return
-	_update_tab_styles()
+	_update_subcategory_styles()
 	_refresh_grid()
-	if _state == UIState.ACTION_MENU and _focused_slot().is_empty():
+	if _state == UIState.ACTION_MENU and _focused_slot() == null:
 		_state = UIState.PREVIEW
 		_menu_options.clear()
 		_action_menu_box = null
@@ -836,33 +916,67 @@ func _unhandled_key_input(event: InputEvent) -> void:
 
 func _handle_preview_input(keycode: Key) -> void:
 	match keycode:
-		CANCEL_KEY:  # X：预览态下再次按 X 退出背包
-			close()
+		CANCEL_KEY:
+			_browse_back()
 			get_viewport().set_input_as_handled()
 		KEY_LEFT, KEY_A:
-			_move_focus(-1, 0)
+			_move_browse(-1, 0)
 			get_viewport().set_input_as_handled()
 		KEY_RIGHT, KEY_D:
-			_move_focus(1, 0)
+			_move_browse(1, 0)
 			get_viewport().set_input_as_handled()
 		KEY_UP, KEY_W:
-			_move_focus(0, -1)
+			_move_browse(0, -1)
 			get_viewport().set_input_as_handled()
 		KEY_DOWN, KEY_S:
-			_move_focus(0, 1)
-			get_viewport().set_input_as_handled()
-		KEY_Q:
-			_switch_category(-1)
-			get_viewport().set_input_as_handled()
-		KEY_E:
-			_switch_category(1)
+			_move_browse(0, 1)
 			get_viewport().set_input_as_handled()
 		CONFIRM_KEY:
-			_enter_action_menu()
+			_browse_confirm()
 			get_viewport().set_input_as_handled()
 
 
-## 方向键导航：左右在网格内移动列，到边缘列切页；上下按行移动。分类只由 Q/E 切换。
+func _browse_back() -> void:
+	match _browse_level:
+		BrowseLevel.GRID:
+			_browse_level = BrowseLevel.SUBCATEGORY
+		BrowseLevel.SUBCATEGORY:
+			_browse_level = BrowseLevel.TOP_TABS
+		BrowseLevel.TOP_TABS:
+			close()
+			return
+	_play_ui_sfx(SFX_MOVE, -12.0)
+	_update_browse_styles()
+
+
+func _browse_confirm() -> void:
+	match _browse_level:
+		BrowseLevel.TOP_TABS:
+			if _top_page_index != ITEMS_PAGE_INDEX:
+				return
+			_browse_level = BrowseLevel.SUBCATEGORY
+		BrowseLevel.SUBCATEGORY:
+			_browse_level = BrowseLevel.GRID
+		BrowseLevel.GRID:
+			_enter_action_menu()
+			return
+	_play_ui_sfx(SFX_MOVE, -12.0)
+	_update_browse_styles()
+
+
+func _move_browse(dx: int, dy: int) -> void:
+	match _browse_level:
+		BrowseLevel.TOP_TABS:
+			if dx != 0:
+				_switch_top_page(dx)
+		BrowseLevel.SUBCATEGORY:
+			if dx != 0:
+				_switch_category(dx)
+		BrowseLevel.GRID:
+			_move_focus(dx, dy)
+
+
+## 网格导航：左右到边缘列切页；上下只在网格内移动，不升到小类。
 func _move_focus(dx: int, dy: int) -> void:
 	if _current_items.is_empty():
 		return
@@ -924,9 +1038,17 @@ func _switch_category(direction: int) -> void:
 	var n: int = InventoryWidgets.CATEGORY_ORDER.size()
 	_category_index = posmod(_category_index + direction, n)
 	_play_ui_sfx(SFX_SHIFT, -10.0)
-	_update_tab_styles()
+	_update_subcategory_styles()
 	_refresh_grid()
 	_refresh_detail()
+
+
+func _switch_top_page(direction: int) -> void:
+	_top_page_index = posmod(_top_page_index + direction, InventoryWidgets.TOP_PAGE_NAMES.size())
+	_browse_level = BrowseLevel.TOP_TABS
+	_play_ui_sfx(SFX_SHIFT, -10.0)
+	_update_page_visibility()
+	_update_browse_styles()
 
 
 func _handle_action_menu_input(keycode: Key) -> void:

@@ -39,6 +39,7 @@ func deactivate() -> void:
 
 func _process(delta: float) -> void:
 	if not is_instance_valid(_target):
+		deactivate()
 		return
 	var tp := _target.global_position
 	var cam := global_position

@@ -7,6 +7,8 @@
 [ext_resource type="Texture2D" path="res://assets/derived/maps/forest-main/rock_pile.png" id="5_6vacj"]
 [ext_resource type="Texture2D" path="res://assets/derived/maps/forest-main/sign_wood.png" id="6_irbu2"]
 [ext_resource type="Texture2D" path="res://assets/derived/maps/forest-main/sign_stone.png" id="7_rxub5"]
+[ext_resource type="Script" path="res://scripts/characters/SignpostNPC.gd" id="8_signpost"]
+[ext_resource type="FontFile" path="res://assets/ui/fonts/fusion-pixel-font/fusion-pixel-12px-proportional-zh_hans.ttf" id="9_font"]
 
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_y3t5l"]
 size = Vector2(36, 20)
@@ -34,6 +36,15 @@ size = Vector2(2304, 64)
 
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_d1uhh"]
 size = Vector2(640, 64)
+
+[sub_resource type="CircleShape2D" id="CircleShape2D_sign_interaction"]
+radius = 56.0
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_sign_wood"]
+size = Vector2(36, 16)
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_sign_stone"]
+size = Vector2(42, 20)
 
 [node name="ForestMainMap" type="Node2D" unique_id=825058466]
 y_sort_enabled = true
@@ -11954,8 +11965,12 @@ position = Vector2(-32, -52)
 texture = ExtResource("5_6vacj")
 centered = false
 
-[node name="Sign_0001" type="Node2D" parent="Objects" unique_id=291156582]
+[node name="Sign_0001" type="Area2D" parent="Objects" unique_id=291156582]
 position = Vector2(1437, 1149)
+collision_layer = 0
+collision_mask = 1
+script = ExtResource("8_signpost")
+dialogue_id = "forest_main_wood_sign"
 metadata/forest_object_kind = "sign"
 
 [node name="Sprite" type="Sprite2D" parent="Objects/Sign_0001" unique_id=998438273]
@@ -11964,8 +11979,32 @@ position = Vector2(-32, -58)
 texture = ExtResource("6_irbu2")
 centered = false
 
-[node name="Sign_0002" type="Node2D" parent="Objects" unique_id=1835227266]
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Objects/Sign_0001"]
+position = Vector2(0, -24)
+shape = SubResource("CircleShape2D_sign_interaction")
+
+[node name="Prompt" type="Label" parent="Objects/Sign_0001"]
+visible = false
+offset_left = -30.0
+offset_top = -84.0
+offset_right = 30.0
+offset_bottom = -64.0
+theme_override_colors/font_color = Color(0.95, 1, 0.92, 1)
+theme_override_colors/font_shadow_color = Color(0, 0.15, 0.05, 0.85)
+theme_override_constants/shadow_offset_x = 1
+theme_override_constants/shadow_offset_y = 1
+theme_override_fonts/font = ExtResource("9_font")
+theme_override_font_sizes/font_size = 12
+horizontal_alignment = 1
+vertical_alignment = 1
+text = "Z 查看"
+
+[node name="Sign_0002" type="Area2D" parent="Objects" unique_id=1835227266]
 position = Vector2(794, 1081)
+collision_layer = 0
+collision_mask = 1
+script = ExtResource("8_signpost")
+dialogue_id = "forest_main_stone_sign"
 metadata/forest_object_kind = "sign"
 
 [node name="Sprite" type="Sprite2D" parent="Objects/Sign_0002" unique_id=1741260808]
@@ -11974,7 +12013,37 @@ position = Vector2(-32, -58)
 texture = ExtResource("7_rxub5")
 centered = false
 
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Objects/Sign_0002"]
+position = Vector2(0, -24)
+shape = SubResource("CircleShape2D_sign_interaction")
+
+[node name="Prompt" type="Label" parent="Objects/Sign_0002"]
+visible = false
+offset_left = -30.0
+offset_top = -84.0
+offset_right = 30.0
+offset_bottom = -64.0
+theme_override_colors/font_color = Color(0.95, 1, 0.92, 1)
+theme_override_colors/font_shadow_color = Color(0, 0.15, 0.05, 0.85)
+theme_override_constants/shadow_offset_x = 1
+theme_override_constants/shadow_offset_y = 1
+theme_override_fonts/font = ExtResource("9_font")
+theme_override_font_sizes/font_size = 12
+horizontal_alignment = 1
+vertical_alignment = 1
+text = "Z 查看"
+
 [node name="Obstacles" type="StaticBody2D" parent="." unique_id=615587724]
+
+[node name="Sign_0001_Foot" type="CollisionShape2D" parent="Obstacles"]
+position = Vector2(1437, 1145)
+shape = SubResource("RectangleShape2D_sign_wood")
+metadata/forest_object_kind = "sign_wood"
+
+[node name="Sign_0002_Foot" type="CollisionShape2D" parent="Obstacles"]
+position = Vector2(794, 1077)
+shape = SubResource("RectangleShape2D_sign_stone")
+metadata/forest_object_kind = "sign_stone"
 
 [node name="Rock_0001_Foot" type="CollisionShape2D" parent="Obstacles" unique_id=1443670240]
 position = Vector2(1108, 987)

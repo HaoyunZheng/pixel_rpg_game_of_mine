@@ -369,7 +369,7 @@ func _show_item_menu() -> void:
 	_menu_mode = MENU_MODE_ITEM
 	_clear_menu_highlight()
 	_render_central_options_header("✦ 选择物品（Z确认 / X返回）")
-	for slot in GameData.inventory:
+	for slot in battle_controller.get_inventory_slots():
 		var item: ItemData = slot.item
 		if item.category != ItemData.ItemCategory.CONSUMABLE:
 			continue
@@ -385,7 +385,7 @@ func _create_item_action(item: ItemData) -> Callable:
 		_start_target_select(target_type, func(t): _turn_state_machine.select_command(BattleCommands.ITEM, item); _turn_state_machine.select_target(t))
 
 func _has_battle_usable_items() -> bool:
-	for slot in GameData.inventory:
+	for slot in battle_controller.get_inventory_slots():
 		if slot.count > 0 and slot.item.item_type != ItemData.ItemType.PALLIATIVE and slot.item.category == ItemData.ItemCategory.CONSUMABLE:
 			return true
 	return false
@@ -880,7 +880,7 @@ func _first_living_party():
 			return member
 	return null
 
-func _format_timing_result(target: BattleUnit, result: Dictionary) -> String:
+static func _format_timing_result(target: BattleUnit, result: Dictionary) -> String:
 	var outcome_text: String = "失败"
 	var hit_count: int = int(result.get("hit_count", 0))
 	var success_count: int = int(result.get("success_count", 0))

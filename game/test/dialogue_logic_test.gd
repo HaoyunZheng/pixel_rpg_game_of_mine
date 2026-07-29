@@ -1,6 +1,6 @@
 extends Node
 ## 对话系统 确定性逻辑单元测试（headless，不触发 Dialogic GUI）
-## 覆盖：注册表、start 守卫、Dialogic 变量读写、跨场景保持、样板分支与玩法状态隔离。
+## 覆盖：注册表、start 守卫、Dialogic 变量读写、跨场景保持、像素字体接入、样板分支与玩法状态隔离。
 ## 以场景方式运行（自动加载单例须先就绪）：
 ##   /Applications/Godot.app/Contents/MacOS/Godot --headless --path . \
 ##       res://test/dialogue_logic_test.tscn
@@ -10,14 +10,20 @@ var _fails: int = 0
 var _texts: Array[String] = []
 var _question: Dictionary = {}
 
+const PIXEL_FONT_PATH := "res://assets/ui/fonts/fusion-pixel-font/fusion-pixel-12px-proportional-zh_hans.ttf"
+const SHARED_THEME_PATH := "res://assets/ui/battle/battle_theme.tres"
+
 func _ready() -> void:
 	_test_registry()
 	await _test_start_guards()
 	_test_variables()
 	await _test_cross_scene_persistence()
+	_test_pixel_font_resources()
 	_test_sample_resources_and_inputs()
 	await _test_sample_branch_loop()
 	Dialogic.VAR.reset()
+	await get_tree().process_frame
+	await get_tree().process_frame
 	print("[test] 结果：%s" % ("全部通过 ✅" if _fails == 0 else "%d 项失败 ❌" % _fails))
 	get_tree().quit(_fails)
 
@@ -37,13 +43,17 @@ func _test_registry() -> void:
 	var path: String = dm.REGISTRY.get("forest_wanderer", "")
 	_check("注册表含 forest_wanderer", not path.is_empty())
 	_check("forest_wanderer timeline 资源存在", ResourceLoader.exists(path))
+	for dialogue_id: String in ["forest_main_wood_sign", "forest_main_stone_sign"]:
+		var sign_path: String = dm.REGISTRY.get(dialogue_id, "")
+		_check("注册表含 %s" % dialogue_id, not sign_path.is_empty())
+		_check("%s timeline 资源存在" % dialogue_id, ResourceLoader.exists(sign_path))
 
 func _test_start_guards() -> void:
 	var dm := _dm()
 	_check("初始无对话进行", dm.is_active() == false)
 	_check("未登记 id 返回 false", dm.start("__not_registered__") == false)
 	_check("失败后仍无对话进行", dm.is_active() == false)
-	GameData.flags.erase("legacy_dialogue_hook")
+	GameData.set_flag("legacy_dialogue_hook", false)
 	GameData.set_bond("companion", 2)
 	var started: bool = dm.start("forest_wanderer", {
 		"set_flags": PackedStringArray(["legacy_dialogue_hook"]),
@@ -81,6 +91,40 @@ func _test_cross_scene_persistence() -> void:
 	_check("切换场景节点后分支变量保持", Dialogic.VAR.get_variable("story.branches.forest_wanderer") == "warned")
 	wilderness.queue_free()
 	await get_tree().process_frame
+
+func _test_pixel_font_resources() -> void:
+	var pixel_font := load(PIXEL_FONT_PATH) as FontFile
+	_check("简体中文像素字体可加载", pixel_font != null)
+	_check("像素字体关闭抗锯齿、MSDF 与子像素定位", pixel_font != null
+		and pixel_font.antialiasing == 0
+		and not pixel_font.multichannel_signed_distance_field
+		and pixel_font.subpixel_positioning == 0)
+	var shared_theme := load(SHARED_THEME_PATH) as Theme
+	_check("战斗与背包共享 Theme 使用像素字体", shared_theme != null and shared_theme.default_font == pixel_font)
+
+	var forest := (load("res://scenes/ForestClearing.tscn") as PackedScene).instantiate()
+	_check("林间空地文字使用像素字体", _labels_use_font(forest, PackedStringArray([
+		"WildGate/Label", "Wanderer/Prompt",
+	]), pixel_font))
+	forest.free()
+
+	var wilderness := (load("res://scenes/Wilderness.tscn") as PackedScene).instantiate()
+	_check("野外场景文字使用像素字体", _labels_use_font(wilderness, PackedStringArray([
+		"Enemies/Enemy1/Label", "Enemies/Enemy2/Label", "ExitTrigger/Label",
+		"UI/Title", "UI/Subtitle", "UI/Hint",
+	]), pixel_font))
+	wilderness.free()
+
+	var style := load("res://dialogue/styles/project_dialogue_style.tres") as DialogicStyle
+	var base_overrides: Dictionary = style.get_layer_info("").overrides if style != null else {}
+	_check("Dialogic 项目样式覆写 global_font", base_overrides.get("global_font", "") == var_to_str(PIXEL_FONT_PATH))
+
+func _labels_use_font(root_node: Node, paths: PackedStringArray, pixel_font: Font) -> bool:
+	for path: String in paths:
+		var label := root_node.get_node_or_null(NodePath(path)) as Label
+		if label == null or label.get_theme_font("font") != pixel_font:
+			return false
+	return true
 
 func _test_sample_resources_and_inputs() -> void:
 	_check("对话表情切换不使用渐变",

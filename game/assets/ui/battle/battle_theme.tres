@@ -1,6 +1,9 @@
-[gd_resource type="Theme" format=3]
+[gd_resource type="Theme" load_steps=2 format=3]
+
+[ext_resource type="FontFile" path="res://assets/ui/fonts/fusion-pixel-font/fusion-pixel-12px-proportional-zh_hans.ttf" id="1_font"]
 
 [resource]
+default_font = ExtResource("1_font")
 default_font_size = 18
 Label/colors/font_color = Color(0.847, 0.812, 0.753, 1)
 Label/colors/font_outline_color = Color(0.086, 0.078, 0.102, 0.9)
