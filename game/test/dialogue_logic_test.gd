@@ -137,6 +137,7 @@ func _test_sample_branch_loop() -> void:
 
 	var normal_chat := await _play_sample(1)
 	_check("再次对话显示三个日常选项", normal_chat and _question.get("choices", []).size() == 3)
+	_check("再次对话以嗯？开场", not _texts.is_empty() and _texts.front() == "嗯？")
 	_check("日常对话分支可进入", _texts.any(func(text: String) -> bool: return "乌迪在这里已经很久很久了" in text))
 	_check("再次对话不再显示首次问候", not _texts.any(func(text: String) -> bool: return "不要攻击我" in text))
 

@@ -12,9 +12,10 @@ if {story.branches.forest_wanderer} == "unseen":
 	乌迪决定相信你！
 	set {story.flags.met_forest_wanderer} = true
 	set {story.branches.forest_wanderer} = "greeted"
+	return
 else:
+	forest_wanderer (expression_02): 嗯？
 	- 对话
-		forest_wanderer (expression_02): 嗯？
 		forest_wanderer (expression_02): 乌迪在这里已经很久很久了
 		forest_wanderer (expression_02): 乌迪也不清楚自己是什么时候开始在这的
 		forest_wanderer (expression_02): 这里的树一直都是这样\
