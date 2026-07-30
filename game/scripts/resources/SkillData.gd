@@ -13,3 +13,5 @@ enum DamageType { PHYSICAL, MAGIC }
 @export var power: int = 10
 @export var mp_cost: int = 8
 @export var target_type: String = "single_enemy"
+@export_range(1, 5) var max_rank: int = 5
+@export_range(0, 20) var power_per_rank: int = 5

@@ -206,7 +206,9 @@ func _on_action_executed(result: Dictionary) -> void:
 
 func _on_battle_ended(victory: bool) -> void:
 	Log.info("Battle", "战斗结束，胜利: %s" % victory)
-	_battle_ui.show_battle_result(victory)
+	var ember_reward: int = (
+		_enemy_keys.size() * GameData.VICTORY_EMBERS_PER_ENEMY if victory else 0)
+	_battle_ui.show_battle_result(victory, ember_reward)
 	GameData.settle_battle(
 		_session,
 		BattleSession.Outcome.VICTORY if victory else BattleSession.Outcome.DEFEAT)

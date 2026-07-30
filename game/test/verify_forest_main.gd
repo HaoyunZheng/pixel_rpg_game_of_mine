@@ -229,6 +229,29 @@ func _verify_campfire(scene: Node2D, player: CharacterBody2D, game_data: Node) -
 			and game_data.call("get_bond", "companion") == 4,
 			"休息回满 HP/MP、清除异常且不改羁绊或诅咒")
 
+	var player_before_upgrade: PartyMemberState = game_data.call("get_party_member", 0)
+	var level_cost: int = game_data.call("get_level_up_cost", 0)
+	var missing_embers: int = level_cost - int(game_data.call("get_ember_count"))
+	if missing_embers > 0:
+		game_data.call("add_embers", missing_embers)
+	(content.get_node("UpgradeButton") as Button).pressed.emit()
+	await process_frame
+	var player_after_upgrade: PartyMemberState = game_data.call("get_party_member", 0)
+	_check(player_after_upgrade.level == player_before_upgrade.level + 1
+			and player_after_upgrade.skill_points == player_before_upgrade.skill_points + 1,
+			"篝火菜单可消耗余烬升级并获得技能点")
+
+	var skill := player_after_upgrade.stats_res.skills[0] as SkillData
+	var rank_before: int = game_data.call("get_skill_rank", 0, skill.id)
+	(content.get_node("SkillButton") as Button).pressed.emit()
+	await process_frame
+	_check(game_data.call("get_skill_rank", 0, skill.id) == rank_before + 1
+			and game_data.call("get_party_member", 0).skill_points
+				== player_after_upgrade.skill_points - 1
+			and game_data.call("get_curse", "player") == 37
+			and game_data.call("get_bond", "companion") == 4,
+			"篝火菜单可分配技能点且不改羁绊或诅咒")
+
 	(content.get_node("LeaveButton") as Button).pressed.emit()
 	await process_frame
 	_check(not menu.call("is_open") and not paused and prompt.visible,

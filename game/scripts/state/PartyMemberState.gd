@@ -11,6 +11,9 @@ var max_mp: int = 0
 var atk: int = 0
 var def: int = 0
 var spd: int = 0
+var level: int = 1
+var skill_points: int = 0
+var skill_ranks: Dictionary = {}
 var stats_res: CharacterStats = null
 var status_effects: Array[StatusEffect] = []
 
@@ -25,6 +28,10 @@ static func from_stats(stats: CharacterStats) -> PartyMemberState:
 	member.atk = stats.atk
 	member.def = stats.def
 	member.spd = stats.spd
+	for raw_skill in stats.skills:
+		var skill := raw_skill as SkillData
+		if skill != null:
+			member.skill_ranks[skill.id] = 1
 	member.stats_res = stats
 	return member
 
@@ -39,6 +46,9 @@ func copy() -> PartyMemberState:
 	member.atk = atk
 	member.def = def
 	member.spd = spd
+	member.level = level
+	member.skill_points = skill_points
+	member.skill_ranks = skill_ranks.duplicate()
 	member.stats_res = stats_res
 	for effect: StatusEffect in status_effects:
 		member.status_effects.append(effect.duplicate() as StatusEffect)

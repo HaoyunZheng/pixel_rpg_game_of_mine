@@ -90,6 +90,7 @@ func _ready() -> void:
 	_test_inventory()
 	_test_equipment_battle_copy()
 	_test_battle_session_transactions()
+	_test_campfire_progression()
 	_test_forest_battle_routing()
 	await _test_inventory_pagination()
 	_test_inventory_detail_layout()
@@ -1336,6 +1337,47 @@ func _test_battle_session_transactions() -> void:
 	_check("森林主地图逃跑不标记当前敌人",
 		gd.settle_battle(forest_flee, BattleSession.Outcome.FLED)
 		and not gd.is_enemy_defeated(defeated_key))
+
+func _test_campfire_progression() -> void:
+	var gd: Node = get_node("/root/GameData")
+	_check("P4 成长原型只开放主角",
+		gd.get_level_up_cost(1) == 0
+		and not gd.upgrade_skill(1, "skill_heal"))
+	var embers_before_reward: int = gd.get_ember_count()
+	var reward_session: BattleSession = gd.create_battle_session(
+		["Enemy1_Progression"] as Array[String])
+	_check("战斗胜利按敌人数结算余烬且只结算一次",
+		gd.settle_battle(reward_session, BattleSession.Outcome.VICTORY)
+		and gd.get_ember_count() == embers_before_reward + GameData.VICTORY_EMBERS_PER_ENEMY
+		and not gd.settle_battle(reward_session, BattleSession.Outcome.VICTORY)
+		and gd.get_ember_count() == embers_before_reward + GameData.VICTORY_EMBERS_PER_ENEMY)
+
+	var player_before: PartyMemberState = gd.get_party_member(0)
+	var level_cost: int = gd.get_level_up_cost(0)
+	var missing_embers: int = level_cost - gd.get_ember_count()
+	if missing_embers > 0:
+		gd.add_embers(missing_embers)
+	var embers_before_upgrade: int = gd.get_ember_count()
+	_check("篝火升级消耗余烬、提升主角属性并发放技能点",
+		gd.upgrade_party_member(0)
+		and gd.get_ember_count() == embers_before_upgrade - level_cost
+		and gd.get_party_member(0).level == player_before.level + 1
+		and gd.get_party_member(0).max_hp == player_before.max_hp + GameData.LEVEL_HP_GAIN
+		and gd.get_party_member(0).max_mp == player_before.max_mp + GameData.LEVEL_MP_GAIN
+		and gd.get_party_member(0).atk == player_before.atk + GameData.LEVEL_ATK_GAIN
+		and gd.get_party_member(0).def == player_before.def + GameData.LEVEL_DEF_GAIN
+		and gd.get_party_member(0).spd == player_before.spd + GameData.LEVEL_SPD_GAIN
+		and gd.get_party_member(0).skill_points == player_before.skill_points + 1)
+
+	var player_after_level: PartyMemberState = gd.get_party_member(0)
+	var skill := player_after_level.stats_res.skills[0] as SkillData
+	var rank_before: int = gd.get_skill_rank(0, skill.id)
+	_check("技能点强化现有技能并进入战斗副本",
+		gd.upgrade_skill(0, skill.id)
+		and gd.get_skill_rank(0, skill.id) == rank_before + 1
+		and gd.get_party_member(0).skill_points == player_after_level.skill_points - 1
+		and BattleUnit.from_party_member(gd.get_party_member(0)).get_skill_power(skill)
+			== skill.power + rank_before * skill.power_per_rank)
 
 func _test_forest_battle_routing() -> void:
 	var battle: Node = load("res://scenes/Battle.tscn").instantiate()

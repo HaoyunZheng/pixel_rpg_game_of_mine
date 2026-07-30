@@ -16,9 +16,19 @@ const INITIAL_ITEMS: Dictionary = {
 	"res://assets/data/items/item_black_sack.tres": 1,
 	"res://assets/data/items/item_red_pouch.tres": 1,
 }
+const DEMO_MAX_LEVEL: int = 5
+const VICTORY_EMBERS_PER_ENEMY: int = 20
+const LEVEL_UP_BASE_COST: int = 20
+const LEVEL_UP_COST_STEP: int = 20
+const LEVEL_HP_GAIN: int = 10
+const LEVEL_MP_GAIN: int = 2
+const LEVEL_ATK_GAIN: int = 2
+const LEVEL_DEF_GAIN: int = 1
+const LEVEL_SPD_GAIN: int = 1
 
 var _party_members: Array[PartyMemberState] = []
 var _inventory := InventoryState.new()
+var _ember_count: int = 0
 var _current_scene_name: String = ""
 var _flags: Dictionary = {}
 var _curse_values: Dictionary = {}
@@ -82,6 +92,62 @@ func rest_party() -> bool:
 		member.status_effects.clear()
 	return true
 
+func get_ember_count() -> int:
+	return _ember_count
+
+func add_embers(amount: int) -> bool:
+	if amount <= 0:
+		return false
+	_ember_count += amount
+	return true
+
+func get_level_up_cost(member_index: int) -> int:
+	if member_index != 0 or member_index >= _party_members.size():
+		return 0
+	var member := _party_members[member_index]
+	if member.level >= DEMO_MAX_LEVEL:
+		return 0
+	return LEVEL_UP_BASE_COST + (member.level - 1) * LEVEL_UP_COST_STEP
+
+func upgrade_party_member(member_index: int) -> bool:
+	var cost := get_level_up_cost(member_index)
+	if cost <= 0 or _ember_count < cost:
+		return false
+	var member := _party_members[member_index]
+	_ember_count -= cost
+	member.level += 1
+	member.skill_points += 1
+	member.max_hp += LEVEL_HP_GAIN
+	member.hp += LEVEL_HP_GAIN
+	member.max_mp += LEVEL_MP_GAIN
+	member.mp += LEVEL_MP_GAIN
+	member.atk += LEVEL_ATK_GAIN
+	member.def += LEVEL_DEF_GAIN
+	member.spd += LEVEL_SPD_GAIN
+	return true
+
+func get_skill_rank(member_index: int, skill_id: String) -> int:
+	if member_index < 0 or member_index >= _party_members.size():
+		return 0
+	var member := _party_members[member_index]
+	if _find_party_skill(member, skill_id) == null:
+		return 0
+	return maxi(1, int(member.skill_ranks.get(skill_id, 1)))
+
+func upgrade_skill(member_index: int, skill_id: String) -> bool:
+	if member_index != 0 or member_index >= _party_members.size():
+		return false
+	var member := _party_members[member_index]
+	var skill := _find_party_skill(member, skill_id)
+	if skill == null or member.skill_points <= 0:
+		return false
+	var rank := get_skill_rank(member_index, skill_id)
+	if rank >= skill.max_rank:
+		return false
+	member.skill_points -= 1
+	member.skill_ranks[skill_id] = rank + 1
+	return true
+
 func create_battle_session(enemy_keys: Array[String]) -> BattleSession:
 	var party_units: Array[BattleUnit] = []
 	var equipment_bonuses := get_equipment_bonuses()
@@ -100,6 +166,7 @@ func settle_battle(session: BattleSession, outcome: BattleSession.Outcome) -> bo
 			if outcome == BattleSession.Outcome.VICTORY:
 				for enemy_key: String in session.enemy_keys:
 					mark_enemy_defeated(enemy_key)
+				add_embers(session.enemy_keys.size() * VICTORY_EMBERS_PER_ENEMY)
 		BattleSession.Outcome.DEFEAT:
 			_reset_party_after_defeat()
 	return true
@@ -119,6 +186,15 @@ func _reset_party_after_defeat() -> void:
 		member.hp = member.max_hp
 		member.mp = member.max_mp
 		member.status_effects.clear()
+
+func _find_party_skill(member: PartyMemberState, skill_id: String) -> SkillData:
+	if member.stats_res == null:
+		return null
+	for raw_skill in member.stats_res.skills:
+		var skill := raw_skill as SkillData
+		if skill != null and skill.id == skill_id:
+			return skill
+	return null
 
 # ── 场景与世界事实 ──
 

@@ -18,6 +18,7 @@ const DESCRIPTIONS: Array[String] = [
 
 @onready var _panel: PanelContainer = $Overlay/Center/Panel
 @onready var _title: Label = $Overlay/Center/Panel/Content/Title
+@onready var _subtitle: Label = $Overlay/Center/Panel/Content/Subtitle
 @onready var _status: Label = $Overlay/Center/Panel/Content/Status
 @onready var _sfx: AudioStreamPlayer = $UISFX
 @onready var _buttons: Array[Button] = [
@@ -74,6 +75,7 @@ func open(campfire_name: String) -> void:
 	_pause_claim_active = true
 	_title.text = "篝火 · %s" % campfire_name
 	_status.text = DESCRIPTIONS[0]
+	_refresh_header()
 	visible = true
 	get_tree().paused = true
 	_buttons[0].grab_focus()
@@ -120,7 +122,13 @@ func _apply_button_style(button: Button) -> void:
 func _on_button_focused(index: int) -> void:
 	if not _is_open:
 		return
-	_status.text = DESCRIPTIONS[index]
+	match index:
+		1:
+			_status.text = _get_upgrade_description()
+		2:
+			_status.text = _get_skill_description()
+		_:
+			_status.text = DESCRIPTIONS[index]
 	_play_sfx(MOVE_SFX, -12.0)
 
 
@@ -133,18 +141,70 @@ func _on_rest_pressed() -> void:
 
 
 func _on_upgrade_pressed() -> void:
-	_status.text = "当前没有可用于升级的余烬。"
+	var member := GameData.get_party_member(0)
+	var cost := GameData.get_level_up_cost(0)
+	if member == null:
+		_status.text = "火焰中没有可辨认的身影。"
+	elif cost <= 0:
+		_status.text = "%s已达到当前可提升的极限。" % member.display_name
+	elif GameData.upgrade_party_member(0):
+		member = GameData.get_party_member(0)
+		_status.text = "%s升至 Lv.%d，获得 1 技能点。" % [member.display_name, member.level]
+	else:
+		_status.text = "余烬不足：本次升级需要 %d。" % cost
+	_refresh_header()
 	_play_sfx(CONFIRM_SFX, -10.0)
 
 
 func _on_skill_pressed() -> void:
-	_status.text = "当前没有可分配的技能点。"
+	var member := GameData.get_party_member(0)
+	var skill := _get_primary_skill(member)
+	if member == null or skill == null:
+		_status.text = "当前没有可强化的技能。"
+	elif GameData.get_skill_rank(0, skill.id) >= skill.max_rank:
+		_status.text = "%s已达到当前最高等级。" % skill.display_name
+	elif GameData.upgrade_skill(0, skill.id):
+		_status.text = "%s强化至 Lv.%d，威力提升。" % [
+			skill.display_name, GameData.get_skill_rank(0, skill.id)]
+	else:
+		_status.text = "技能点不足；升级可获得技能点。"
 	_play_sfx(CONFIRM_SFX, -10.0)
 
 
 func _on_travel_pressed() -> void:
 	_status.text = "尚未发现其它篝火。"
 	_play_sfx(CONFIRM_SFX, -10.0)
+
+func _refresh_header() -> void:
+	_subtitle.text = "持有余烬 %d · 火星仍未熄灭" % GameData.get_ember_count()
+
+func _get_upgrade_description() -> String:
+	var member := GameData.get_party_member(0)
+	if member == null:
+		return "没有可升级的角色。"
+	var cost := GameData.get_level_up_cost(0)
+	if cost <= 0:
+		return "%s Lv.%d｜已达当前上限" % [member.display_name, member.level]
+	return "%s Lv.%d → Lv.%d｜需要余烬 %d" % [
+		member.display_name, member.level, member.level + 1, cost]
+
+func _get_skill_description() -> String:
+	var member := GameData.get_party_member(0)
+	var skill := _get_primary_skill(member)
+	if member == null or skill == null:
+		return "当前没有可强化的技能。"
+	return "技能点 %d｜%s Lv.%d/%d" % [
+		member.skill_points,
+		skill.display_name,
+		GameData.get_skill_rank(0, skill.id),
+		skill.max_rank,
+	]
+
+func _get_primary_skill(member: PartyMemberState) -> SkillData:
+	if member == null or member.stats_res == null or member.stats_res.skills.is_empty():
+		return null
+	# ponytail: Demo 主角只有一个成长技能；新增第二个技能时再补选择层。
+	return member.stats_res.skills[0] as SkillData
 
 
 func _play_sfx(stream: AudioStream, volume_db: float) -> void:

@@ -135,8 +135,9 @@ func _execute_action() -> Dictionary:
 						target.take_damage(damage)
 						result.damage += damage
 					elif _pending_skill.skill_type == SkillData.SkillType.HEAL:
-						target.heal(_pending_skill.power)
-						result.heal += _pending_skill.power
+						var healing: int = _current_actor.get_skill_power(_pending_skill)
+						target.heal(healing)
+						result.heal += healing
 		BattleCommands.FLEE:
 			result.fled = _try_flee()
 		BattleCommands.ITEM:

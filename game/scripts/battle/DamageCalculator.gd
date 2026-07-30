@@ -14,7 +14,7 @@ func calc_magic(attacker: BattleUnit, target: BattleUnit) -> int:
 	return maxi(1, raw)
 
 func calc_skill(attacker: BattleUnit, target: BattleUnit, skill: SkillData) -> int:
-	var base_atk: int = attacker.atk + skill.power
+	var base_atk: int = attacker.atk + attacker.get_skill_power(skill)
 	match skill.damage_type:
 		SkillData.DamageType.PHYSICAL:
 			return maxi(1, base_atk - target.def)

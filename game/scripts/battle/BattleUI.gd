@@ -135,11 +135,13 @@ func show_actor_turn(actor) -> void:
 		_set_menu_visible(false)
 		_message_label.text = "%s 正在行动..." % actor.display_name
 
-func show_battle_result(victory: bool) -> void:
+func show_battle_result(victory: bool, ember_reward: int = 0) -> void:
 	_clear_menu_highlight()
 	_set_menu_visible(false)
 	_clear_all_reticles()
 	_message_label.text = "战斗结束 — %s" % ("胜利！" if victory else "失败...")
+	if victory and ember_reward > 0:
+		_message_label.text += "\n获得余烬 ×%d" % ember_reward
 
 func run_timing_check(
 		attacker: BattleUnit,
