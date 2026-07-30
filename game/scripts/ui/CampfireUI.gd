@@ -15,6 +15,20 @@ const DESCRIPTIONS: Array[String] = [
 	"前往已经点燃的篝火。",
 	"离开篝火，返回荒林。",
 ]
+const CAMPFIRE_DESTINATIONS: Dictionary = {
+	&"forest_clearing": {
+		"display_name": "林间空地",
+		"scene_path": "res://scenes/ForestClearing.tscn",
+		"scene_name": "ForestClearing",
+		"spawn_id": "forest_clearing",
+	},
+	&"forest_ruins": {
+		"display_name": "路边废墟",
+		"scene_path": "res://scenes/ForestMain.tscn",
+		"scene_name": "ForestMain",
+		"spawn_id": "forest_ruins",
+	},
+}
 
 @onready var _panel: PanelContainer = $Overlay/Center/Panel
 @onready var _title: Label = $Overlay/Center/Panel/Content/Title
@@ -32,6 +46,7 @@ const DESCRIPTIONS: Array[String] = [
 var _is_open: bool = false
 var _pause_claim_active: bool = false
 var _tree_was_paused: bool = false
+var _current_campfire_id: StringName = &""
 
 
 func _ready() -> void:
@@ -67,10 +82,11 @@ func _unhandled_key_input(event: InputEvent) -> void:
 		close()
 
 
-func open(campfire_name: String) -> void:
+func open(campfire_id: StringName, campfire_name: String) -> void:
 	if _is_open:
 		return
 	_is_open = true
+	_current_campfire_id = campfire_id
 	_tree_was_paused = get_tree().paused
 	_pause_claim_active = true
 	_title.text = "篝火 · %s" % campfire_name
@@ -127,6 +143,8 @@ func _on_button_focused(index: int) -> void:
 			_status.text = _get_upgrade_description()
 		2:
 			_status.text = _get_skill_description()
+		3:
+			_status.text = _get_travel_description()
 		_:
 			_status.text = DESCRIPTIONS[index]
 	_play_sfx(MOVE_SFX, -12.0)
@@ -172,8 +190,18 @@ func _on_skill_pressed() -> void:
 
 
 func _on_travel_pressed() -> void:
-	_status.text = "尚未发现其它篝火。"
+	var destination := _get_travel_destination()
+	if destination.is_empty():
+		_status.text = "尚未点燃其它篝火。"
+		_play_sfx(CONFIRM_SFX, -10.0)
+		return
 	_play_sfx(CONFIRM_SFX, -10.0)
+	close()
+	SceneManager.change_scene(destination.scene_path, {
+		"scene_name": destination.scene_name,
+		"from": "campfire",
+		"spawn_id": destination.spawn_id,
+	})
 
 func _refresh_header() -> void:
 	_subtitle.text = "持有余烬 %d · 火星仍未熄灭" % GameData.get_ember_count()
@@ -199,6 +227,20 @@ func _get_skill_description() -> String:
 		GameData.get_skill_rank(0, skill.id),
 		skill.max_rank,
 	]
+
+func _get_travel_description() -> String:
+	var destination := _get_travel_destination()
+	if destination.is_empty():
+		return "尚未点燃其它篝火。"
+	return "前往已点燃的篝火：%s" % destination.display_name
+
+func _get_travel_destination() -> Dictionary:
+	# ponytail: Demo 只有两座篝火；出现第三座时再增加目的地选择层。
+	for campfire_id: StringName in CAMPFIRE_DESTINATIONS:
+		if campfire_id != _current_campfire_id \
+				and GameData.is_campfire_discovered(campfire_id):
+			return CAMPFIRE_DESTINATIONS[campfire_id]
+	return {}
 
 func _get_primary_skill(member: PartyMemberState) -> SkillData:
 	if member == null or member.stats_res == null or member.stats_res.skills.is_empty():

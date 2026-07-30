@@ -11,6 +11,7 @@ const FOREST_MAIN_RETURN_POSITION := Vector2(768, 128)
 
 @onready var _player: CharacterBody2D = $Player
 @onready var _gate_sensor: Area2D = $Player/GateSensor
+@onready var _campfire_spawn: Marker2D = $CampfireSpawn_ForestClearing
 
 func _ready() -> void:
 	Log.info("ForestClearing", "林间空地场景已加载")
@@ -20,7 +21,9 @@ func _ready() -> void:
 func on_scene_enter(data: Dictionary) -> void:
 	Log.info("ForestClearing", "进入林间空地，数据: %s" % data)
 	_is_transitioning = false
-	if data.get("from", "") == "forest_main":
+	if data.get("spawn_id", "") == "forest_clearing":
+		_player.global_position = _campfire_spawn.global_position
+	elif data.get("from", "") == "forest_main":
 		_player.global_position = FOREST_MAIN_RETURN_POSITION
 	GameCamera.set_map(_player, MAP_RECT)
 

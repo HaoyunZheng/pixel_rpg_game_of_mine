@@ -27,6 +27,7 @@ const MUTANT_SOURCES: Array[Vector2] = [
 @onready var _gate_sensor: Area2D = $Player/GateSensor
 @onready var _battle_sensor: Area2D = $Player/BattleTrigger
 @onready var _enemies: Node2D = $Enemies
+@onready var _campfire_spawn: Marker2D = $CampfireSpawn_ForestRuins
 
 
 func _ready() -> void:
@@ -41,7 +42,10 @@ func _ready() -> void:
 func on_scene_enter(data: Dictionary) -> void:
 	Log.info("ForestMain", "进入森林主地图，数据: %s" % data)
 	_is_transitioning = false
-	_player.global_position = ENTRY_POSITION
+	_player.global_position = (
+		_campfire_spawn.global_position
+		if data.get("spawn_id", "") == "forest_ruins"
+		else ENTRY_POSITION)
 	GameCamera.set_map(_player, MAP_RECT)
 
 

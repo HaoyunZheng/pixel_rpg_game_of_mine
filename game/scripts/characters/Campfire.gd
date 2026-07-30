@@ -47,7 +47,8 @@ func _open_menu() -> void:
 		_campfire_ui = CAMPFIRE_UI_SCENE.instantiate()
 		add_child(_campfire_ui)
 		_campfire_ui.closed.connect(_on_menu_closed)
-	_campfire_ui.open(display_name)
+	GameData.discover_campfire(campfire_id)
+	_campfire_ui.open(campfire_id, display_name)
 
 
 func _on_menu_closed() -> void:

@@ -210,6 +210,15 @@ func set_flag(key: String, value: bool = true) -> void:
 func get_flag(key: String, default: bool = false) -> bool:
 	return _flags.get(key, default)
 
+func discover_campfire(campfire_id: StringName) -> bool:
+	if campfire_id.is_empty():
+		return false
+	set_flag("campfire_discovered_%s" % campfire_id)
+	return true
+
+func is_campfire_discovered(campfire_id: StringName) -> bool:
+	return get_flag("campfire_discovered_%s" % campfire_id)
+
 func set_enemy_defeated(enemy_key: String, defeated: bool) -> void:
 	if defeated:
 		_defeated_enemies[enemy_key] = true
