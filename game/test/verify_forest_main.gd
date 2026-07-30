@@ -167,18 +167,39 @@ func _verify_campfire(scene: Node2D, player: CharacterBody2D, game_data: Node) -
 		return
 	var interaction := campfire.get_node("InteractionShape") as CollisionShape2D
 	var body_shape := campfire.get_node("Body/CollisionShape2D") as CollisionShape2D
-	var visual := campfire.get_node("Visual") as AnimatedSprite2D
-	var frames := visual.sprite_frames
+	var base := campfire.get_node("Base") as Sprite2D
+	var flame := campfire.get_node("Flame") as AnimatedSprite2D
+	var frames := flame.sprite_frames
 	_check(interaction.shape is CircleShape2D
 			and is_equal_approx((interaction.shape as CircleShape2D).radius, 56.0)
 			and body_shape.shape is RectangleShape2D
 			and (body_shape.shape as RectangleShape2D).size == Vector2(40, 18),
 			"篝火沿用 56px 交互范围并以 40×18 底座阻挡玩家")
+	_check(base.texture != null and base.texture.get_size() == Vector2(64, 64),
+			"篝火石圈与木柴使用独立的 64×64 静态底座")
+	var flame_frames_are_aligned := true
+	var flame_bottom := -1
+	var flame_center_x := 0.0
+	var has_visible_magenta := _texture_has_visible_magenta(base.texture)
+	for frame_index in frames.get_frame_count(&"burn"):
+		var texture := frames.get_frame_texture(&"burn", frame_index)
+		var used_rect := texture.get_image().get_used_rect()
+		var center_x := used_rect.position.x + (used_rect.size.x - 1) * 0.5
+		if frame_index == 0:
+			flame_bottom = used_rect.end.y
+			flame_center_x = center_x
+		flame_frames_are_aligned = flame_frames_are_aligned \
+				and texture.get_size() == Vector2(64, 64)
+		flame_frames_are_aligned = flame_frames_are_aligned \
+				and used_rect.end.y == flame_bottom \
+				and absf(center_x - flame_center_x) <= 1.0
+		has_visible_magenta = has_visible_magenta or _texture_has_visible_magenta(texture)
 	_check(frames != null and frames.has_animation(&"burn")
 			and frames.get_frame_count(&"burn") == 4
-			and is_equal_approx(frames.get_animation_speed(&"burn"), 6.0)
-			and frames.get_animation_loop(&"burn") and visual.is_playing(),
-			"篝火 burn 动画以四帧 6 FPS 循环播放")
+			and is_equal_approx(frames.get_animation_speed(&"burn"), 3.0)
+			and frames.get_animation_loop(&"burn") and flame.is_playing()
+			and flame_frames_are_aligned and not has_visible_magenta,
+			"篝火火焰以四帧 3 FPS 固定底锚循环，且透明边缘无紫色残留")
 
 	player.global_position = CAMPFIRE_POSITION + Vector2(0, 30)
 	await physics_frame
@@ -426,6 +447,17 @@ func _hits_at(scene: Node2D, player: CharacterBody2D, position: Vector2) -> Arra
 	query.collide_with_areas = false
 	query.collide_with_bodies = true
 	return scene.get_world_2d().direct_space_state.intersect_shape(query, 32)
+
+
+func _texture_has_visible_magenta(texture: Texture2D) -> bool:
+	var image := texture.get_image()
+	for y in image.get_height():
+		for x in image.get_width():
+			var color := image.get_pixel(x, y)
+			if color.a >= 0.125 \
+					and Vector3(color.r - 1.0, color.g, color.b - 1.0).length() < 0.65:
+				return true
+	return false
 
 
 func _check(condition: bool, message: String) -> void:

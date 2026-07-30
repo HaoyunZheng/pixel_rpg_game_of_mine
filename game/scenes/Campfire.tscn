@@ -1,8 +1,9 @@
-[gd_scene load_steps=6 format=3]
+[gd_scene load_steps=7 format=3]
 
 [ext_resource type="SpriteFrames" path="res://assets/derived/campfire/campfire_frames.tres" id="1_frames"]
 [ext_resource type="Script" path="res://scripts/characters/Campfire.gd" id="2_script"]
 [ext_resource type="FontFile" path="res://assets/ui/fonts/fusion-pixel-font/fusion-pixel-12px-proportional-zh_hans.ttf" id="3_font"]
+[ext_resource type="Texture2D" path="res://assets/derived/campfire/base-layer/base-1.png" id="4_base"]
 
 [sub_resource type="CircleShape2D" id="CircleShape2D_interaction"]
 radius = 56.0
@@ -19,8 +20,12 @@ script = ExtResource("2_script")
 position = Vector2(0, -20)
 shape = SubResource("CircleShape2D_interaction")
 
-[node name="Visual" type="AnimatedSprite2D" parent="."]
-position = Vector2(0, -25)
+[node name="Base" type="Sprite2D" parent="."]
+position = Vector2(0, -23)
+texture = ExtResource("4_base")
+
+[node name="Flame" type="AnimatedSprite2D" parent="."]
+position = Vector2(0, -30)
 sprite_frames = ExtResource("1_frames")
 animation = &"burn"
 autoplay = "burn"

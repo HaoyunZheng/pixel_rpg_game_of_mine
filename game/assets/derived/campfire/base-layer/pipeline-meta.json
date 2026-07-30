@@ -1,0 +1,59 @@
+{
+  "target": "asset",
+  "mode": "single",
+  "prompt": "",
+  "role": "",
+  "input": "/Users/patricksapple/.codex/generated_images/019fac93-dc12-7ff2-9a7a-3c770f617100/call_nw1Ay6JxyfJctSGuj4PIo3DW.png",
+  "threshold": 150,
+  "edge_threshold": 220,
+  "duration": 333,
+  "rows": 1,
+  "cols": 1,
+  "cell_size": 64,
+  "fit_scale": 0.7,
+  "trim_border": 4,
+  "edge_clean_depth": 3,
+  "align": "bottom",
+  "shared_scale": false,
+  "component_mode": "all",
+  "component_padding": 0,
+  "min_component_area": 8,
+  "edge_touch_margin": 0,
+  "frame_labels": [
+    "base-1"
+  ],
+  "frames": [
+    {
+      "grid": [
+        0,
+        0
+      ],
+      "source_box": [
+        0,
+        0,
+        1254,
+        1254
+      ],
+      "component_mode": "all",
+      "component_count": 2,
+      "selected_component_area": null,
+      "selected_component_bbox": null,
+      "crop_bbox": [
+        363,
+        409,
+        883,
+        784
+      ],
+      "edge_touch": false,
+      "output_size": [
+        44,
+        32
+      ],
+      "paste_position": [
+        10,
+        23
+      ]
+    }
+  ],
+  "edge_touch_frames": []
+}
