@@ -3,6 +3,7 @@ extends SceneTree
 
 const SCENE_PATH := "res://scenes/ForestMain.tscn"
 const ENTRY_POSITION := Vector2(2368, 1888)
+const CAMPFIRE_POSITION := Vector2(1280, 1088)
 
 var _fails := 0
 
@@ -85,6 +86,8 @@ func _run() -> void:
 				and sign.has_node("CollisionShape2D") and prompt != null and prompt.text == "Z 查看",
 				"%s 具备独立信息、交互遮罩和查看提示" % sign_name)
 
+	await _verify_campfire(scene, player, game_data)
+
 	var wood_sign := map.get_node("Objects/Sign_0001") as Area2D
 	player.global_position = wood_sign.global_position + Vector2(0, 30)
 	await physics_frame
@@ -152,6 +155,88 @@ func _run() -> void:
 
 	print("[verify_forest_main] 结果：%s" % ("全部通过 ✅" if _fails == 0 else "%d 项失败 ❌" % _fails))
 	quit(_fails)
+
+
+func _verify_campfire(scene: Node2D, player: CharacterBody2D, game_data: Node) -> void:
+	var campfire := scene.get_node_or_null("Campfire_ForestRuins") as Area2D
+	_check(campfire != null and campfire.global_position == CAMPFIRE_POSITION
+			and campfire.collision_layer == 0 and campfire.collision_mask == 1
+			and campfire.get("campfire_id") == &"forest_ruins",
+			"路边废墟篝火位于可交互的世界坐标")
+	if campfire == null:
+		return
+	var interaction := campfire.get_node("InteractionShape") as CollisionShape2D
+	var body_shape := campfire.get_node("Body/CollisionShape2D") as CollisionShape2D
+	var visual := campfire.get_node("Visual") as AnimatedSprite2D
+	var frames := visual.sprite_frames
+	_check(interaction.shape is CircleShape2D
+			and is_equal_approx((interaction.shape as CircleShape2D).radius, 56.0)
+			and body_shape.shape is RectangleShape2D
+			and (body_shape.shape as RectangleShape2D).size == Vector2(40, 18),
+			"篝火沿用 56px 交互范围并以 40×18 底座阻挡玩家")
+	_check(frames != null and frames.has_animation(&"burn")
+			and frames.get_frame_count(&"burn") == 4
+			and is_equal_approx(frames.get_animation_speed(&"burn"), 6.0)
+			and frames.get_animation_loop(&"burn") and visual.is_playing(),
+			"篝火 burn 动画以四帧 6 FPS 循环播放")
+
+	player.global_position = CAMPFIRE_POSITION + Vector2(0, 30)
+	await physics_frame
+	await physics_frame
+	var prompt := campfire.get_node("Prompt") as Label
+	_check(campfire.get("_player_in_range") == true and prompt.visible,
+			"玩家靠近篝火时显示交互提示")
+
+	game_data.call("set_party_member_vitals", 0, 1, 0)
+	game_data.call("set_party_member_vitals", 1, 2, 1)
+	var poison := StatusEffect.new()
+	poison.type = StatusEffect.Type.POISON
+	poison.potency = 3
+	poison.duration = 2
+	var effects: Array[StatusEffect] = [poison]
+	game_data.call("set_party_member_status_effects", 0, effects)
+	game_data.call("set_curse", "player", 37)
+	game_data.call("set_bond", "companion", 4)
+
+	var interact_event := InputEventAction.new()
+	interact_event.action = &"interact"
+	interact_event.pressed = true
+	campfire.call("_unhandled_input", interact_event)
+	await process_frame
+	var menu := campfire.get_node_or_null("CampfireUI")
+	_check(menu != null and menu.call("is_open") and paused,
+			"按 Z 打开篝火菜单并暂停探索世界")
+	if menu == null:
+		paused = false
+		return
+	var content := menu.get_node("Overlay/Center/Panel/Content")
+	var menu_labels: Array[String] = []
+	for node_name: String in [
+		"RestButton", "UpgradeButton", "SkillButton", "TravelButton", "LeaveButton",
+	]:
+		menu_labels.append((content.get_node(node_name) as Button).text)
+	_check(menu_labels == ["休息", "升级", "技能点", "传送", "离开"],
+			"篝火菜单提供五项约定入口")
+
+	(content.get_node("RestButton") as Button).pressed.emit()
+	await process_frame
+	var party: Array[PartyMemberState] = game_data.call("get_party_members")
+	var all_rested := true
+	for member: PartyMemberState in party:
+		all_rested = all_rested and member.hp == member.max_hp and member.mp == member.max_mp \
+				and member.status_effects.is_empty()
+	_check(all_rested and game_data.call("get_curse", "player") == 37
+			and game_data.call("get_bond", "companion") == 4,
+			"休息回满 HP/MP、清除异常且不改羁绊或诅咒")
+
+	(content.get_node("LeaveButton") as Button).pressed.emit()
+	await process_frame
+	_check(not menu.call("is_open") and not paused and prompt.visible,
+			"选择离开后关闭菜单、恢复世界并重新显示交互提示")
+	game_data.call("set_curse", "player", 0)
+	game_data.call("set_bond", "companion", 0)
+	player.global_position = ENTRY_POSITION
+	await physics_frame
 
 
 func _verify_enemies(scene: Node2D, player: CharacterBody2D, enemies: Array[Node]) -> void:

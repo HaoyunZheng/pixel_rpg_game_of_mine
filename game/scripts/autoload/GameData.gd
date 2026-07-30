@@ -73,6 +73,15 @@ func set_party_member_status_effects(index: int, effects: Array[StatusEffect]) -
 		_party_members[index].status_effects.append(effect.duplicate() as StatusEffect)
 	return true
 
+func rest_party() -> bool:
+	if _party_members.is_empty():
+		return false
+	for member: PartyMemberState in _party_members:
+		member.hp = member.max_hp
+		member.mp = member.max_mp
+		member.status_effects.clear()
+	return true
+
 func create_battle_session(enemy_keys: Array[String]) -> BattleSession:
 	var party_units: Array[BattleUnit] = []
 	var equipment_bonuses := get_equipment_bonuses()
