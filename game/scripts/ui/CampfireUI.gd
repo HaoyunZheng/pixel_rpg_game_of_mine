@@ -15,20 +15,6 @@ const DESCRIPTIONS: Array[String] = [
 	"前往已经点燃的篝火。",
 	"离开篝火，返回荒林。",
 ]
-const CAMPFIRE_DESTINATIONS: Dictionary = {
-	&"forest_clearing": {
-		"display_name": "林间空地",
-		"scene_path": "res://scenes/ForestClearing.tscn",
-		"scene_name": "ForestClearing",
-		"spawn_id": "forest_clearing",
-	},
-	&"forest_ruins": {
-		"display_name": "路边废墟",
-		"scene_path": "res://scenes/ForestMain.tscn",
-		"scene_name": "ForestMain",
-		"spawn_id": "forest_ruins",
-	},
-}
 
 @onready var _panel: PanelContainer = $Overlay/Center/Panel
 @onready var _title: Label = $Overlay/Center/Panel/Content/Title
@@ -47,6 +33,7 @@ var _is_open: bool = false
 var _pause_claim_active: bool = false
 var _tree_was_paused: bool = false
 var _current_campfire_id: StringName = &""
+var _checkpoint_saved: bool = false
 
 
 func _ready() -> void:
@@ -82,11 +69,15 @@ func _unhandled_key_input(event: InputEvent) -> void:
 		close()
 
 
-func open(campfire_id: StringName, campfire_name: String) -> void:
+func open(
+		campfire_id: StringName,
+		campfire_name: String,
+		checkpoint_saved: bool = true) -> void:
 	if _is_open:
 		return
 	_is_open = true
 	_current_campfire_id = campfire_id
+	_checkpoint_saved = checkpoint_saved
 	_tree_was_paused = get_tree().paused
 	_pause_claim_active = true
 	_title.text = "篝火 · %s" % campfire_name
@@ -204,7 +195,10 @@ func _on_travel_pressed() -> void:
 	})
 
 func _refresh_header() -> void:
-	_subtitle.text = "持有余烬 %d · 火星仍未熄灭" % GameData.get_ember_count()
+	_subtitle.text = "持有余烬 %d · %s" % [
+		GameData.get_ember_count(),
+		"记忆已留存" if _checkpoint_saved else "记录失败",
+	]
 
 func _get_upgrade_description() -> String:
 	var member := GameData.get_party_member(0)
@@ -236,10 +230,10 @@ func _get_travel_description() -> String:
 
 func _get_travel_destination() -> Dictionary:
 	# ponytail: Demo 只有两座篝火；出现第三座时再增加目的地选择层。
-	for campfire_id: StringName in CAMPFIRE_DESTINATIONS:
+	for campfire_id: StringName in GameData.CAMPFIRE_DESTINATIONS:
 		if campfire_id != _current_campfire_id \
 				and GameData.is_campfire_discovered(campfire_id):
-			return CAMPFIRE_DESTINATIONS[campfire_id]
+			return GameData.get_campfire_destination(campfire_id)
 	return {}
 
 func _get_primary_skill(member: PartyMemberState) -> SkillData:

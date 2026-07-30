@@ -48,8 +48,10 @@ func _open_menu() -> void:
 		add_child(_campfire_ui)
 		_campfire_ui.closed.connect(_on_menu_closed)
 	GameData.discover_campfire(campfire_id)
-	_campfire_ui.open(campfire_id, display_name)
+	var save_error := GameData.save_checkpoint(campfire_id)
+	_campfire_ui.open(campfire_id, display_name, save_error == OK)
 
 
 func _on_menu_closed() -> void:
+	GameData.save_checkpoint(campfire_id)
 	_prompt.visible = _player_in_range and not DialogueManager.is_active()

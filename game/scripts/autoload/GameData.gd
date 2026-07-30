@@ -25,6 +25,23 @@ const LEVEL_MP_GAIN: int = 2
 const LEVEL_ATK_GAIN: int = 2
 const LEVEL_DEF_GAIN: int = 1
 const LEVEL_SPD_GAIN: int = 1
+const CHECKPOINT_SAVE_VERSION: int = 1
+const CHECKPOINT_SAVE_SLOT: String = "campfire"
+const CHECKPOINT_SAVE_FILE: String = "checkpoint.dat"
+const CAMPFIRE_DESTINATIONS: Dictionary = {
+	&"forest_clearing": {
+		"display_name": "林间空地",
+		"scene_path": "res://scenes/ForestClearing.tscn",
+		"scene_name": "ForestClearing",
+		"spawn_id": "forest_clearing",
+	},
+	&"forest_ruins": {
+		"display_name": "路边废墟",
+		"scene_path": "res://scenes/ForestMain.tscn",
+		"scene_name": "ForestMain",
+		"spawn_id": "forest_ruins",
+	},
+}
 
 var _party_members: Array[PartyMemberState] = []
 var _inventory := InventoryState.new()
@@ -218,6 +235,338 @@ func discover_campfire(campfire_id: StringName) -> bool:
 
 func is_campfire_discovered(campfire_id: StringName) -> bool:
 	return get_flag("campfire_discovered_%s" % campfire_id)
+
+func get_campfire_destination(campfire_id: StringName) -> Dictionary:
+	if not CAMPFIRE_DESTINATIONS.has(campfire_id):
+		return {}
+	return Dictionary(CAMPFIRE_DESTINATIONS[campfire_id]).duplicate(true)
+
+# ── 篝火存档 ──
+
+func save_checkpoint(campfire_id: StringName) -> Error:
+	if not CAMPFIRE_DESTINATIONS.has(campfire_id):
+		return ERR_INVALID_PARAMETER
+	if DisplayServer.get_name() == "headless":
+		return OK
+	var snapshot := _build_checkpoint_snapshot(campfire_id, Dialogic.get_full_state())
+	if snapshot.is_empty():
+		return ERR_INVALID_DATA
+	var save_error: Error = Dialogic.Save.save_file(
+		CHECKPOINT_SAVE_SLOT, CHECKPOINT_SAVE_FILE, snapshot)
+	if save_error == OK:
+		Log.info("GameData", "篝火存档完成: %s" % campfire_id)
+	else:
+		Log.error("GameData", "篝火存档失败: %s" % error_string(save_error))
+	return save_error
+
+func load_checkpoint() -> Dictionary:
+	if DisplayServer.get_name() == "headless":
+		return {}
+	var raw = Dialogic.Save.load_file(
+		CHECKPOINT_SAVE_SLOT, CHECKPOINT_SAVE_FILE, null)
+	if not raw is Dictionary or raw.is_empty():
+		return {}
+	var destination := _apply_checkpoint_snapshot(raw)
+	if destination.is_empty():
+		Log.warn("GameData", "篝火存档无效，改用新游戏状态")
+		return {}
+	await Dialogic.load_full_state(raw["dialogic"])
+	await get_tree().process_frame
+	Log.info("GameData", "篝火存档已恢复: %s" % destination.campfire_id)
+	return destination
+
+func _build_checkpoint_snapshot(
+		campfire_id: StringName, dialogic_state: Dictionary) -> Dictionary:
+	var destination := get_campfire_destination(campfire_id)
+	var checkpoint_dialogic := _make_checkpoint_dialogic_state(dialogic_state)
+	if destination.is_empty() or checkpoint_dialogic.is_empty():
+		return {}
+	var party: Array[Dictionary] = []
+	for member: PartyMemberState in _party_members:
+		var effects: Array[Dictionary] = []
+		for effect: StatusEffect in member.status_effects:
+			effects.append({
+				"type": int(effect.type),
+				"potency": effect.potency,
+				"duration": effect.duration,
+			})
+		party.append({
+			"id": member.id,
+			"hp": member.hp,
+			"mp": member.mp,
+			"level": member.level,
+			"skill_ranks": member.skill_ranks.duplicate(),
+			"status_effects": effects,
+		})
+
+	var inventory_slots: Array[Dictionary] = []
+	for slot: InventoryState.Slot in _inventory.get_slots():
+		var resource_path := slot.item.resource_path
+		# ponytail: Demo 物品目录等同初始表；出现非初始掉落时再拆独立目录。
+		if not INITIAL_ITEMS.has(resource_path):
+			return {}
+		inventory_slots.append({"resource_path": resource_path, "count": slot.count})
+	var equipment: Dictionary = {}
+	for slot_name: String in InventoryState.EQUIPMENT_SLOTS:
+		var item_id := _inventory.get_equipped_item_id(slot_name)
+		if not item_id.is_empty():
+			var item := _inventory.get_item_by_id(item_id)
+			if item == null or _equipment_slot_for(item) != slot_name:
+				return {}
+		equipment[slot_name] = item_id
+	var flags: Dictionary = {}
+	for known_campfire_id: StringName in CAMPFIRE_DESTINATIONS:
+		if is_campfire_discovered(known_campfire_id):
+			flags["campfire_discovered_%s" % known_campfire_id] = true
+
+	# ponytail: v1 只保存已启用的 Demo 系统；长期字段随新版本迁移再加入。
+	return {
+		"version": CHECKPOINT_SAVE_VERSION,
+		"checkpoint": String(campfire_id),
+		"game_data": {
+			"party": party,
+			"inventory": {"slots": inventory_slots, "equipment": equipment},
+			"ember_count": _ember_count,
+			"flags": flags,
+			"defeated_enemies": _defeated_enemies.duplicate(true),
+		},
+		"dialogic": checkpoint_dialogic,
+	}
+
+func _apply_checkpoint_snapshot(snapshot: Dictionary) -> Dictionary:
+	if snapshot.get("version", -1) != CHECKPOINT_SAVE_VERSION \
+			or not snapshot.get("checkpoint", null) is String \
+			or not snapshot.get("game_data", null) is Dictionary \
+			or not _is_checkpoint_dialogic_state(snapshot.get("dialogic", null)):
+		return {}
+	var campfire_id := StringName(snapshot["checkpoint"])
+	var destination := get_campfire_destination(campfire_id)
+	if destination.is_empty():
+		return {}
+	var game_state: Dictionary = snapshot["game_data"]
+	var loaded_party := _parse_checkpoint_party(game_state.get("party", null))
+	var loaded_inventory := _parse_checkpoint_inventory(
+		game_state.get("inventory", null))
+	var loaded_flags = _parse_checkpoint_flags(
+		game_state.get("flags", null), campfire_id)
+	var loaded_enemies = _parse_defeated_enemies(
+		game_state.get("defeated_enemies", null))
+	var ember_count = game_state.get("ember_count", -1)
+	if loaded_party.size() != _party_members.size() \
+			or loaded_inventory == null \
+			or loaded_flags == null \
+			or loaded_enemies == null \
+			or not ember_count is int or ember_count < 0:
+		return {}
+
+	_party_members = loaded_party
+	_inventory = loaded_inventory
+	_ember_count = ember_count
+	_flags = loaded_flags
+	_defeated_enemies = loaded_enemies
+	_current_scene_name = destination.scene_name
+	destination["campfire_id"] = String(campfire_id)
+	return destination
+
+func _parse_checkpoint_party(value: Variant) -> Array[PartyMemberState]:
+	var result: Array[PartyMemberState] = []
+	if not value is Array or value.size() != _party_members.size():
+		return result
+	for index in range(value.size()):
+		var raw = value[index]
+		var template := _party_members[index]
+		if not raw is Dictionary or raw.get("id", "") != template.id:
+			return []
+		var level = raw.get("level", 0)
+		var hp = raw.get("hp", -1)
+		var mp = raw.get("mp", -1)
+		if not level is int or not hp is int or not mp is int \
+				or (index == 0 and (level < 1 or level > DEMO_MAX_LEVEL)) \
+				or (index != 0 and level != 1):
+			return []
+		var member := PartyMemberState.from_stats(template.stats_res)
+		member.level = level
+		if index == 0:
+			var gained_levels: int = level - 1
+			member.max_hp += gained_levels * LEVEL_HP_GAIN
+			member.max_mp += gained_levels * LEVEL_MP_GAIN
+			member.atk += gained_levels * LEVEL_ATK_GAIN
+			member.def += gained_levels * LEVEL_DEF_GAIN
+			member.spd += gained_levels * LEVEL_SPD_GAIN
+		if hp < 0 or hp > member.max_hp or mp < 0 or mp > member.max_mp:
+			return []
+		member.hp = hp
+		member.mp = mp
+
+		var saved_ranks = raw.get("skill_ranks", null)
+		if not saved_ranks is Dictionary:
+			return []
+		var known_skills: Dictionary = {}
+		var spent_points: int = 0
+		for raw_skill in member.stats_res.skills:
+			var skill := raw_skill as SkillData
+			if skill == null:
+				continue
+			known_skills[skill.id] = true
+			var rank = saved_ranks.get(skill.id, null)
+			if not rank is int or rank < 1 or rank > skill.max_rank:
+				return []
+			member.skill_ranks[skill.id] = rank
+			spent_points += rank - 1
+		if saved_ranks.size() != known_skills.size():
+			return []
+		for saved_id: Variant in saved_ranks:
+			if not saved_id is String or not known_skills.has(saved_id):
+				return []
+		var earned_points: int = level - 1 if index == 0 else 0
+		if spent_points > earned_points:
+			return []
+		member.skill_points = earned_points - spent_points
+
+		var saved_effects = raw.get("status_effects", null)
+		if not saved_effects is Array or saved_effects.size() > 16:
+			return []
+		for raw_effect: Variant in saved_effects:
+			if not raw_effect is Dictionary:
+				return []
+			var type_value = raw_effect.get("type", -1)
+			var potency = raw_effect.get("potency", -1)
+			var duration = raw_effect.get("duration", -1)
+			if not type_value is int or type_value < 0 \
+					or type_value > StatusEffect.Type.POISON \
+					or not potency is int or potency < 0 \
+					or potency > 999 \
+					or not duration is int or duration < 1 or duration > 99:
+				return []
+			var effect := StatusEffect.new()
+			effect.type = type_value
+			effect.potency = potency
+			effect.duration = duration
+			member.status_effects.append(effect)
+		result.append(member)
+	return result
+
+func _parse_checkpoint_inventory(value: Variant) -> InventoryState:
+	if not value is Dictionary:
+		return null
+	var raw_slots = value.get("slots", null)
+	var raw_equipment = value.get("equipment", null)
+	if not raw_slots is Array or not raw_equipment is Dictionary \
+			or raw_equipment.size() != InventoryState.EQUIPMENT_SLOTS.size():
+		return null
+	var inventory := InventoryState.new()
+	var seen_paths: Dictionary = {}
+	var seen_ids: Dictionary = {}
+	for raw_slot: Variant in raw_slots:
+		if not raw_slot is Dictionary:
+			return null
+		var resource_path = raw_slot.get("resource_path", "")
+		var count = raw_slot.get("count", 0)
+		if not resource_path is String or not INITIAL_ITEMS.has(resource_path) \
+				or seen_paths.has(resource_path) \
+				or not count is int or count <= 0:
+			return null
+		var item := load(resource_path) as ItemData
+		if item == null or item.id.is_empty() or seen_ids.has(item.id) \
+				or not inventory.add_item(item, count):
+			return null
+		seen_paths[resource_path] = true
+		seen_ids[item.id] = true
+	var equipment: Dictionary = raw_equipment
+	for slot_name: String in InventoryState.EQUIPMENT_SLOTS:
+		if not equipment.has(slot_name):
+			return null
+		var item_id = equipment.get(slot_name, "")
+		if not item_id is String:
+			return null
+		if item_id.is_empty():
+			continue
+		var item := inventory.get_item_by_id(item_id)
+		if item == null or _equipment_slot_for(item) != slot_name \
+				or not inventory.set_equipped_item(slot_name, item_id):
+			return null
+	return inventory
+
+func _make_checkpoint_dialogic_state(value: Variant) -> Dictionary:
+	if not value is Dictionary or not value.has("current_timeline") \
+			or value.get("current_timeline") != null:
+		return {}
+	var variables = value.get("variables", null)
+	if not _is_checkpoint_dialogic_variables(variables):
+		return {}
+	# 空闲篝火只需叙事变量；重置陈旧文本/立绘，拒绝恢复对话中间态。
+	return {
+		"manual_advance": {"enabled": true, "temp_disabled": false},
+		"variables": variables.duplicate(true),
+		"portraits": {},
+		"jump_stack": [],
+		"text": "",
+		"text_reveal_skippable": {"enabled": true, "temp_enabled": true},
+		"speaker": "",
+		"current_event_idx": -1,
+		"current_timeline": null,
+	}
+
+func _is_checkpoint_dialogic_state(value: Variant) -> bool:
+	if not value is Dictionary:
+		return false
+	var normalized := _make_checkpoint_dialogic_state(value)
+	return not normalized.is_empty() and value == normalized
+
+func _is_checkpoint_dialogic_variables(value: Variant) -> bool:
+	if not value is Dictionary or value.size() != 1:
+		return false
+	var story = value.get("story", null)
+	if not story is Dictionary or story.size() != 2:
+		return false
+	var branches = story.get("branches", null)
+	var flags = story.get("flags", null)
+	if not branches is Dictionary or branches.size() != 1 \
+			or not flags is Dictionary or flags.size() != 1:
+		return false
+	var wanderer_branch = branches.get("forest_wanderer", null)
+	return wanderer_branch is String \
+			and wanderer_branch in ["unseen", "greeted"] \
+			and flags.get("met_forest_wanderer", null) is bool
+
+func _parse_checkpoint_flags(
+		value: Variant, checkpoint_id: StringName) -> Variant:
+	if not value is Dictionary:
+		return null
+	if value.size() > CAMPFIRE_DESTINATIONS.size():
+		return null
+	var result: Dictionary = {}
+	for key: Variant in value:
+		if not key is String or value[key] != true \
+				or not key.begins_with("campfire_discovered_"):
+			return null
+		var campfire_id := StringName(key.trim_prefix("campfire_discovered_"))
+		if not CAMPFIRE_DESTINATIONS.has(campfire_id):
+			return null
+		result[key] = value[key]
+	if not result.get("campfire_discovered_%s" % checkpoint_id, false):
+		return null
+	return result
+
+func _parse_defeated_enemies(value: Variant) -> Variant:
+	if not value is Dictionary or value.size() > 26:
+		return null
+	var result: Dictionary = {}
+	for key: Variant in value:
+		if not key is String or value[key] != true or not _is_known_enemy_key(key):
+			return null
+		result[key] = true
+	return result
+
+func _is_known_enemy_key(enemy_key: String) -> bool:
+	if enemy_key == "Enemy1" or enemy_key == "Enemy2":
+		return true
+	for prefix: String in ["Enemy1_ForestMain_", "Enemy2_ForestMain_"]:
+		if enemy_key.begins_with(prefix):
+			var suffix := enemy_key.trim_prefix(prefix)
+			return suffix.length() == 2 and suffix.is_valid_int() \
+					and int(suffix) >= 1 and int(suffix) <= 12
+	return false
 
 func set_enemy_defeated(enemy_key: String, defeated: bool) -> void:
 	if defeated:
