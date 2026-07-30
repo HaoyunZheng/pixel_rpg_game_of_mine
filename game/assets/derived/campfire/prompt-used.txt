@@ -1,0 +1,44 @@
+Asset plan
+- Type: animated checkpoint prop
+- View: top-down 3/4
+- Raw layout: 2x2, four continuous loop frames
+- Runtime frame: 64x64
+- Anchor: bottom
+- Style: project-native dark-fantasy pixel art
+
+References
+- Current ForestClearing gameplay screenshot
+- 64x64 hooded player sprite
+- ForestMain rock pile and dark tree props
+
+Initial generation prompt
+Create a new animated campfire game prop sprite sheet using the supplied images
+only as visual references for this project's native art style, pixel scale,
+palette discipline, material language, and top-down RPG viewing angle.
+
+Create exactly four equal invisible cells in a 2x2 grid, read left-to-right
+across the top row and then the bottom row. The same compact roadside
+checkpoint appears at the same scale and position in all frames: a low ring of
+charcoal-gray stones, two crossed burnt logs, and a small upright flame.
+Compose for clear 64x64 use with crisp hard pixel edges, a limited muted
+palette, sparse dithering, and a near-black deep-brown outline. The flame uses
+dark red-orange, ember orange, restrained warm gold, and only a tiny pale-yellow
+hot center. Do not use pure white, neon colors, painterly texture, antialiasing,
+soft bloom, smoke, scenery, cast-light circles, UI, text, or labels.
+
+Animate only the flame: compact left lean, taller center, compact right lean,
+and a settling frame close to frame one. Keep the stone ring, logs, shadow,
+scale, centerline, and bottom anchor stationary. Keep the whole prop within the
+central safe area with generous margin and nothing crossing a cell edge.
+Background is 100% solid flat #FF00FF with no gradient, texture, transparency,
+grid, borders, or guide marks.
+
+Revision prompt
+Preserve the generated campfire's identity, muted materials, restrained warm
+palette, crisp pixel edges, top-down 3/4 view, exact 2x2 layout, and solid
+#FF00FF background. Correct the animation so all four cells share one canonical
+stone ring, crossed-log base, shadow, and ember bed at the same position and
+scale. Only the upper flame silhouette changes. Remove all detached sparks and
+keep the second frame moderately, not dramatically, taller. Maintain a compact
+loop, identical flame root, identical bottom anchor, generous margins, and no
+smoke, glow cloud, scenery, UI, text, labels, borders, or guides.

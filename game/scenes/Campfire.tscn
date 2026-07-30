@@ -1,0 +1,11 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="SpriteFrames" path="res://assets/derived/campfire/campfire_frames.tres" id="1_frames"]
+
+[node name="Campfire" type="Node2D"]
+
+[node name="Visual" type="AnimatedSprite2D" parent="."]
+position = Vector2(0, -25)
+sprite_frames = ExtResource("1_frames")
+animation = &"burn"
+autoplay = "burn"
