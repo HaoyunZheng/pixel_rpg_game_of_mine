@@ -1,0 +1,6 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://test/verify_combat_vfx_assets.gd" id="1_vfx_assets"]
+
+[node name="VerifyCombatVFXAssets" type="Node"]
+script = ExtResource("1_vfx_assets")
