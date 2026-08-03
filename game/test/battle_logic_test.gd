@@ -732,6 +732,11 @@ func _test_defense_action_field() -> void:
 			"arc_degrees": 140.0, "width": 56.0, "clockwise": true,
 		})
 	sweep.set_physics_process(false)
+	var sweep_stage: Dictionary = sweep._stages[0]
+	var sweep_mid_direction := Vector2.from_angle(
+		lerpf(float(sweep_stage.angle_from), float(sweep_stage.angle_to), 0.5))
+	_check("横扫弧线中心对准冻结的玩家方位",
+		sweep_mid_direction.dot(sweep._enemy_origin.direction_to(sweep._player_position)) > 0.999)
 	await get_tree().physics_frame
 	sweep._physics_process(1.3 * TIMING_CHECK.ACTION_DURATION_SCALE)
 	var sweep_result: Dictionary = sweep._hit_results[0] if not sweep._hit_results.is_empty() else {}

@@ -1033,12 +1033,25 @@ func _draw() -> void:
 				var width: float = float(stage.width)
 				draw_line(_hazard_draw_from, _hazard_draw_to, Color(_attack_color, 0.72), width + 8.0, true)
 				draw_line(_hazard_draw_from, _hazard_draw_to, _attack_color.lightened(0.55), maxf(3.0, width * 0.22), true)
-		if debug_attack_front and _phase == Phase.ACTIVE and _front_segment_count > 0:
-			for segment_index in range(_front_segment_count):
+		if debug_attack_front and _phase == Phase.ACTIVE:
+			var debug_color := Color(0.20, 1.0, 0.78, 0.88)
+			if _front_segment_count > 0:
+				for segment_index in range(_front_segment_count):
+					draw_line(
+						_front_world_current[segment_index * 2],
+						_front_world_current[segment_index * 2 + 1],
+						debug_color, maxf(2.0, _sampled_front_width), false)
+			elif stage.kind == "barrage":
+				for index in range(_bullets_spawned):
+					if _bullet_active[index] == 0:
+						continue
+					draw_line(
+						_bullet_previous_positions[index], _bullet_positions[index],
+						debug_color, _bullet_radius * 2.0, false)
+			else:
 				draw_line(
-					_front_world_current[segment_index * 2],
-					_front_world_current[segment_index * 2 + 1],
-					Color(0.20, 1.0, 0.78, 0.95), maxf(2.0, _sampled_front_width), false)
+					_hazard_draw_from, _hazard_draw_to, debug_color,
+					float(stage.get("width", 1.0)), false)
 	draw_circle(_enemy_origin, 9.0, Color(0.18, 0.03, 0.04, 0.96))
 	draw_arc(_enemy_origin, 11.0, 0.0, TAU, 24, Color(0.96, 0.28, 0.24), 3.0, true)
 	var font := ThemeDB.fallback_font

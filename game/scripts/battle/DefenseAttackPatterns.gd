@@ -77,13 +77,14 @@ static func build(
 			active = float(params.get("active", 0.69))
 			width = float(params.get("width", 66.0))
 			var arc: float = deg_to_rad(float(params.get("arc_degrees", 120.0)))
+			var target_angle: float = enemy_origin.angle_to_point(player_position)
 			var clockwise: bool = bool(params.get("clockwise", true))
 			for index in range(2):
 				var forward: bool = clockwise if index == 0 else not clockwise
 				stages.append({"kind": "sweep", "telegraph": telegraph, "active": active,
 					"gap": float(params.get("gap", 0.33)), "width": width,
-					"angle_from": PI + (arc * 0.5 if forward else -arc * 0.5),
-					"angle_to": PI + (-arc * 0.5 if forward else arc * 0.5)})
+					"angle_from": target_angle + (arc * 0.5 if forward else -arc * 0.5),
+					"angle_to": target_angle + (-arc * 0.5 if forward else arc * 0.5)})
 		EnemyAI.PATTERN_MUTANT_CLEAVE:
 			telegraph = float(params.get("telegraph", 1.075))
 			active = float(params.get("active", 0.35))
