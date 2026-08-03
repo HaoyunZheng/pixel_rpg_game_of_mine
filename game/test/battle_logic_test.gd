@@ -1,5 +1,5 @@
 extends Node
-## 战斗 / 背包 确定性逻辑单元测试（headless，无资产依赖）
+## 战斗 / 背包 确定性逻辑单元测试（headless）
 ## 覆盖：DamageCalculator 公式、EnemyAI 选靶、BattleUnit 钳制、GameData 背包/装备边界。
 ## 以场景方式运行（自动加载单例须先就绪，故不用 --script SceneTree）：
 ##   /Applications/Godot.app/Contents/MacOS/Godot --headless --path . \
@@ -79,6 +79,7 @@ func _ready() -> void:
 	_test_battle_unit_clamp()
 	_test_stance_lifecycle()
 	_test_defense_timing_rules()
+	_test_attack_front_samples()
 	_test_attack_duration_scale()
 	_test_impact_camera_feedback()
 	_test_battle_hud_frames()
@@ -532,6 +533,44 @@ func _test_defense_timing_rules() -> void:
 		TIMING_RULES.apply(repeated_target, hit)
 	_check("连续受击逐次结算同一姿态", repeated_target.hp == 16 and repeated_target.mp == 0)
 
+func _test_attack_front_samples() -> void:
+	var sampler := TIMING_CHECK.new()
+	add_child(sampler)
+	var all_covered: bool = true
+	var monotonic: bool = true
+	var exact_keyframes: bool = true
+	var continuous: bool = true
+	for animation in [&"mutant_slash", &"mutant_claw"]:
+		var slash: bool = animation == &"mutant_slash"
+		var segment_count: int = 1 if slash else 3
+		var points: Array[Vector2] = TIMING_CHECK.SLASH_FRONT_POINTS \
+			if slash else TIMING_CHECK.CLAW_FRONT_POINTS
+		var widths: Array[float] = TIMING_CHECK.SLASH_FRONT_WIDTHS \
+			if slash else TIMING_CHECK.CLAW_FRONT_WIDTHS
+		var frame_count: int = TIMING_CHECK.ATTACK_SPRITE_FRAMES.get_frame_count(animation)
+		var frame_times: PackedFloat32Array = TIMING_CHECK.attack_front_frame_times(animation)
+		var duration: float = TIMING_CHECK._animation_duration(animation)
+		all_covered = all_covered and frame_times.size() == frame_count \
+			and points.size() == frame_count * segment_count * 2 \
+			and widths.size() == frame_count
+		for frame_index in range(frame_count):
+			if frame_index > 0:
+				monotonic = monotonic and frame_times[frame_index] > frame_times[frame_index - 1]
+			var progress: float = frame_times[frame_index] / duration
+			sampler._sample_attack_front(animation, progress, sampler._front_local_segments)
+			for point_index in range(segment_count * 2):
+				exact_keyframes = exact_keyframes and sampler._front_local_segments[point_index].is_equal_approx(
+					points[frame_index * segment_count * 2 + point_index])
+			if frame_index > 0:
+				sampler._sample_attack_front(
+					animation, maxf(0.0, progress - 0.0001), sampler._front_local_segments)
+				var before: Vector2 = sampler._front_local_segments[0]
+				sampler._sample_attack_front(animation, progress, sampler._front_local_segments)
+				continuous = continuous and before.distance_to(sampler._front_local_segments[0]) < 0.1
+	_check("攻击前沿样本覆盖全部关键帧且累计时间严格递增", all_covered and monotonic)
+	_check("攻击前沿插值准确回到关键帧端点且跨帧连续", exact_keyframes and continuous)
+	sampler.free()
+
 func _test_defense_action_field() -> void:
 	_check("弹反按下后 0.05s 内为完美", TIMING_CHECK.classify_contact(
 		BattleUnit.Stance.DEFEND, 0.05) == TIMING_RULES.Outcome.PERFECT)
@@ -673,9 +712,33 @@ func _test_defense_action_field() -> void:
 	sweep.set_physics_process(false)
 	await get_tree().physics_frame
 	sweep._physics_process(1.3 * TIMING_CHECK.ACTION_DURATION_SCALE)
-	_check("横扫在大 delta 下仍命中经过的玩家", not sweep._hit_results.is_empty()
-		and sweep._hit_results[0].contact)
+	var sweep_result: Dictionary = sweep._hit_results[0] if not sweep._hit_results.is_empty() else {}
+	_check("横扫三条窄前沿在大 delta 下只结算一次且不会穿透", sweep._hit_results.size() == 1
+		and bool(sweep_result.get("contact", false)) and sweep._front_segment_count == 3
+		and sweep._max_front_sample_displacement <= TIMING_CHECK.MAX_FRONT_SAMPLE_DISTANCE + 0.001)
+	_check("横扫命中回传稳定接触点、方向、进度与画面帧", sweep_result.get(
+		"contact_position", Vector2.ZERO) != Vector2.ZERO
+		and is_equal_approx(Vector2(sweep_result.get("incoming_direction", Vector2.ZERO)).length(), 1.0)
+		and float(sweep_result.get("front_progress", -1.0)) >= 0.0
+		and int(sweep_result.get("visual_frame", -1)) in [0, 1])
 	sweep.queue_free()
+
+	var tail_safe := TIMING_CHECK.new()
+	add_child(tail_safe)
+	tail_safe.start(BattleUnit.Stance.ATTACK, Rect2(0, 0, 960, 540),
+		EnemyAI.PATTERN_MUTANT_SWEEP, {
+			"hit_count": 2, "telegraph": 0.2, "active": 0.5, "gap": 0.2,
+			"arc_degrees": 140.0, "width": 56.0, "clockwise": true,
+		})
+	tail_safe.set_physics_process(false)
+	var frozen_target: Vector2 = tail_safe._player_position
+	tail_safe._player_position = tail_safe._enemy_origin.lerp(frozen_target, 0.5)
+	tail_safe._player_area.position = tail_safe._player_position
+	await get_tree().physics_frame
+	tail_safe._physics_process(0.7 * TIMING_CHECK.ACTION_DURATION_SCALE)
+	_check("抓痕尾迹与敌人到前沿之间的透明半径不造成伤害",
+		tail_safe._hit_results.size() == 1 and not tail_safe._hit_results[0].contact)
+	tail_safe.queue_free()
 
 	var sweep_parry := TIMING_CHECK.new()
 	add_child(sweep_parry)
@@ -710,9 +773,14 @@ func _test_defense_action_field() -> void:
 			timing._physics_process(delta)
 	while is_instance_valid(timing) and timing._running:
 		timing._physics_process(0.37)
+	var cleave_max_displacement: float = timing._max_front_sample_displacement
 	await get_tree().process_frame
 	_check("秒制动作场完整回传三段重劈结果", action_results.size() == 3
-		and action_results[0].contact)
+		and action_results[0].contact
+		and action_results[0].contact_position != Vector2.ZERO
+		and action_results[0].visual_frame >= 0
+		and cleave_max_displacement > 0.0
+		and cleave_max_displacement <= TIMING_CHECK.MAX_FRONT_SAMPLE_DISTANCE + 0.001)
 
 func _test_attack_duration_scale() -> void:
 	var timing := TIMING_CHECK.new()

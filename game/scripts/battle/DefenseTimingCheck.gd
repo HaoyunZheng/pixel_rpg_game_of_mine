@@ -36,11 +36,39 @@ const BARRAGE_AIM_SPREAD_RADIANS: float = PI / 15.0
 const ACTION_DURATION_SCALE: float = 1.5
 # ponytail: 只限制碰撞采样距离；流程时长仍按秒累计，不依赖固定 tick。
 const MAX_ACTIVE_SUBSTEP_SECONDS: float = PLAYER_RADIUS / DASH_SPEED
+const MAX_FRONT_SAMPLE_DISTANCE: float = 4.0
+const SLASH_MAX_LOCAL_SPEED: float = 600.0
+const ATTACK_SPRITE_FRAMES: SpriteFrames = preload(
+	"res://assets/derived/combat_vfx/combat_attack_frames.tres")
+# alpha >= 0.5 的最大连续实心区域，经逐帧剔除孤立粒子后记录；坐标以 64x47 帧中心为原点。
+const SLASH_FRONT_POINTS: Array[Vector2] = [
+	Vector2(-26.0, -15.5), Vector2(-20.0, -19.5),
+	Vector2(-29.0, -12.5), Vector2(-22.0, -18.5),
+	Vector2(21.0, 3.5), Vector2(27.0, -6.5),
+	Vector2(-1.0, 13.5), Vector2(10.0, 11.5),
+	Vector2(-1.0, 13.5), Vector2(10.0, 11.5),
+	Vector2(-19.0, 8.5), Vector2(-1.0, 13.5),
+	Vector2(-19.0, 8.5), Vector2(-1.0, 13.5),
+	Vector2(-19.0, 8.5), Vector2(-1.0, 13.5),
+	Vector2(-19.0, 8.5), Vector2(-1.0, 13.5),
+]
+const SLASH_FRONT_WIDTHS: Array[float] = [3.0, 5.0, 6.0, 7.0, 7.0, 5.0, 5.0, 4.0, 3.0]
+# 两个抓痕关键帧各保留三条平行窄前沿；右侧高亮头部伤人，左侧尾迹不纳入遮罩。
+const CLAW_FRONT_POINTS: Array[Vector2] = [
+	Vector2(12.0, -8.0), Vector2(24.0, -8.0),
+	Vector2(14.0, 0.0), Vector2(27.0, 0.0),
+	Vector2(12.0, 8.0), Vector2(24.0, 8.0),
+	Vector2(18.0, -8.0), Vector2(30.0, -8.0),
+	Vector2(20.0, 0.0), Vector2(33.0, 0.0),
+	Vector2(18.0, 8.0), Vector2(30.0, 8.0),
+]
+const CLAW_FRONT_WIDTHS: Array[float] = [3.0, 4.0]
 
 enum Phase { TELEGRAPH, ACTIVE, GAP }
 
 var _stance: BattleUnit.Stance = BattleUnit.Stance.ATTACK
 var _running: bool = false
+var _pattern_id: String = EnemyAI.PATTERN_FALLBACK_THRUST
 var _arena_rect: Rect2 = Rect2()
 var _player_position: Vector2 = Vector2.ZERO
 var _enemy_origin: Vector2 = Vector2.ZERO
@@ -74,6 +102,19 @@ var _feedback_text: String = ""
 var _feedback_color: Color = Color.WHITE
 var _feedback_until: float = -1.0
 var _hit_stop_remaining: float = 0.0
+var _contact_position: Vector2 = Vector2.ZERO
+var _incoming_direction: Vector2 = Vector2.ZERO
+var _front_progress: float = 0.0
+var _visual_frame: int = -1
+var _sweep_radius: float = 0.0
+var _front_segment_count: int = 0
+var _sampled_front_width: float = 0.0
+var _sampled_visual_frame: int = -1
+var _max_front_sample_displacement: float = 0.0
+var _front_local_segments := PackedVector2Array()
+var _front_world_previous := PackedVector2Array()
+var _front_world_current := PackedVector2Array()
+@export var debug_attack_front: bool = false
 
 # ponytail: 36 发共享一个 Control 的紧凑数组；超过此上限再考虑独立弹幕组件或池。
 var _bullet_positions: PackedVector2Array = PackedVector2Array()
@@ -112,6 +153,9 @@ func _ready() -> void:
 	mouse_filter = Control.MOUSE_FILTER_STOP
 	z_index = 110
 	_create_collision_areas()
+	_front_local_segments.resize(6)
+	_front_world_previous.resize(6)
+	_front_world_current.resize(6)
 	var particles: Array[GPUParticles2D] = DefenseTimingVFX.create(self)
 	_trail_particles = particles[0]
 	_impact_particles = particles[1]
@@ -122,6 +166,7 @@ func start(
 		pattern_id: String = EnemyAI.PATTERN_FALLBACK_THRUST,
 		pattern_params: Dictionary = {}) -> void:
 	_stance = stance
+	_pattern_id = pattern_id
 	var pattern_style: Dictionary = DefenseAttackPatterns.style(pattern_id)
 	_pattern_label = pattern_style.label
 	_attack_color = pattern_style.color
@@ -149,6 +194,7 @@ func start(
 	_feedback_text = ""
 	_feedback_until = -1.0
 	_hit_stop_remaining = 0.0
+	_max_front_sample_displacement = 0.0
 	_clear_barrage()
 	_hit_results.clear()
 	_running = true
@@ -188,8 +234,8 @@ func _physics_process(delta: float) -> void:
 			if stage.kind == "barrage":
 				_update_barrage(step)
 			else:
-				_update_active_hazard()
-				if not _stage_contact_resolved and _hazard_hits_player():
+				var contacted: bool = _update_active_hazard()
+				if not _stage_contact_resolved and contacted:
 					_resolve_contact()
 		if _phase_elapsed + 0.0001 >= duration:
 			_advance_phase()
@@ -314,6 +360,11 @@ func _prepare_stage() -> void:
 		return
 	var stage: Dictionary = _stages[_stage_index]
 	_stage_contact_resolved = false
+	_contact_position = Vector2.ZERO
+	_incoming_direction = Vector2.ZERO
+	_front_progress = 0.0
+	_visual_frame = -1
+	_front_segment_count = 0
 	_stage_start = Vector2(stage.origin)
 	_stage_end = Vector2(_arena_rect.position.x, _enemy_origin.y)
 	match stage.kind:
@@ -334,7 +385,8 @@ func _prepare_stage() -> void:
 			_stage_end = Vector2(float(stage.x), _arena_rect.end.y)
 		"sweep":
 			var direction := Vector2.from_angle(float(stage.angle_from))
-			_stage_end = _enemy_origin + direction * _distance_to_arena_edge(_enemy_origin, direction)
+			_sweep_radius = _enemy_origin.distance_to(_player_position)
+			_stage_end = _enemy_origin + direction * _sweep_radius
 		"area":
 			_hazard_draw_center = Vector2(stage.center)
 			_hazard_draw_radius = float(stage.radius)
@@ -373,11 +425,14 @@ func _advance_phase() -> void:
 			_phase = Phase.TELEGRAPH
 			_prepare_stage()
 
-func _update_active_hazard() -> void:
+func _update_active_hazard() -> bool:
 	var stage: Dictionary = _stages[_stage_index]
 	var progress: float = clampf(_phase_elapsed / _phase_duration(), 0.0, 1.0)
 	var previous_progress: float = _active_progress
 	_active_progress = progress
+	var front_animation: StringName = _front_animation_for_stage(stage)
+	if front_animation != &"":
+		return _update_attack_front(stage, front_animation, previous_progress, progress)
 	# ponytail: 同一 stage 参数驱动物理遮罩、绘制与粒子，避免三套配置漂移。
 	if stage.kind == "sweep":
 		var angle: float = lerpf(float(stage.angle_from), float(stage.angle_to), progress)
@@ -387,10 +442,159 @@ func _update_active_hazard() -> void:
 	elif stage.kind == "area":
 		_set_hazard_circle(Vector2(stage.center), float(stage.radius))
 	else:
+		var from: Vector2 = _stage_start.lerp(_stage_end, previous_progress)
+		var to: Vector2 = _stage_start.lerp(_stage_end, progress)
+		_set_hazard_segment(from, to, float(stage.width))
+	if _stage_contact_resolved or not _hazard_hits_player():
+		return false
+	var incoming: Vector2 = _hazard_draw_from.direction_to(_hazard_draw_to)
+	if incoming == Vector2.ZERO:
+		incoming = _stage_start.direction_to(_stage_end)
+	var frame: int = -1
+	if _pattern_id == EnemyAI.PATTERN_HUNTER_LOCK_THRUST \
+			or _pattern_id == EnemyAI.PATTERN_HUNTER_CROSS_THRUST:
+		frame = _animation_frame_at_progress(&"hunter_ray", progress)
+	_capture_contact(incoming, progress, frame)
+	return true
+
+func _front_animation_for_stage(stage: Dictionary) -> StringName:
+	if _pattern_id == EnemyAI.PATTERN_MUTANT_CLEAVE and stage.kind == "cleave":
+		return &"mutant_slash"
+	if _pattern_id == EnemyAI.PATTERN_MUTANT_SWEEP and stage.kind == "sweep":
+		return &"mutant_claw"
+	return &""
+
+func _update_attack_front(
+		stage: Dictionary,
+		animation: StringName,
+		previous_progress: float,
+		progress: float) -> bool:
+	_sample_front_world(stage, animation, previous_progress, _front_world_previous)
+	if _stage_contact_resolved:
+		_sample_front_world(stage, animation, progress, _front_world_current)
 		_set_hazard_segment(
-			_stage_start.lerp(_stage_end, previous_progress),
-			_stage_start.lerp(_stage_end, progress),
-			float(stage.width))
+			_front_world_current[(_front_segment_count - 1) * 2],
+			_front_world_current[(_front_segment_count - 1) * 2 + 1],
+			_sampled_front_width)
+		return false
+	var travel: float = _front_travel_bound(stage, previous_progress, progress)
+	var sample_count: int = maxi(1, ceili(travel / MAX_FRONT_SAMPLE_DISTANCE))
+	for sample_index in range(1, sample_count + 1):
+		var sample_progress: float = lerpf(
+			previous_progress, progress, float(sample_index) / float(sample_count))
+		_sample_front_world(stage, animation, sample_progress, _front_world_current)
+		var incoming := Vector2.ZERO
+		for point_index in range(_front_segment_count * 2):
+			var displacement: float = _front_world_previous[point_index].distance_to(
+				_front_world_current[point_index])
+			_max_front_sample_displacement = maxf(_max_front_sample_displacement, displacement)
+			if point_index % 2 == 0:
+				incoming += (_front_world_current[point_index] + _front_world_current[point_index + 1]) * 0.5 \
+					- (_front_world_previous[point_index] + _front_world_previous[point_index + 1]) * 0.5
+		for segment_index in range(_front_segment_count):
+			var from: Vector2 = _front_world_current[segment_index * 2]
+			var to: Vector2 = _front_world_current[segment_index * 2 + 1]
+			_set_hazard_segment(from, to, _sampled_front_width)
+			if _hazard_hits_player():
+				_capture_contact(incoming, sample_progress, _sampled_visual_frame)
+				return true
+		for point_index in range(_front_segment_count * 2):
+			_front_world_previous[point_index] = _front_world_current[point_index]
+	return false
+
+func _sample_front_world(
+		stage: Dictionary,
+		animation: StringName,
+		progress: float,
+		output: PackedVector2Array) -> void:
+	_sample_attack_front(animation, progress, _front_local_segments)
+	var anchor: Vector2
+	var rotation: float = 0.0
+	var scale := Vector2.ONE
+	if stage.kind == "sweep":
+		var angle: float = lerpf(float(stage.angle_from), float(stage.angle_to), progress)
+		anchor = _enemy_origin + Vector2.from_angle(angle) * _sweep_radius
+		rotation = angle + PI * 0.5
+		scale = Vector2(2.0, float(stage.width) / 16.0)
+	else:
+		anchor = _stage_start.lerp(_stage_end, progress)
+		scale = Vector2.ONE * (2.0 if _stage_index == 0 else 1.0)
+	for point_index in range(_front_segment_count * 2):
+		var local_point := Vector2(
+			_front_local_segments[point_index].x * scale.x,
+			_front_local_segments[point_index].y * scale.y)
+		output[point_index] = anchor + local_point.rotated(rotation)
+
+func _sample_attack_front(
+		animation: StringName,
+		progress: float,
+		output: PackedVector2Array) -> void:
+	var slash: bool = animation == &"mutant_slash"
+	var points: Array[Vector2] = SLASH_FRONT_POINTS if slash else CLAW_FRONT_POINTS
+	var widths: Array[float] = SLASH_FRONT_WIDTHS if slash else CLAW_FRONT_WIDTHS
+	_front_segment_count = 1 if slash else 3
+	var frame_count: int = ATTACK_SPRITE_FRAMES.get_frame_count(animation)
+	var target_time: float = clampf(progress, 0.0, 1.0) * _animation_duration(animation)
+	var elapsed: float = 0.0
+	var frame: int = frame_count - 1
+	var next_frame: int = frame
+	var blend: float = 0.0
+	var speed: float = maxf(0.001, ATTACK_SPRITE_FRAMES.get_animation_speed(animation))
+	for frame_index in range(frame_count):
+		var duration: float = ATTACK_SPRITE_FRAMES.get_frame_duration(animation, frame_index) / speed
+		if target_time < elapsed + duration or frame_index == frame_count - 1:
+			frame = frame_index
+			next_frame = mini(frame + 1, frame_count - 1)
+			blend = clampf((target_time - elapsed) / duration, 0.0, 1.0) if next_frame != frame else 0.0
+			break
+		elapsed += duration
+	var points_per_frame: int = _front_segment_count * 2
+	for point_index in range(points_per_frame):
+		output[point_index] = points[frame * points_per_frame + point_index].lerp(
+			points[next_frame * points_per_frame + point_index], blend)
+	_sampled_front_width = lerpf(widths[frame], widths[next_frame], blend)
+	_sampled_visual_frame = frame
+
+func _front_travel_bound(stage: Dictionary, from_progress: float, to_progress: float) -> float:
+	var progress_delta: float = absf(to_progress - from_progress)
+	if stage.kind == "sweep":
+		var arc_distance: float = absf(float(stage.angle_to) - float(stage.angle_from)) \
+			* (_sweep_radius + float(stage.width))
+		return progress_delta * (arc_distance + 48.0)
+	var sprite_scale: float = 2.0 if _stage_index == 0 else 1.0
+	return progress_delta * (_stage_start.distance_to(_stage_end) + SLASH_MAX_LOCAL_SPEED * sprite_scale)
+
+static func attack_front_frame_times(animation: StringName) -> PackedFloat32Array:
+	var times := PackedFloat32Array()
+	var elapsed: float = 0.0
+	var speed: float = maxf(0.001, ATTACK_SPRITE_FRAMES.get_animation_speed(animation))
+	for frame_index in range(ATTACK_SPRITE_FRAMES.get_frame_count(animation)):
+		times.append(elapsed)
+		elapsed += ATTACK_SPRITE_FRAMES.get_frame_duration(animation, frame_index) / speed
+	return times
+
+static func _animation_duration(animation: StringName) -> float:
+	var duration: float = 0.0
+	var speed: float = maxf(0.001, ATTACK_SPRITE_FRAMES.get_animation_speed(animation))
+	for frame_index in range(ATTACK_SPRITE_FRAMES.get_frame_count(animation)):
+		duration += ATTACK_SPRITE_FRAMES.get_frame_duration(animation, frame_index) / speed
+	return duration
+
+static func _animation_frame_at_progress(animation: StringName, progress: float) -> int:
+	var times: PackedFloat32Array = attack_front_frame_times(animation)
+	var target_time: float = clampf(progress, 0.0, 1.0) * _animation_duration(animation)
+	for frame_index in range(times.size() - 1, -1, -1):
+		if target_time + 0.0001 >= times[frame_index]:
+			return frame_index
+	return 0
+
+func _capture_contact(incoming: Vector2, progress: float, frame: int) -> void:
+	_incoming_direction = incoming.normalized()
+	if _incoming_direction == Vector2.ZERO:
+		_incoming_direction = _enemy_origin.direction_to(_player_position)
+	_contact_position = _player_position - _incoming_direction * PLAYER_RADIUS
+	_front_progress = clampf(progress, 0.0, 1.0)
+	_visual_frame = frame
 
 func _prepare_barrage(stage: Dictionary) -> void:
 	var bullet_count: int = clampi(int(stage.bullet_count), 1, MAX_BARRAGE_BULLETS)
@@ -458,6 +662,11 @@ func _update_barrage(delta: float) -> void:
 			continue
 		if swept_circle_hits(previous, position, _player_position, PLAYER_RADIUS + _bullet_radius):
 			_bullet_active[index] = 0
+			var bolt_duration: float = _animation_duration(&"hunter_bolt")
+			var bolt_progress: float = fposmod(age, bolt_duration) / bolt_duration
+			_capture_contact(
+				velocity, clampf(_phase_elapsed / _phase_duration(), 0.0, 1.0),
+				_animation_frame_at_progress(&"hunter_bolt", bolt_progress))
 			_resolve_barrage_contact()
 
 func _spawn_barrage_bullet(index: int) -> void:
@@ -619,6 +828,10 @@ func _append_hit_result(
 		"contact_time": _total_elapsed,
 		"reaction_time": _reaction_started_at,
 		"outcome": outcome,
+		"contact_position": _contact_position if contact else Vector2.ZERO,
+		"incoming_direction": _incoming_direction if contact else Vector2.ZERO,
+		"front_progress": _front_progress if contact else 0.0,
+		"visual_frame": _visual_frame if contact else -1,
 	})
 
 func _move_player(delta: float) -> void:
@@ -667,7 +880,7 @@ func _emit_attack_particles() -> void:
 	_trail_particles.emitting = true
 
 func _emit_impact_particles(outcome: DefenseTimingRules.Outcome) -> void:
-	_impact_particles.position = _player_position
+	_impact_particles.position = _contact_position if _contact_position != Vector2.ZERO else _player_position
 	match outcome:
 		DefenseTimingRules.Outcome.PERFECT:
 			_impact_particles.modulate = Color(1.0, 0.86, 0.32)
@@ -742,10 +955,22 @@ func _draw() -> void:
 				draw_circle(_hazard_draw_center, _hazard_draw_radius, Color(_attack_color, 0.52))
 				draw_arc(_hazard_draw_center, _hazard_draw_radius, 0.0, TAU, 64,
 					_attack_color.lightened(0.55), 7.0, true)
+			elif _front_segment_count > 0:
+				for segment_index in range(_front_segment_count):
+					draw_line(
+						_front_world_current[segment_index * 2],
+						_front_world_current[segment_index * 2 + 1],
+						Color(_attack_color, 0.82), maxf(2.0, _sampled_front_width), false)
 			else:
 				var width: float = float(stage.width)
 				draw_line(_hazard_draw_from, _hazard_draw_to, Color(_attack_color, 0.72), width + 8.0, true)
 				draw_line(_hazard_draw_from, _hazard_draw_to, _attack_color.lightened(0.55), maxf(3.0, width * 0.22), true)
+		if debug_attack_front and _phase == Phase.ACTIVE and _front_segment_count > 0:
+			for segment_index in range(_front_segment_count):
+				draw_line(
+					_front_world_current[segment_index * 2],
+					_front_world_current[segment_index * 2 + 1],
+					Color(0.20, 1.0, 0.78, 0.95), maxf(2.0, _sampled_front_width), false)
 	draw_circle(_enemy_origin, 9.0, Color(0.18, 0.03, 0.04, 0.96))
 	draw_arc(_enemy_origin, 11.0, 0.0, TAU, 24, Color(0.96, 0.28, 0.24), 3.0, true)
 	var font := ThemeDB.fallback_font
