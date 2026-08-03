@@ -225,26 +225,26 @@ func _attack_pattern_params_valid(intent: Dictionary) -> bool:
 	match intent.attack_pattern:
 		EnemyAI.PATTERN_HUNTER_LOCK_THRUST:
 			return params.hit_count in [2, 3] \
-				and params.telegraph >= 0.45 and params.telegraph <= 0.75 \
-				and params.active >= 0.16 and params.active <= 0.24 \
-				and params.gap >= 0.12 and params.gap <= 0.22 \
-				and params.width >= 42.0 and params.width <= 56.0 \
-				and params.aim_offset.length() <= 48.01
+				and params.telegraph >= 0.42 and params.telegraph <= 0.58 \
+				and params.active >= 0.14 and params.active <= 0.20 \
+				and params.gap >= 0.16 and params.gap <= 0.24 \
+				and params.width >= 28.0 and params.width <= 36.0 \
+				and params.aim_offset.length() <= 40.01
 		EnemyAI.PATTERN_HUNTER_CROSS_THRUST:
 			return params.hit_count == 2 \
-				and params.angle_degrees >= 20.0 and params.angle_degrees <= 35.0 \
-				and params.stagger >= 0.16 and params.stagger <= 0.30 \
-				and params.telegraph >= 0.65 and params.telegraph <= 0.95 \
-				and params.active >= 0.25 and params.active <= 0.40 \
-				and params.width >= 38.0 and params.width <= 52.0
+				and params.angle_degrees >= 24.0 and params.angle_degrees <= 34.0 \
+				and params.stagger >= 0.18 and params.stagger <= 0.26 \
+				and params.telegraph >= 0.55 and params.telegraph <= 0.72 \
+				and params.active >= 0.20 and params.active <= 0.28 \
+				and params.width >= 30.0 and params.width <= 40.0
 		EnemyAI.PATTERN_HUNTER_SLOW_BARRAGE:
 			return params.hit_count == 3 \
 				and params.subtype in [EnemyAI.BARRAGE_STRAIGHT, EnemyAI.BARRAGE_MONTE_CARLO] \
-				and params.seed is int and params.bullet_count == 36 \
-				and params.bullet_speed == 240.0 and params.bullet_radius == 8.0 \
-				and params.spawn_interval == 0.10 and params.wander_interval == 0.22 \
-				and params.wander_vertical_speed == 110.0 \
-				and params.telegraph == 0.45 and params.active == 5.2 and params.gap == 0.25
+				and params.seed is int and params.bullet_count == 24 \
+				and params.bullet_speed == 280.0 and params.bullet_radius == 7.0 \
+				and params.spawn_interval == 0.16 and params.wander_interval == 0.32 \
+				and params.wander_vertical_speed == 85.0 \
+				and params.telegraph == 0.55 and params.active == 4.6 and params.gap == 0.25
 		EnemyAI.PATTERN_BURNER_ERUPTION:
 			return params.hit_count in [2, 3] \
 				and params.telegraph >= 0.50 and params.telegraph <= 0.72 \
@@ -263,19 +263,19 @@ func _attack_pattern_params_valid(intent: Dictionary) -> bool:
 				and params.vertical_offset >= -48.0 and params.vertical_offset <= 48.0
 		EnemyAI.PATTERN_MUTANT_SWEEP:
 			return params.hit_count == 2 and params.clockwise is bool \
-				and params.telegraph >= 0.80 and params.telegraph <= 1.15 \
-				and params.active >= 0.50 and params.active <= 0.75 \
-				and params.gap >= 0.18 and params.gap <= 0.35 \
-				and params.arc_degrees >= 100.0 and params.arc_degrees <= 140.0 \
-				and params.width >= 72.0 and params.width <= 96.0
+				and params.telegraph >= 0.85 and params.telegraph <= 1.05 \
+				and params.active >= 0.60 and params.active <= 0.78 \
+				and params.gap >= 0.28 and params.gap <= 0.38 \
+				and params.arc_degrees >= 110.0 and params.arc_degrees <= 130.0 \
+				and params.width >= 60.0 and params.width <= 72.0
 		EnemyAI.PATTERN_MUTANT_CLEAVE:
 			return params.hit_count == 3 \
-				and params.offset_x >= -120.0 and params.offset_x <= 120.0 \
-				and params.telegraph >= 1.0 and params.telegraph <= 1.4 \
-				and params.active >= 0.25 and params.active <= 0.40 \
-				and params.aftershock_delay >= 0.18 and params.aftershock_delay <= 0.35 \
-				and params.width >= 84.0 and params.width <= 116.0 \
-				and params.aftershock_spacing >= 100.0 and params.aftershock_spacing <= 160.0
+				and params.offset_x >= -100.0 and params.offset_x <= 100.0 \
+				and params.telegraph >= 0.95 and params.telegraph <= 1.20 \
+				and params.active >= 0.30 and params.active <= 0.40 \
+				and params.aftershock_delay >= 0.26 and params.aftershock_delay <= 0.36 \
+				and params.width >= 72.0 and params.width <= 88.0 \
+				and params.aftershock_spacing >= 120.0 and params.aftershock_spacing <= 150.0
 		_:
 			return false
 
@@ -306,12 +306,13 @@ func _test_right_side_attack_origins_and_barrage() -> void:
 	straight.start(BattleUnit.Stance.ATTACK, Rect2(0, 0, 960, 540),
 		EnemyAI.PATTERN_HUNTER_SLOW_BARRAGE, {
 			"subtype": EnemyAI.BARRAGE_STRAIGHT, "seed": 71,
-			"bullet_count": 36, "hit_count": 3,
+			"bullet_count": 24, "hit_count": 3,
 		})
 	var query_id: int = straight._hazard_query.get_instance_id()
 	straight._hazard_hits_player()
 	_check("连续物理判定复用同一查询参数",
-		straight._hazard_query.get_instance_id() == query_id)
+		straight._hazard_query.get_instance_id() == query_id
+		and straight.texture_filter == CanvasItem.TEXTURE_FILTER_NEAREST)
 	var child_count: int = straight.get_child_count()
 	straight._advance_phase()
 	_check("慢速弹幕可从预警态无错切入活跃态",
@@ -321,7 +322,7 @@ func _test_right_side_attack_origins_and_barrage() -> void:
 	var first_aim: Vector2 = straight._enemy_origin.direction_to(straight._player_position)
 	var first_velocity: Vector2 = straight._bullet_base_velocities[0]
 	straight._player_position += Vector2(0.0, -100.0)
-	straight._phase_elapsed = 0.21
+	straight._phase_elapsed = 0.33
 	straight._update_barrage(0.0)
 	var straight_leftward: bool = true
 	for index in range(straight._bullets_spawned):
@@ -333,14 +334,35 @@ func _test_right_side_attack_origins_and_barrage() -> void:
 			<= TIMING_CHECK.BARRAGE_AIM_SPREAD_RADIANS + 0.0001
 		and absf(second_aim.angle_to(straight._bullet_base_velocities[1].normalized()))
 			<= TIMING_CHECK.BARRAGE_AIM_SPREAD_RADIANS + 0.0001)
-	_check("直线慢速弹幕按 36 发上限复用紧凑数组且全部向左",
-		straight._bullet_positions.size() == 36 and straight._bullets_spawned == 3
+	_check("直线慢速弹幕按 24 发配置复用紧凑数组且全部向左",
+		straight._bullet_positions.size() == 24 and straight._bullets_spawned == 3
 		and straight_leftward and straight.get_child_count() == child_count)
 	straight._finish_barrage_results()
 	_check("弹幕无接触时仍固定回传三个伤害槽",
 		straight._hit_results.size() == 3
 		and straight._hit_results.all(func(result): return not result.contact))
 	straight.free()
+
+	var contact_bolt := TIMING_CHECK.new()
+	add_child(contact_bolt)
+	contact_bolt.start(BattleUnit.Stance.ATTACK, Rect2(0, 0, 960, 540),
+		EnemyAI.PATTERN_HUNTER_SLOW_BARRAGE, {
+			"subtype": EnemyAI.BARRAGE_STRAIGHT, "seed": 9,
+			"bullet_count": 1, "hit_count": 3,
+		})
+	contact_bolt._player_position = contact_bolt._enemy_origin + Vector2(-20.0, 0.0)
+	contact_bolt._player_area.position = contact_bolt._player_position
+	contact_bolt._advance_phase()
+	contact_bolt._update_barrage(0.10)
+	contact_bolt._finish_barrage_results()
+	var bolt_result: Dictionary = contact_bolt._hit_results[0]
+	_check("弹体 sprite 接触回传画面帧且空伤害槽不继承接触证物",
+		contact_bolt._hit_results.size() == 3 and bolt_result.contact
+		and bolt_result.contact_position != Vector2.ZERO
+		and bolt_result.visual_frame >= 0 and bolt_result.visual_frame < 6
+		and contact_bolt._hit_results[1].contact_position == Vector2.ZERO
+		and contact_bolt._hit_results[1].visual_frame == -1)
+	contact_bolt.free()
 
 	var random_a := TIMING_CHECK.new()
 	var random_b := TIMING_CHECK.new()
@@ -364,15 +386,15 @@ func _test_right_side_attack_origins_and_barrage() -> void:
 		and random_a._bullet_velocities == random_b._bullet_velocities
 		and random_a._bullet_velocities[0].x < 0.0
 		and not is_equal_approx(
-			TIMING_CHECK.barrage_vertical_speed(20260718, 0, 0, 110.0),
-			TIMING_CHECK.barrage_vertical_speed(20260718, 0, 1, 110.0)))
+			TIMING_CHECK.barrage_vertical_speed(20260718, 0, 0, 85.0),
+			TIMING_CHECK.barrage_vertical_speed(20260718, 0, 1, 85.0)))
 	var monte_carlo_base: Vector2 = random_a._bullet_base_velocities[0]
 	_check("伪蒙特卡洛游走不覆盖生成时的基础瞄准速度",
 		is_equal_approx(random_a._bullet_velocities[0].dot(monte_carlo_base.normalized()),
 			monte_carlo_base.length()))
 	_check("慢速弹幕使用扫掠圆判定避免大 delta 穿透",
 		TIMING_CHECK.swept_circle_hits(
-			Vector2(100.0, 0.0), Vector2(-100.0, 0.0), Vector2.ZERO, 18.0))
+			Vector2(100.0, 0.0), Vector2(-100.0, 0.0), Vector2.ZERO, 17.0))
 	random_a._barrage_results_recorded = 0
 	random_a._hit_results.clear()
 	for _contact in range(4):

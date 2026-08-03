@@ -31,15 +31,21 @@ const PARRY_ACTION: StringName = &"ui_accept"
 const DODGE_ACTION: StringName = &"run"
 const ENEMY_ORIGIN_INSET: float = 32.0
 const MAX_BARRAGE_BULLETS: int = 36
-const BARRAGE_AIM_SPREAD_RADIANS: float = PI / 15.0
+const BARRAGE_AIM_SPREAD_RADIANS: float = PI / 18.0
 # ponytail: 单一比例在统一相位入口缩放，避免逐攻击模板复制时长。
 const ACTION_DURATION_SCALE: float = 1.5
 # ponytail: 只限制碰撞采样距离；流程时长仍按秒累计，不依赖固定 tick。
 const MAX_ACTIVE_SUBSTEP_SECONDS: float = PLAYER_RADIUS / DASH_SPEED
 const MAX_FRONT_SAMPLE_DISTANCE: float = 4.0
 const SLASH_MAX_LOCAL_SPEED: float = 600.0
+const SLASH_FRONT_SPAN_SCALE: float = 2.2
+const SLASH_FRAME_HEIGHT: float = 47.0
 const ATTACK_SPRITE_FRAMES: SpriteFrames = preload(
 	"res://assets/derived/combat_vfx/combat_attack_frames.tres")
+const VFX_BONE_WHITE := Color(0.82, 0.79, 0.70)
+const VFX_COLD_BLUE := Color(0.32, 0.70, 0.80)
+const VFX_DARK_BLOOD := Color(0.68, 0.46, 0.46)
+const VFX_EMBER := Color(0.94, 0.52, 0.28)
 # alpha >= 0.5 的最大连续实心区域，经逐帧剔除孤立粒子后记录；坐标以 64x47 帧中心为原点。
 const SLASH_FRONT_POINTS: Array[Vector2] = [
 	Vector2(-26.0, -15.5), Vector2(-20.0, -19.5),
@@ -151,6 +157,7 @@ var _impact_particles: GPUParticles2D
 func _ready() -> void:
 	set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	mouse_filter = Control.MOUSE_FILTER_STOP
+	texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 	z_index = 110
 	_create_collision_areas()
 	_front_local_segments.resize(6)
@@ -381,8 +388,10 @@ func _prepare_stage() -> void:
 			var direction := Vector2.LEFT.rotated(float(stage.angle))
 			_stage_end = _enemy_origin + direction * _distance_to_arena_edge(_enemy_origin, direction)
 		"cleave":
-			_stage_start = Vector2(float(stage.x), _arena_rect.position.y)
-			_stage_end = Vector2(float(stage.x), _arena_rect.end.y)
+			var sprite_scale: float = 2.0 if _stage_index == 0 else 1.0
+			var vertical_inset: float = SLASH_FRAME_HEIGHT * sprite_scale * 0.5
+			_stage_start = Vector2(float(stage.x), _arena_rect.position.y + vertical_inset)
+			_stage_end = Vector2(float(stage.x), _arena_rect.end.y - vertical_inset)
 		"sweep":
 			var direction := Vector2.from_angle(float(stage.angle_from))
 			_sweep_radius = _enemy_origin.distance_to(_player_position)
@@ -524,6 +533,13 @@ func _sample_front_world(
 			_front_local_segments[point_index].x * scale.x,
 			_front_local_segments[point_index].y * scale.y)
 		output[point_index] = anchor + local_point.rotated(rotation)
+	_sampled_front_width *= scale.x
+	if stage.kind == "cleave":
+		var midpoint: Vector2 = (output[0] + output[1]) * 0.5
+		var direction: Vector2 = output[0].direction_to(output[1])
+		var span: float = minf(float(stage.width), output[0].distance_to(output[1]) * SLASH_FRONT_SPAN_SCALE)
+		output[0] = midpoint - direction * span * 0.5
+		output[1] = midpoint + direction * span * 0.5
 
 func _sample_attack_front(
 		animation: StringName,
@@ -562,7 +578,8 @@ func _front_travel_bound(stage: Dictionary, from_progress: float, to_progress: f
 			* (_sweep_radius + float(stage.width))
 		return progress_delta * (arc_distance + 48.0)
 	var sprite_scale: float = 2.0 if _stage_index == 0 else 1.0
-	return progress_delta * (_stage_start.distance_to(_stage_end) + SLASH_MAX_LOCAL_SPEED * sprite_scale)
+	return progress_delta * (_stage_start.distance_to(_stage_end)
+		+ SLASH_MAX_LOCAL_SPEED * sprite_scale + float(stage.width) * 9.0)
 
 static func attack_front_frame_times(animation: StringName) -> PackedFloat32Array:
 	var times := PackedFloat32Array()
@@ -581,12 +598,15 @@ static func _animation_duration(animation: StringName) -> float:
 	return duration
 
 static func _animation_frame_at_progress(animation: StringName, progress: float) -> int:
-	var times: PackedFloat32Array = attack_front_frame_times(animation)
 	var target_time: float = clampf(progress, 0.0, 1.0) * _animation_duration(animation)
-	for frame_index in range(times.size() - 1, -1, -1):
-		if target_time + 0.0001 >= times[frame_index]:
+	var elapsed: float = 0.0
+	var frame_count: int = ATTACK_SPRITE_FRAMES.get_frame_count(animation)
+	var speed: float = maxf(0.001, ATTACK_SPRITE_FRAMES.get_animation_speed(animation))
+	for frame_index in range(frame_count):
+		elapsed += ATTACK_SPRITE_FRAMES.get_frame_duration(animation, frame_index) / speed
+		if target_time < elapsed or frame_index == frame_count - 1:
 			return frame_index
-	return 0
+	return frame_count - 1
 
 func _capture_contact(incoming: Vector2, progress: float, frame: int) -> void:
 	_incoming_direction = incoming.normalized()
@@ -858,8 +878,14 @@ func _finish() -> void:
 
 func _emit_attack_particles() -> void:
 	var stage: Dictionary = _stages[_stage_index]
-	# ponytail: 弹体自带轨迹绘制，不叠加普通攻击粒子，也不要求 width 参数。
-	if stage.kind == "barrage":
+	# ponytail: 五种 sprite 攻击直接绘制既有 SpriteFrames，不再叠一套程序尾迹。
+	if _pattern_id in [
+		EnemyAI.PATTERN_HUNTER_LOCK_THRUST,
+		EnemyAI.PATTERN_HUNTER_CROSS_THRUST,
+		EnemyAI.PATTERN_HUNTER_SLOW_BARRAGE,
+		EnemyAI.PATTERN_MUTANT_SWEEP,
+		EnemyAI.PATTERN_MUTANT_CLEAVE,
+	]:
 		return
 	_trail_particles.modulate = _attack_color
 	var material := _trail_particles.process_material as ParticleProcessMaterial
@@ -906,6 +932,61 @@ func _set_feedback(contact: bool, outcome: DefenseTimingRules.Outcome) -> void:
 		_feedback_color = Color(1.0, 0.28, 0.22)
 	_feedback_until = _total_elapsed + 0.55
 
+func _draw_attack_texture(
+		animation: StringName,
+		frame: int,
+		position: Vector2,
+		rotation: float,
+		scale: Vector2,
+		tint: Color) -> void:
+	var texture: Texture2D = ATTACK_SPRITE_FRAMES.get_frame_texture(animation, frame)
+	if texture == null:
+		return
+	draw_set_transform(position.round(), rotation, scale)
+	draw_texture(texture, -texture.get_size() * 0.5, tint)
+	draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
+
+func _draw_attack_sprites(stage: Dictionary) -> bool:
+	if _pattern_id == EnemyAI.PATTERN_HUNTER_LOCK_THRUST \
+			or _pattern_id == EnemyAI.PATTERN_HUNTER_CROSS_THRUST:
+		var direction: Vector2 = _stage_start.direction_to(_stage_end)
+		var position: Vector2 = _stage_start.lerp(_stage_end, _active_progress)
+		var scale_y: float = float(clampi(roundi(float(stage.width) / 10.0), 3, 4))
+		_draw_attack_texture(
+			&"hunter_ray", _animation_frame_at_progress(&"hunter_ray", _active_progress),
+			position, direction.angle(), Vector2(3.0, scale_y), VFX_COLD_BLUE)
+		return true
+	if _pattern_id == EnemyAI.PATTERN_HUNTER_SLOW_BARRAGE:
+		var duration: float = _animation_duration(&"hunter_bolt")
+		for index in range(_bullets_spawned):
+			if _bullet_active[index] == 0:
+				continue
+			var progress: float = fposmod(_bullet_ages[index], duration) / duration
+			_draw_attack_texture(
+				&"hunter_bolt", _animation_frame_at_progress(&"hunter_bolt", progress),
+				_bullet_positions[index], _bullet_velocities[index].angle(),
+				Vector2.ONE * 2.0, VFX_COLD_BLUE)
+		return true
+	if _pattern_id == EnemyAI.PATTERN_MUTANT_SWEEP:
+		var angle: float = lerpf(float(stage.angle_from), float(stage.angle_to), _active_progress)
+		var rotation: float = angle + PI * 0.5
+		var anchor: Vector2 = _enemy_origin + Vector2.from_angle(angle) * _sweep_radius
+		var frame: int = _animation_frame_at_progress(&"mutant_claw", _active_progress)
+		for index in range(3):
+			var offset: float = lerpf(-float(stage.width) * 0.5, float(stage.width) * 0.5, float(index) * 0.5)
+			_draw_attack_texture(
+				&"mutant_claw", frame, anchor + Vector2(0.0, offset).rotated(rotation),
+				rotation, Vector2.ONE * 2.0, Color(VFX_DARK_BLOOD, 0.92 - float(index) * 0.08))
+		return true
+	if _pattern_id == EnemyAI.PATTERN_MUTANT_CLEAVE:
+		var scale_value: float = 2.0 if _stage_index == 0 else 1.0
+		_draw_attack_texture(
+			&"mutant_slash", _animation_frame_at_progress(&"mutant_slash", _active_progress),
+			_stage_start.lerp(_stage_end, _active_progress), 0.0,
+			Vector2.ONE * scale_value, VFX_BONE_WHITE if _stage_index == 0 else VFX_EMBER)
+		return true
+	return false
+
 func _draw() -> void:
 	if _arena_rect.size == Vector2.ZERO:
 		return
@@ -920,7 +1001,7 @@ func _draw() -> void:
 						_arena_rect.position.y + 24.0, _arena_rect.end.y - 24.0,
 						float(lane) / 4.0)
 					draw_line(_enemy_origin, Vector2(_arena_rect.position.x, lane_y),
-						Color(_attack_color, 0.10), 4.0, true)
+						Color(_attack_color, 0.10), 4.0, false)
 			elif stage.kind == "area":
 				var warning_progress: float = clampf(_phase_elapsed / _phase_duration(), 0.0, 1.0)
 				draw_circle(_hazard_draw_center, _hazard_draw_radius, Color(_attack_color, 0.12))
@@ -932,36 +1013,23 @@ func _draw() -> void:
 				for index in range(9):
 					var angle: float = lerpf(float(stage.angle_from), float(stage.angle_to), float(index) / 8.0)
 					var direction := Vector2.from_angle(angle)
-					var radius: float = _distance_to_arena_edge(_enemy_origin, direction)
-					draw_line(_enemy_origin, _enemy_origin + direction * radius,
-						Color(_attack_color, 0.10), maxf(2.0, width * 0.16), true)
+					var center: Vector2 = _enemy_origin + direction * _sweep_radius
+					var tangent: Vector2 = direction.orthogonal() * width * 0.32
+					draw_line(center - tangent, center + tangent,
+						Color(_attack_color, 0.22), maxf(2.0, width * 0.10), false)
 			else:
 				var width: float = float(stage.width)
 				draw_line(_hazard_draw_from, _hazard_draw_to, Color(_attack_color, 0.13),
-					width + 8.0, true)
+					width + 8.0, false)
 				draw_dashed_line(_hazard_draw_from, _hazard_draw_to, Color(_attack_color, 0.50),
-					maxf(3.0, width * 0.22), 18.0, true)
-		else:
-			if stage.kind == "barrage":
-				for index in range(_bullets_spawned):
-					if _bullet_active[index] == 0:
-						continue
-					draw_line(_bullet_previous_positions[index], _bullet_positions[index],
-						Color(_attack_color, 0.42), maxf(2.0, _bullet_radius * 0.65), true)
-					draw_circle(_bullet_positions[index], _bullet_radius, _attack_color)
-					draw_circle(_bullet_positions[index] + Vector2(-2.0, -2.0),
-						maxf(1.0, _bullet_radius * 0.28), _attack_color.lightened(0.55))
-			elif stage.kind == "area":
+					maxf(3.0, width * 0.22), 18.0, false)
+		elif _phase == Phase.ACTIVE:
+			var sprites_drawn: bool = _draw_attack_sprites(stage)
+			if not sprites_drawn and stage.kind == "area":
 				draw_circle(_hazard_draw_center, _hazard_draw_radius, Color(_attack_color, 0.52))
 				draw_arc(_hazard_draw_center, _hazard_draw_radius, 0.0, TAU, 64,
 					_attack_color.lightened(0.55), 7.0, true)
-			elif _front_segment_count > 0:
-				for segment_index in range(_front_segment_count):
-					draw_line(
-						_front_world_current[segment_index * 2],
-						_front_world_current[segment_index * 2 + 1],
-						Color(_attack_color, 0.82), maxf(2.0, _sampled_front_width), false)
-			else:
+			elif not sprites_drawn:
 				var width: float = float(stage.width)
 				draw_line(_hazard_draw_from, _hazard_draw_to, Color(_attack_color, 0.72), width + 8.0, true)
 				draw_line(_hazard_draw_from, _hazard_draw_to, _attack_color.lightened(0.55), maxf(3.0, width * 0.22), true)
