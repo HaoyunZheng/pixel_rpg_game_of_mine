@@ -37,7 +37,8 @@ void fragment() {
 const HIT_FLASH_SHADER_CODE: String = """
 shader_type canvas_item;
 void fragment() {
-	COLOR = vec4(1.0, 1.0, 1.0, COLOR.a);
+	float alpha = texture(TEXTURE, UV).a * COLOR.a;
+	COLOR = vec4(1.0, 1.0, 1.0, alpha);
 }
 """
 

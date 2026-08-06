@@ -1021,7 +1021,8 @@ func _test_battle_hud_frames() -> void:
 	_check("敌方立绘预置透明命中闪白层",
 		enemy_avatar.get_child_count() == 2
 		and enemy_avatar.get_child(1).has_meta("hit_flash_overlay")
-		and enemy_avatar.get_child(1).material is ShaderMaterial)
+		and enemy_avatar.get_child(1).material is ShaderMaterial
+		and BattleWidgets.HIT_FLASH_SHADER_CODE.contains("texture(TEXTURE, UV).a"))
 	enemy_card.free()
 
 	var overlay_parts: Dictionary = BattleWidgets.make_timing_overlay()
