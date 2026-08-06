@@ -10,7 +10,14 @@ const DATA_KEY_ENEMY_KEY: String = "enemy_key"
 const DATA_KEY_ENEMY_KEYS: String = "enemy_keys"  # 多敌：进场数据可传敌人 key 列表
 const DATA_KEY_RETURN_SCENE_PATH: String = "return_scene_path"
 const DATA_KEY_RETURN_SCENE_NAME: String = "return_scene_name"
+const DATA_KEY_PLAYER_POSITION: String = "player_position"
+const DATA_KEY_ENEMY_POSITION: String = "enemy_position"
 const LEGACY_DATA_KEY_ENEMY: String = "enemy"
+const RETURN_CONTEXT_KEYS: Array[String] = [
+	DATA_KEY_ENEMY_KEY,
+	DATA_KEY_PLAYER_POSITION,
+	DATA_KEY_ENEMY_POSITION,
+]
 
 const ENEMY_RESOURCE_PATHS: Dictionary = {
 	"Enemy1": "res://assets/data/enemies/enemy_hunter.tres",
@@ -32,6 +39,7 @@ var _battle_started: bool = false
 var _battle_exiting: bool = false
 var _return_scene_path: String = WILDERNESS_SCENE_PATH
 var _return_scene_name: String = "Wilderness"
+var _return_context: Dictionary = {}
 
 func _ready() -> void:
 	Log.info("Battle", "战斗场景已加载（P2）")
@@ -61,6 +69,10 @@ func on_scene_enter(data: Dictionary) -> void:
 		_return_scene_path = return_path
 	if return_name is String and not return_name.is_empty():
 		_return_scene_name = return_name
+	_return_context.clear()
+	for key in RETURN_CONTEXT_KEYS:
+		if data.has(key):
+			_return_context[key] = data[key]
 	_enemy_keys = _resolve_enemy_keys(data)
 	_init_battle()
 	_macro_sm.start_battle()
@@ -113,6 +125,19 @@ func _get_return_destination(victory: bool, fled: bool = false) -> Dictionary:
 		"path": _return_scene_path if returns_to_source else FOREST_SCENE_PATH,
 		"scene_name": _return_scene_name if returns_to_source else "ForestClearing",
 	}
+
+func _get_return_data(victory: bool, fled: bool = false) -> Dictionary:
+	var destination := _get_return_destination(victory, fled)
+	var data := {
+		DATA_KEY_SCENE_NAME: destination.scene_name,
+		DATA_KEY_FROM: "battle",
+		"victory": victory,
+	}
+	if fled:
+		data["fled"] = true
+	if victory or fled:
+		data.merge(_return_context, true)
+	return data
 
 func get_all_units() -> Array:
 	var all := _party_units.duplicate()
@@ -200,12 +225,7 @@ func _on_action_executed(result: Dictionary) -> void:
 	GameData.settle_battle(_session, BattleSession.Outcome.FLED)
 	Log.info("Battle", "逃跑成功，立即返回来源地图")
 	var destination := _get_return_destination(false, true)
-	SceneManager.change_scene(destination.path, {
-		DATA_KEY_SCENE_NAME: destination.scene_name,
-		DATA_KEY_FROM: "battle",
-		"victory": false,
-		"fled": true,
-	})
+	SceneManager.change_scene(destination.path, _get_return_data(false, true))
 
 func _on_battle_ended(victory: bool) -> void:
 	Log.info("Battle", "战斗结束，胜利: %s" % victory)
@@ -217,5 +237,4 @@ func _on_battle_ended(victory: bool) -> void:
 		BattleSession.Outcome.VICTORY if victory else BattleSession.Outcome.DEFEAT)
 	await get_tree().create_timer(2.0).timeout
 	var destination := _get_return_destination(victory)
-	var return_data := {DATA_KEY_SCENE_NAME: destination.scene_name, DATA_KEY_FROM: "battle", "victory": victory}
-	SceneManager.change_scene(destination.path, return_data)
+	SceneManager.change_scene(destination.path, _get_return_data(victory))

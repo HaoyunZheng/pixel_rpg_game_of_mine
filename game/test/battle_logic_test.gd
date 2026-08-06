@@ -1626,6 +1626,27 @@ func _test_forest_battle_routing() -> void:
 			and fled == victory
 			and defeat.get("path") == "res://scenes/ForestClearing.tscn"
 			and defeat.get("scene_name") == "ForestClearing")
+		var player_position := Vector2(1320, 880)
+		var enemy_position := Vector2(1260, 880)
+		battle.set("_return_context", {
+			"enemy_key": "Enemy2_ForestMain_06",
+			"player_position": player_position,
+			"enemy_position": enemy_position,
+		})
+		var victory_data: Dictionary = battle.call("_get_return_data", true)
+		var fled_data: Dictionary = battle.call("_get_return_data", false, true)
+		var defeat_data: Dictionary = battle.call("_get_return_data", false)
+		_check("胜利与逃跑回传遭遇双方精确位置",
+			victory_data.get("player_position") == player_position
+			and victory_data.get("enemy_position") == enemy_position
+			and victory_data.get("enemy_key") == "Enemy2_ForestMain_06"
+			and fled_data.get("player_position") == player_position
+			and fled_data.get("enemy_position") == enemy_position
+			and fled_data.get("fled", false))
+		_check("失败返回安全区时不携带遭遇位置",
+			not defeat_data.has("player_position")
+			and not defeat_data.has("enemy_position")
+			and not defeat_data.get("victory", true))
 	battle.free()
 
 func _test_inventory_pagination() -> void:

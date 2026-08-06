@@ -33,6 +33,7 @@ func _remove_defeated_enemies() -> void:
 func on_scene_enter(data: Dictionary) -> void:
 	Log.info("Wilderness", "进入野外区，数据: %s" % data)
 	_is_transitioning = false
+	_restore_battle_return(data, _player, get_node_or_null("Enemies"))
 	GameCamera.set_map(_player, MAP_RECT)
 
 func _on_battle_trigger_area_entered(area: Area2D) -> void:
@@ -57,6 +58,8 @@ func _on_battle_trigger_area_entered(area: Area2D) -> void:
 			DATA_KEY_SCENE_NAME: "Battle",
 			DATA_KEY_FROM: "wilderness",
 			DATA_KEY_ENEMY_KEY: enemy_key,
+			"player_position": _player.global_position,
+			"enemy_position": parent_node.global_position,
 		})
 
 func _get_enemy_key(enemy_node: Node) -> String:

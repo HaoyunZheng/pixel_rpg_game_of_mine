@@ -5,6 +5,10 @@ extends Node2D
 ## 背包界面懒加载，打开/关闭与暂停由 InventoryUI 自身管理。
 
 const INVENTORY_UI_SCENE: String = "res://scenes/ui/InventoryUI.tscn"
+const RETURN_DATA_KEY_ENEMY: String = "enemy_key"
+const RETURN_DATA_KEY_PLAYER_POSITION: String = "player_position"
+const RETURN_DATA_KEY_ENEMY_POSITION: String = "enemy_position"
+const ESCAPE_GRACE_SECONDS: float = 3.0
 
 var _is_transitioning: bool = false
 var _inventory_ui: InventoryUI = null
@@ -22,3 +26,30 @@ func _open_inventory() -> void:
 		add_child(_inventory_ui)
 	if not _inventory_ui.is_open():
 		_inventory_ui.open()
+
+## 战斗返回只恢复本次遭遇的瞬时位置；不把地图坐标写入 GameData。
+func _restore_battle_return(
+		data: Dictionary,
+		player: CharacterBody2D,
+		enemies_root: Node) -> bool:
+	var player_position = data.get(RETURN_DATA_KEY_PLAYER_POSITION)
+	if data.get("from", "") != "battle" or not player_position is Vector2:
+		return false
+	player.global_position = player_position
+	if not data.get("fled", false) or enemies_root == null:
+		return true
+	var enemy_key: String = data.get(RETURN_DATA_KEY_ENEMY, "")
+	for enemy in enemies_root.get_children():
+		var encounter_key = enemy.get("encounter_key")
+		var candidate_key: String = (
+			encounter_key if encounter_key is String and not encounter_key.is_empty()
+			else enemy.name)
+		if candidate_key != enemy_key:
+			continue
+		var enemy_position = data.get(RETURN_DATA_KEY_ENEMY_POSITION)
+		if enemy_position is Vector2:
+			enemy.global_position = enemy_position
+		if enemy.has_method("apply_escape_grace"):
+			enemy.apply_escape_grace(ESCAPE_GRACE_SECONDS)
+		break
+	return true

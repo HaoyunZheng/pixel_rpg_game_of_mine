@@ -131,19 +131,59 @@ func _run() -> void:
 	game_data.set_enemy_defeated("Enemy1_ForestMain_01", false)
 
 	var encountered := scene.get_node("Enemies/Enemy2_ForestMain_06") as CharacterBody2D
+	var encounter_player_position: Vector2 = player.global_position
+	var encounter_enemy_position: Vector2 = encountered.global_position
 	scene.call("_on_battle_trigger_area_entered", encountered.get_node("BattleTrigger"))
 	var sm := root.get_node_or_null("SceneManager")
 	var pending = sm.get("_pending_scene") if sm else ""
 	var pending_data: Dictionary = sm.get("_pending_data") if sm else {}
 	_check(pending is String and pending.contains("Battle")
 			and pending_data.get("enemy_key") == "Enemy2_ForestMain_06"
+			and pending_data.get("player_position") == encounter_player_position
+			and pending_data.get("enemy_position") == encounter_enemy_position
 			and pending_data.get("return_scene_path") == "res://scenes/ForestMain.tscn"
 			and pending_data.get("return_scene_name") == "ForestMain",
-			"触碰森林敌人时传入唯一键和 ForestMain 返回信息")
+			"触碰森林敌人时传入唯一键、双方坐标和 ForestMain 返回信息")
 	if sm:
 		sm.set("_pending_scene", "")
 		sm.set("_pending_data", {})
 	scene.set("_is_transitioning", false)
+
+	var returned_player_position := Vector2(1600, 1655)
+	var returned_enemy_position := Vector2(1536, 1655)
+	scene.call("on_scene_enter", {
+		"from": "battle",
+		"fled": true,
+		"enemy_key": encountered.name,
+		"player_position": returned_player_position,
+		"enemy_position": returned_enemy_position,
+	})
+	var returned_sprite := encountered.get_node("Sprite") as AnimatedSprite2D
+	var returned_trigger := encountered.get_node("BattleTrigger") as Area2D
+	_check(player.global_position == returned_player_position
+			and encountered.global_position == returned_enemy_position,
+			"逃跑返回森林主地图时双方恢复到遭遇原位")
+	_check(encountered.get("_state") == 3
+			and encountered.get("_escape_grace_remaining") == 3.0
+			and encountered.velocity == Vector2.ZERO
+			and is_equal_approx(returned_sprite.modulate.a, 0.5)
+			and not returned_trigger.monitorable,
+			"逃跑敌人进入三秒静止、半透明且不可再遭遇的宽限态")
+	encountered.call("_physics_process", 1.5)
+	_check(encountered.global_position == returned_enemy_position
+			and encountered.get("_state") == 3,
+			"逃跑宽限未满时敌人保持原地")
+	encountered.call("_physics_process", 1.5)
+	_check(encountered.get("_state") == 0
+			and is_equal_approx(returned_sprite.modulate.a, 1.0)
+			and returned_trigger.monitorable,
+			"三秒后敌人恢复巡逻、不透明度和遭遇触发")
+	var victory_position := Vector2(1720, 1700)
+	scene.call("on_scene_enter", {
+		"from": "battle", "victory": true, "player_position": victory_position,
+	})
+	_check(player.global_position == victory_position, "胜利返回森林主地图时玩家停在遭遇原位")
+	player.global_position = ENTRY_POSITION
 
 	var gate: Area2D = scene.get_node("ForestClearingGate")
 	_check(gate.global_position == Vector2(2368, 2016) and not gate.has_node("Visual"), "南侧传送口透明且位置正确")

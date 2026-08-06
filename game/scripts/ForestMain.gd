@@ -42,10 +42,11 @@ func _ready() -> void:
 func on_scene_enter(data: Dictionary) -> void:
 	Log.info("ForestMain", "进入森林主地图，数据: %s" % data)
 	_is_transitioning = false
-	_player.global_position = (
-		_campfire_spawn.global_position
-		if data.get("spawn_id", "") == "forest_ruins"
-		else ENTRY_POSITION)
+	if not _restore_battle_return(data, _player, _enemies):
+		_player.global_position = (
+			_campfire_spawn.global_position
+			if data.get("spawn_id", "") == "forest_ruins"
+			else ENTRY_POSITION)
 	GameCamera.set_map(_player, MAP_RECT)
 
 
@@ -71,6 +72,8 @@ func _on_battle_trigger_area_entered(area: Area2D) -> void:
 		"scene_name": "Battle",
 		"from": "forest_main",
 		"enemy_key": enemy_key,
+		"player_position": _player.global_position,
+		"enemy_position": enemy.global_position,
 		"return_scene_path": FOREST_MAIN_SCENE,
 		"return_scene_name": "ForestMain",
 	})

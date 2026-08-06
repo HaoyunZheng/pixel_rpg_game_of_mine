@@ -14,7 +14,7 @@ extends CharacterBody2D
 @export var sprite_frames: SpriteFrames
 @export var sprite_offset: Vector2 = Vector2(0, -12)
 
-enum State { PATROL, CHASE, RETURN }
+enum State { PATROL, CHASE, RETURN, ESCAPE_GRACE }
 
 const SPRITE_NODE_NAME := "Sprite"
 const ARRIVAL_DISTANCE_SQUARED := 4.0
@@ -38,6 +38,7 @@ var _sprite: AnimatedSprite2D
 var _player: Node2D
 var _nav_agent: NavigationAgent2D
 var _path_refresh_timer: float = 0.0
+var _escape_grace_remaining: float = 0.0
 var _rng := RandomNumberGenerator.new()
 
 func _ready() -> void:
@@ -53,6 +54,9 @@ func _physics_process(delta: float) -> void:
 	if DialogueManager.is_active():
 		velocity = Vector2.ZERO
 		move_and_slide()
+		return
+	if _state == State.ESCAPE_GRACE:
+		_update_escape_grace(delta)
 		return
 
 	_path_refresh_timer -= delta
@@ -107,6 +111,33 @@ func _update_return() -> void:
 		velocity = Vector2.ZERO
 		return
 	_move_towards(_origin, move_speed)
+
+func apply_escape_grace(duration: float = 3.0) -> void:
+	_escape_grace_remaining = maxf(0.0, duration)
+	_state = State.ESCAPE_GRACE
+	velocity = Vector2.ZERO
+	_set_escape_grace_enabled(true)
+	if is_zero_approx(_escape_grace_remaining):
+		_finish_escape_grace()
+
+func _update_escape_grace(delta: float) -> void:
+	velocity = Vector2.ZERO
+	_escape_grace_remaining = maxf(0.0, _escape_grace_remaining - delta)
+	if is_zero_approx(_escape_grace_remaining):
+		_finish_escape_grace()
+
+func _finish_escape_grace() -> void:
+	_set_escape_grace_enabled(false)
+	_state = State.PATROL
+	_is_waiting = false
+	_choose_patrol_target()
+
+func _set_escape_grace_enabled(enabled: bool) -> void:
+	if _sprite != null:
+		_sprite.modulate.a = 0.5 if enabled else 1.0
+	var battle_trigger := get_node_or_null("BattleTrigger") as Area2D
+	if battle_trigger != null:
+		battle_trigger.monitorable = not enabled
 
 func _can_detect_player() -> bool:
 	return is_instance_valid(_player) \
