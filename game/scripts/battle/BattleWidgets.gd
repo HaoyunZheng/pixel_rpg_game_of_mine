@@ -390,23 +390,26 @@ static func make_intent_marker(avatar: Control, lock_count: int) -> Control:
 
 # ───────────────────────────────────────────── ③ 中央框临时视图
 
-static func make_central_option_box() -> VBoxContainer:
+static func make_central_option_box(ui_scale: float = 1.0) -> VBoxContainer:
 	var box := VBoxContainer.new()
-	box.set_anchors_and_offsets_preset(Control.PRESET_CENTER_BOTTOM)
-	box.anchor_top = 0.35
-	box.anchor_bottom = 1.0
-	box.offset_left = -200
-	box.offset_right = 200
-	box.offset_bottom = -24
+	box.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	box.offset_left = roundi(48.0 * ui_scale)
+	box.offset_top = roundi(84.0 * ui_scale)
+	box.offset_right = -roundi(48.0 * ui_scale)
+	box.offset_bottom = -roundi(28.0 * ui_scale)
 	box.alignment = BoxContainer.ALIGNMENT_CENTER
-	box.add_theme_constant_override("separation", 6)
+	box.add_theme_constant_override("separation", maxi(8, roundi(12.0 * ui_scale)))
 	box.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	return box
 
-static func make_menu_option() -> Label:
+static func make_menu_option(ui_scale: float = 1.0) -> Label:
 	var item := Label.new()
-	item.add_theme_font_size_override("font_size", 24)
+	item.custom_minimum_size.y = maxi(36, roundi(56.0 * ui_scale))
+	item.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	item.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	item.add_theme_font_size_override("font_size", maxi(23, roundi(34.0 * ui_scale)))
 	item.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	item.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	item.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	return item
 

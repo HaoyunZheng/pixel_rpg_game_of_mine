@@ -327,9 +327,16 @@ func _show_action_menu() -> void:
 	_clear_menu_highlight()
 	_render_central_options_header("✦ 选择姿态（Z确认 / X返回）")
 	_add_central_option("攻击", func(): _on_cmd_pressed("攻击"), false)
-	_add_central_option("防御", func(): _turn_state_machine.select_command(BattleCommands.DEFEND), false)
-	_add_central_option("闪避", func(): _turn_state_machine.select_command(BattleCommands.DODGE), false)
-	_add_central_option("返回", _build_command_menu, false)
+	var stance_row := HBoxContainer.new()
+	stance_row.set_meta("action_stance_row", true)
+	stance_row.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	stance_row.add_theme_constant_override("separation", maxi(16, roundi(24.0 * _hud_scale)))
+	stance_row.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_central_option_box.add_child(stance_row)
+	_add_central_option(
+		"防御", func(): _turn_state_machine.select_command(BattleCommands.DEFEND), false, stance_row)
+	_add_central_option(
+		"闪避", func(): _turn_state_machine.select_command(BattleCommands.DODGE), false, stance_row)
 	_select_menu_index(0)
 
 func _on_cmd_pressed(cmd: String) -> void:
@@ -420,13 +427,18 @@ func _render_central_options_header(header: String) -> void:
 	_clear_central_options()
 	_message_label.text = header
 	_message_label.vertical_alignment = VERTICAL_ALIGNMENT_TOP
-	_central_option_box = BattleWidgets.make_central_option_box()
+	_central_option_box = BattleWidgets.make_central_option_box(_hud_scale)
 	_central_box.add_child(_central_option_box)
 
-func _add_central_option(label: String, action: Callable, disabled: bool) -> void:
-	var item := BattleWidgets.make_menu_option()
-	if _central_option_box != null:
-		_central_option_box.add_child(item)
+func _add_central_option(
+		label: String,
+		action: Callable,
+		disabled: bool,
+		parent: Container = null) -> void:
+	var item := BattleWidgets.make_menu_option(_hud_scale)
+	var target_parent: Container = parent if parent != null else _central_option_box
+	if target_parent != null:
+		target_parent.add_child(item)
 	_menu_buttons.append(item)
 	_menu_actions.append(action)
 	_menu_disabled.append(disabled)

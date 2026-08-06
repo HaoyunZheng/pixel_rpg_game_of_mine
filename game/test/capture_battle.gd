@@ -1,6 +1,6 @@
 extends SceneTree
 ## 战斗界面视觉回归：常态 UI 与五种敌方攻击的预警、前沿、接触证物。
-## BATTLE_CAPTURE_STATE=normal|lock|expanded|barrage|combat_vfx|player_hit|attack_wheel|hud_confirm_menu|hud_confirm_target
+## BATTLE_CAPTURE_STATE=normal|lock|expanded|barrage|combat_vfx|player_hit|attack_wheel|hud_confirm_menu|action_menu
 ## combat_vfx 额外读取 BATTLE_CAPTURE_ATTACK/MOMENT/DEBUG。
 
 const SCENE := "res://scenes/Battle.tscn"
@@ -49,9 +49,11 @@ func _run() -> void:
 			ui.show_actor_turn(battle.get("_party_units")[0])
 			ui.call("_activate_selected_menu_item")
 			await create_timer(0.05).timeout
-		"hud_confirm_target":
-			ui.call("_start_target_select", "enemy", func(_target): pass)
-			await create_timer(0.05).timeout
+		"action_menu":
+			ui.show_actor_turn(battle.get("_party_units")[0])
+			ui.call("_show_action_menu")
+			await process_frame
+			await process_frame
 
 	DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path(OUT_DIR))
 	var shot_count: int = 3 if state in ["barrage", "player_hit"] else 1

@@ -1111,6 +1111,24 @@ func _test_reticle_animations() -> void:
 	ui.show_actor_turn(party)
 	var reticle_layer: Control = ui.get_node("ReticleLayer")
 	ui._activate_selected_menu_item()
+	var action_buttons: Array = ui.get("_menu_buttons")
+	var action_labels: Array = ui.get("_menu_labels")
+	var action_box: VBoxContainer = ui.get("_central_option_box")
+	var stance_row: HBoxContainer = action_box.get_child(1)
+	_check("行动菜单只保留攻击、防御、闪避三个选项",
+		action_labels == ["攻击", "防御", "闪避"] and action_buttons.size() == 3)
+	_check("攻击独占首行且防御闪避在第二行等宽双列",
+		action_buttons[0].get_parent() == action_box
+		and stance_row.has_meta("action_stance_row")
+		and action_buttons[1].get_parent() == stance_row
+		and action_buttons[2].get_parent() == stance_row
+		and action_buttons[1].size_flags_horizontal == Control.SIZE_EXPAND_FILL
+		and action_buttons[2].size_flags_horizontal == Control.SIZE_EXPAND_FILL)
+	_check("1080p 行动选项使用宽布局、大字号与独立行高",
+		action_box.offset_left == 48.0 and action_box.offset_right == -48.0
+		and action_buttons[0].get_theme_font_size("font_size") == 34
+		and action_buttons[0].custom_minimum_size.y == 56.0
+		and stance_row.get_theme_constant("separation") == 24)
 	ui._activate_selected_menu_item()
 	var menu_particles: Array = reticle_layer.get_children().filter(
 		func(child): return child.has_meta("confirm_particles"))
