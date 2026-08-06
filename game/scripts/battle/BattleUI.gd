@@ -499,6 +499,7 @@ func _activate_selected_menu_item() -> void:
 		return
 	if _menu_disabled[_selected_menu_index]:
 		return
+	_emit_confirm_particles(_menu_buttons[_selected_menu_index].get_global_rect().get_center())
 	_menu_actions[_selected_menu_index].call()
 
 # ───────────────────────────────────────────── 目标选择（沿用旧逻辑 + ⑥ 准星）
@@ -520,6 +521,7 @@ func _start_target_select(target_type: String, callback: Callable) -> void:
 		_target_confirming = true
 		_is_selecting_target = false
 		_message_label.text = ""
+		_emit_target_confirm_particles(target)
 		await get_tree().process_frame
 		_valid_targets.clear()
 		_target_confirming = false
@@ -549,6 +551,7 @@ func _pick_selected_target() -> void:
 	var target = _valid_targets[_selected_target_index]
 	_target_confirming = true
 	_is_selecting_target = false
+	_emit_target_confirm_particles(target)
 	await _play_target_confirm_pulse()
 	_valid_targets.clear()
 	_clear_target_reticles()
@@ -690,6 +693,46 @@ func _restore_target_brightness() -> void:
 		var avatar: Control = _find_avatar_for_unit(unit)
 		if avatar != null:
 			avatar.modulate = Color.WHITE
+
+func _emit_target_confirm_particles(target) -> void:
+	var avatar: Control = _find_avatar_for_unit(target)
+	if avatar != null:
+		_emit_confirm_particles(avatar.get_global_rect().get_center())
+
+func _emit_confirm_particles(screen_position: Vector2) -> void:
+	var particles := GPUParticles2D.new()
+	particles.set_meta("confirm_particles", true)
+	particles.amount = 16
+	particles.lifetime = 0.28
+	particles.one_shot = true
+	particles.explosiveness = 1.0
+	particles.fixed_fps = 30
+	particles.local_coords = false
+	particles.visibility_rect = Rect2(-240.0, -240.0, 480.0, 480.0)
+	particles.texture = DefenseTimingVFX.make_particle_texture()
+	particles.z_index = 130
+	var material := ParticleProcessMaterial.new()
+	material.direction = Vector3(0.0, -1.0, 0.0)
+	material.spread = 180.0
+	material.initial_velocity_min = 90.0
+	material.initial_velocity_max = 180.0
+	material.gravity = Vector3.ZERO
+	material.scale_min = 0.35
+	material.scale_max = 0.8
+	var fade := GradientTexture1D.new()
+	var gradient := Gradient.new()
+	gradient.colors = PackedColorArray([
+		BattleWidgets.COL_GOLD,
+		Color(BattleWidgets.COL_GOLD, 0.0),
+	])
+	fade.gradient = gradient
+	material.color_ramp = fade
+	particles.process_material = material
+	_reticle_layer.add_child(particles)
+	particles.global_position = screen_position
+	particles.finished.connect(particles.queue_free)
+	particles.restart()
+	particles.emitting = true
 
 func _clear_intent_markers() -> void:
 	if not is_instance_valid(_reticle_layer):

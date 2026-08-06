@@ -1109,11 +1109,40 @@ func _test_reticle_animations() -> void:
 	ui.setup([party], [enemy_a, enemy_b], controller, null)
 	ui.refresh()
 	ui.show_actor_turn(party)
+	var reticle_layer: Control = ui.get_node("ReticleLayer")
+	ui._activate_selected_menu_item()
+	ui._activate_selected_menu_item()
+	var menu_particles: Array = reticle_layer.get_children().filter(
+		func(child): return child.has_meta("confirm_particles"))
+	var menu_particle := menu_particles.back() as GPUParticles2D
+	var menu_material := menu_particle.process_material as ParticleProcessMaterial
+	_check("一级与二级菜单确认复用 16 粒金色迸放",
+		menu_particles.size() == 2 and menu_particle.amount == 16
+		and is_equal_approx(menu_particle.lifetime, 0.28)
+		and menu_material.initial_velocity_min == 90.0
+		and menu_material.initial_velocity_max == 180.0)
+	var particles_before_disabled: int = menu_particles.size()
+	ui.get("_menu_disabled")[ui.get("_selected_menu_index")] = true
+	ui._activate_selected_menu_item()
+	_check("不可用选项不触发确认粒子",
+		reticle_layer.get_children().filter(
+			func(child): return child.has_meta("confirm_particles")).size()
+		== particles_before_disabled)
+	for particle in menu_particles:
+		particle.queue_free()
+	await get_tree().process_frame
+	ui.show_actor_turn(party)
 	var auto_picked: Array = []
 	ui._start_target_select(BattleUI.TARGET_GROUP_ENEMY, func(target): auto_picked.append(target))
+	var auto_particles: Array = reticle_layer.get_children().filter(
+		func(child): return child.has_meta("confirm_particles"))
+	var enemy_a_avatar: Control = ui._find_avatar_for_unit(enemy_a)
 	_check("单目标跳过选择界面并延后一帧提交",
 		ui.get("_target_confirming") and not ui.get("_is_selecting_target")
-		and ui.get("_target_reticle") == null and auto_picked.is_empty())
+		and ui.get("_target_reticle") == null and auto_picked.is_empty()
+		and auto_particles.size() == 1
+		and auto_particles[0].global_position.is_equal_approx(
+			enemy_a_avatar.get_global_rect().get_center()))
 	await get_tree().process_frame
 	_check("单目标下一帧自动提交且解除确认锁",
 		auto_picked == [enemy_a] and not ui.get("_target_confirming"))
@@ -1165,6 +1194,12 @@ func _test_reticle_animations() -> void:
 		and avatar_a.modulate.r < 0.5 and avatar_b.modulate == Color.WHITE)
 
 	ui._pick_selected_target()
+	var manual_particles: Array = reticle_layer.get_children().filter(
+		func(child): return child.has_meta("confirm_particles"))
+	_check("手动目标确认在目标立绘中心触发粒子",
+		not manual_particles.is_empty()
+		and manual_particles.back().global_position.is_equal_approx(
+			avatar_b.get_global_rect().get_center()))
 	await get_tree().create_timer(0.07).timeout
 	_check("目标确认按压阶段封锁输入且尚未提交",
 		ui.get("_target_confirming") and not ui.get("_is_selecting_target") and picked.is_empty())

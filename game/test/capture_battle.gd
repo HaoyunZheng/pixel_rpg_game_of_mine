@@ -1,6 +1,6 @@
 extends SceneTree
 ## 战斗界面视觉回归：常态 UI 与五种敌方攻击的预警、前沿、接触证物。
-## BATTLE_CAPTURE_STATE=normal|lock|expanded|barrage|combat_vfx|player_hit
+## BATTLE_CAPTURE_STATE=normal|lock|expanded|barrage|combat_vfx|player_hit|attack_wheel|hud_confirm_menu|hud_confirm_target
 ## combat_vfx 额外读取 BATTLE_CAPTURE_ATTACK/MOMENT/DEBUG。
 
 const SCENE := "res://scenes/Battle.tscn"
@@ -43,6 +43,15 @@ func _run() -> void:
 			output_name = await _show_combat_vfx(battle, ui)
 		"player_hit":
 			_show_player_hit(battle, ui)
+		"attack_wheel":
+			_show_attack_wheel(ui)
+		"hud_confirm_menu":
+			ui.show_actor_turn(battle.get("_party_units")[0])
+			ui.call("_activate_selected_menu_item")
+			await create_timer(0.05).timeout
+		"hud_confirm_target":
+			ui.call("_start_target_select", "enemy", func(_target): pass)
+			await create_timer(0.05).timeout
 
 	DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path(OUT_DIR))
 	var shot_count: int = 3 if state in ["barrage", "player_hit"] else 1
@@ -66,6 +75,11 @@ func _show_player_hit(battle: Node, ui: Control) -> void:
 	# ponytail: --script 不解析项目全局类名，夹具保持无类型引用。
 	var target = battle.get("_enemy_units")[0]
 	ui.play_player_hit(target, 12.0)
+
+func _show_attack_wheel(ui: Control) -> void:
+	var wheel: Control = load("res://scenes/battle/AttackPowerWheel.tscn").instantiate()
+	ui.add_child(wheel)
+	wheel.start_over_central_box(ui.get_node("CentralBox"), ui.get_node("CommandBar"))
 
 func _show_expanded_timing(battle: Node, ui: Control, barrage: bool = false) -> void:
 	var timing: Node = await _create_timing(battle, ui)
