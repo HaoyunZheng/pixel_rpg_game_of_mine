@@ -521,7 +521,6 @@ func _start_target_select(target_type: String, callback: Callable) -> void:
 		_target_confirming = true
 		_is_selecting_target = false
 		_message_label.text = ""
-		_emit_target_confirm_particles(target)
 		await get_tree().process_frame
 		_valid_targets.clear()
 		_target_confirming = false
@@ -551,7 +550,6 @@ func _pick_selected_target() -> void:
 	var target = _valid_targets[_selected_target_index]
 	_target_confirming = true
 	_is_selecting_target = false
-	_emit_target_confirm_particles(target)
 	await _play_target_confirm_pulse()
 	_valid_targets.clear()
 	_clear_target_reticles()
@@ -693,11 +691,6 @@ func _restore_target_brightness() -> void:
 		var avatar: Control = _find_avatar_for_unit(unit)
 		if avatar != null:
 			avatar.modulate = Color.WHITE
-
-func _emit_target_confirm_particles(target) -> void:
-	var avatar: Control = _find_avatar_for_unit(target)
-	if avatar != null:
-		_emit_confirm_particles(avatar.get_global_rect().get_center())
 
 func _emit_confirm_particles(screen_position: Vector2) -> void:
 	var particles := GPUParticles2D.new()
