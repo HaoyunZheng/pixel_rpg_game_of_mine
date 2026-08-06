@@ -73,12 +73,14 @@ func _run() -> void:
 		sm.set("_pending_data", {})
 	scene.set("_is_transitioning", false)
 	var forest_main_gate: Area2D = scene.get_node("ForestMainGate")
-	if forest_main_gate.global_position == Vector2(768, 32) and not forest_main_gate.has_node("Visual"):
+	if forest_main_gate.global_position == Vector2(768, -32) and not forest_main_gate.has_node("Visual"):
 		print("[verify] ✅ 北端传送口：透明且位置正确")
 	else:
 		push_error("[verify] ❌ 北端传送口可见或位置错误")
 		fails += 1
-	scene.call("_on_gate_sensor_area_entered", forest_main_gate)
+	player.global_position = Vector2(768, 20)
+	await physics_frame
+	await physics_frame
 	pending = sm.get("_pending_scene") if sm else ""
 	var pending_data: Dictionary = sm.get("_pending_data") if sm else {}
 	if pending is String and pending.contains("ForestMain") \

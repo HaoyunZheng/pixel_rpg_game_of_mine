@@ -66,7 +66,7 @@ collision_mask = 2
 shape = SubResource("RectangleShape2D_sensor")
 
 [node name="ForestClearingGate" type="Area2D" parent="."]
-position = Vector2(2368, 2016)
+position = Vector2(2368, 2080)
 collision_layer = 4
 collision_mask = 0
 

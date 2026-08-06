@@ -186,8 +186,10 @@ func _run() -> void:
 	player.global_position = ENTRY_POSITION
 
 	var gate: Area2D = scene.get_node("ForestClearingGate")
-	_check(gate.global_position == Vector2(2368, 2016) and not gate.has_node("Visual"), "南侧传送口透明且位置正确")
-	scene.call("_on_gate_sensor_area_entered", gate)
+	_check(gate.global_position == Vector2(2368, 2080) and not gate.has_node("Visual"), "南侧传送口透明且位于地图边缘")
+	player.global_position = Vector2(2368, 2028)
+	await physics_frame
+	await physics_frame
 	pending = sm.get("_pending_scene") if sm else ""
 	pending_data = sm.get("_pending_data") if sm else {}
 	_check(pending is String and pending.contains("ForestClearing") \
