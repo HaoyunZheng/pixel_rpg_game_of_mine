@@ -542,7 +542,7 @@ func _test_defense_timing_rules() -> void:
 	_check("完美防御零伤害零 MP", defend_perfect.damage == 0 and defend_perfect.mp_change == 0)
 	_check("普通防御向上取整并最多消耗 2 MP", defend_success.damage == 2 and defend_success.mp_change == -2)
 	_check("普通防御 MP 不足时只扣现有值", defend_low_mp.damage == 4 and defend_low_mp.mp_change == -1)
-	_check("防御失败承受完整伤害", defend_fail.damage == 10 and defend_fail.mp_change == 0)
+	_check("防御失败保底承受六成伤害", defend_fail.damage == 6 and defend_fail.mp_change == 0)
 
 	var dodge_perfect: Dictionary = TIMING_RULES.evaluate_outcome(
 		BattleUnit.Stance.DODGE, TIMING_RULES.Outcome.PERFECT, 10, 9, 10)
@@ -872,6 +872,8 @@ func _test_impact_camera_feedback() -> void:
 func _test_player_damage_waits_for_hit_feedback() -> void:
 	var actor := _make_unit(20, 0, 10)
 	actor.is_player = true
+	actor.mp = 20
+	actor.max_mp = 20
 	var target := _make_unit(0, 5, 8, 30)
 	var controller := FleeBattleController.new()
 	controller.wait_for_player_hit = true
@@ -896,13 +898,15 @@ func _test_player_damage_waits_for_hit_feedback() -> void:
 	_check("命中反馈完成后放行普攻结算", results.size() == 1)
 
 	target.hp = target.max_hp
-	var skill := _make_skill(10, SkillData.DamageType.PHYSICAL)
+	var skill := load("res://assets/data/skills/skill_slash.tres") as SkillData
 	sm.start_turn(actor)
 	sm.select_command(BattleCommands.SKILL, skill)
 	sm.select_target(target)
 	await get_tree().process_frame
-	_check("攻击技能使用更强命中反馈",
-		controller.player_hit_events.size() == 2
+	_check("斩击消耗 12 MP 并使用更强命中反馈",
+		skill.mp_cost == 12 and actor.mp == 8
+		and target.hp == 5
+		and controller.player_hit_events.size() == 2
 		and controller.player_hit_events[1].target == target
 		and is_equal_approx(controller.player_hit_events[1].strength, 12.0))
 	sm.free()
@@ -1253,18 +1257,18 @@ func _test_enemy_damage_waits_for_timing() -> void:
 	await get_tree().process_frame
 	var summary: Dictionary = controller.timing_summaries[0] \
 		if not controller.timing_summaries.is_empty() else {}
-	_check("污染兽重劈三段依次应用实际伤害和 MP", target.hp == 23 and target.mp == 3)
+	_check("污染兽重劈三段依次应用实际伤害和 MP", target.hp == 25 and target.mp == 3)
 	_check("混合成功失败汇总保留三段完整计数",
 		summary.get("hit_count", 0) == 3
 		and summary.get("success_count", 0) == 2
 		and summary.get("failure_count", 0) == 1
 		and summary.get("outcome", TIMING_RULES.Outcome.PERFECT) == TIMING_RULES.Outcome.FAILURE
-		and summary.get("damage", 0) == 7
+		and summary.get("damage", 0) == 5
 		and summary.get("mp_change", 0) == -2)
 	target.display_name = "主角"
 	_check("混合多段结果显示部分成功与实际伤害",
 		BattleUI._format_timing_result(target, summary)
-		== "主角 部分成功 2/3｜7 伤害｜MP -2")
+		== "主角 部分成功 2/3｜5 伤害｜MP -2")
 	sm.free()
 	controller.free()
 
