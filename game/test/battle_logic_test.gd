@@ -965,6 +965,11 @@ func _test_battle_hud_frames() -> void:
 		and BattleUI.calculate_party_avatar_size(normal.party.size.y, 3, 1.0) == 120
 		and BattleUI.calculate_party_avatar_size(normal.party.size.y, 4, 1.0) == 101
 		and BattleUI.calculate_party_avatar_size(293.3333, 4, 2.0 / 3.0) == 67)
+	var wheel := AttackPowerWheel.new()
+	_check("攻击转盘保留 200 半径并使用 16 窄环与 0.25 秒停留",
+		wheel.ring_radius == 200.0 and wheel.ring_width == 16.0
+		and wheel.result_hold == 0.25)
+	wheel.free()
 	battle_scene.free()
 
 	var party := _make_unit(10, 5, 8)
@@ -1096,11 +1101,23 @@ func _test_reticle_animations() -> void:
 	var enemy_b := _make_unit(10, 5, 6)
 	enemy_b.is_player = false
 	enemy_b.display_name = "敌B"
+	enemy_b.hp = 0
 	var controller := FleeBattleController.new()
 	controller.party = [party]
 	controller.enemies = [enemy_a, enemy_b]
 	add_child(controller)
 	ui.setup([party], [enemy_a, enemy_b], controller, null)
+	ui.refresh()
+	ui.show_actor_turn(party)
+	var auto_picked: Array = []
+	ui._start_target_select(BattleUI.TARGET_GROUP_ENEMY, func(target): auto_picked.append(target))
+	_check("单目标跳过选择界面并延后一帧提交",
+		ui.get("_target_confirming") and not ui.get("_is_selecting_target")
+		and ui.get("_target_reticle") == null and auto_picked.is_empty())
+	await get_tree().process_frame
+	_check("单目标下一帧自动提交且解除确认锁",
+		auto_picked == [enemy_a] and not ui.get("_target_confirming"))
+	enemy_b.hp = enemy_b.max_hp
 	ui.refresh()
 	ui.show_actor_turn(party)
 	_check("战斗开场同帧刷新不会叠加旧角色卡",
@@ -1148,24 +1165,26 @@ func _test_reticle_animations() -> void:
 		and avatar_a.modulate.r < 0.5 and avatar_b.modulate == Color.WHITE)
 
 	ui._pick_selected_target()
-	await get_tree().create_timer(0.22).timeout
-	_check("确认脉冲开始即封锁输入且尚未执行回调",
-		ui.get("_target_confirming") and not ui.get("_is_selecting_target") and picked.is_empty()
+	await get_tree().create_timer(0.07).timeout
+	_check("目标确认按压阶段封锁输入且尚未提交",
+		ui.get("_target_confirming") and not ui.get("_is_selecting_target") and picked.is_empty())
+	await get_tree().create_timer(0.07).timeout
+	_check("目标按压完成即提交且外扩脉冲后台播放",
+		picked == [enemy_b] and not ui.get("_target_confirming")
 		and ui.get_node("ReticleLayer").get_children().any(
 			func(child): return child.has_meta("target_pulse")))
-	await get_tree().create_timer(0.36).timeout
-	_check("外扩环完整播放前不提交目标回调",
-		ui.get("_target_confirming") and picked.is_empty())
-	await get_tree().create_timer(0.08).timeout
+	await get_tree().create_timer(0.19).timeout
 	await get_tree().process_frame
-	_check("准星完整脉冲结束后才执行目标回调", picked == [enemy_b])
+	_check("后台外扩脉冲按时自动释放",
+		not ui.get_node("ReticleLayer").get_children().any(
+			func(child): return child.has_meta("target_pulse")))
 
 	ui._show_action_menu()
 	ui._start_target_select(BattleUI.TARGET_GROUP_ENEMY, func(_target): pass)
 	await get_tree().create_timer(0.21).timeout
 	ui._move_target_selection(1)
 	ui._cancel_target_select()
-	await get_tree().create_timer(0.13).timeout
+	await get_tree().create_timer(0.09).timeout
 	await get_tree().process_frame
 	_check("X 淡出准星并恢复所有敌人亮度",
 		ui.get("_target_reticle") == null

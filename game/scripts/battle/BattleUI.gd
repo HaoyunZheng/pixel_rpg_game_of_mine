@@ -42,9 +42,9 @@ const TARGET_RETICLE_PRESS_SCALE: float = 0.82
 const TARGET_RETICLE_PULSE_SCALE: float = 1.85
 const TARGET_RETICLE_ENTER_SECONDS: float = 0.28
 const TARGET_RETICLE_MOVE_SECONDS: float = 0.2
-const TARGET_RETICLE_PRESS_SECONDS: float = 0.1
-const TARGET_RETICLE_PULSE_SECONDS: float = 0.42
-const TARGET_RETICLE_CANCEL_SECONDS: float = 0.12
+const TARGET_RETICLE_PRESS_SECONDS: float = 0.06
+const TARGET_RETICLE_PULSE_SECONDS: float = 0.18
+const TARGET_RETICLE_CANCEL_SECONDS: float = 0.08
 const INTENT_PRESS_SECONDS: float = 0.08
 const INTENT_PULSE_SECONDS: float = 0.25
 const INTENT_STAGGER_SECONDS: float = 0.1
@@ -514,6 +514,18 @@ func _start_target_select(target_type: String, callback: Callable) -> void:
 		_valid_targets = _party_units.filter(func(u): return not u.is_dead())
 	_clear_central_options()
 	_set_menu_visible(false)
+	if _valid_targets.size() == 1:
+		var target = _valid_targets[0]
+		var picked_callback := _on_target_picked
+		_target_confirming = true
+		_is_selecting_target = false
+		_message_label.text = ""
+		await get_tree().process_frame
+		_valid_targets.clear()
+		_target_confirming = false
+		if picked_callback.is_valid():
+			picked_callback.call(target)
+		return
 	_update_target_message()
 	_update_target_reticle()
 
@@ -652,6 +664,7 @@ func _play_target_confirm_pulse() -> void:
 	await _target_reticle_tween.finished
 	_target_reticle_tween = null
 	var pulse := _target_reticle.duplicate() as Control
+	pulse.remove_meta("target_marker")
 	pulse.set_meta("target_pulse", true)
 	_reticle_layer.add_child(pulse)
 	pulse.position = _target_reticle.position
@@ -665,7 +678,6 @@ func _play_target_confirm_pulse() -> void:
 	pulse_tween.parallel().tween_property(
 		pulse, "modulate:a", 0.0, TARGET_RETICLE_PULSE_SECONDS)
 	pulse_tween.tween_callback(pulse.queue_free)
-	await pulse_tween.finished
 
 func _set_target_brightness(selected) -> void:
 	for unit in _valid_targets:
