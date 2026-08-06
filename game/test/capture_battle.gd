@@ -1,6 +1,6 @@
 extends SceneTree
 ## 战斗界面视觉回归：常态 UI 与五种敌方攻击的预警、前沿、接触证物。
-## BATTLE_CAPTURE_STATE=normal|lock|expanded|barrage|combat_vfx
+## BATTLE_CAPTURE_STATE=normal|lock|expanded|barrage|combat_vfx|player_hit
 ## combat_vfx 额外读取 BATTLE_CAPTURE_ATTACK/MOMENT/DEBUG。
 
 const SCENE := "res://scenes/Battle.tscn"
@@ -41,9 +41,11 @@ func _run() -> void:
 			await _show_expanded_timing(battle, ui, true)
 		"combat_vfx":
 			output_name = await _show_combat_vfx(battle, ui)
+		"player_hit":
+			_show_player_hit(battle, ui)
 
 	DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path(OUT_DIR))
-	var shot_count: int = 3 if state == "barrage" else 1
+	var shot_count: int = 3 if state in ["barrage", "player_hit"] else 1
 	for shot in range(shot_count):
 		await RenderingServer.frame_post_draw
 		var suffix: String = "_%02d" % shot if shot_count > 1 else ""
@@ -54,8 +56,16 @@ func _run() -> void:
 			quit(err)
 			return
 		if shot + 1 < shot_count:
-			await create_timer(0.2).timeout
+			if state == "player_hit":
+				await process_frame
+			else:
+				await create_timer(0.2).timeout
 	quit(OK)
+
+func _show_player_hit(battle: Node, ui: Control) -> void:
+	# ponytail: --script 不解析项目全局类名，夹具保持无类型引用。
+	var target = battle.get("_enemy_units")[0]
+	ui.play_player_hit(target, 12.0)
 
 func _show_expanded_timing(battle: Node, ui: Control, barrage: bool = false) -> void:
 	var timing: Node = await _create_timing(battle, ui)

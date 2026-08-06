@@ -48,6 +48,8 @@ const TARGET_RETICLE_CANCEL_SECONDS: float = 0.12
 const INTENT_PRESS_SECONDS: float = 0.08
 const INTENT_PULSE_SECONDS: float = 0.25
 const INTENT_STAGGER_SECONDS: float = 0.1
+const HIT_FLASH_IN_SECONDS: float = 0.02
+const HIT_FLASH_OUT_SECONDS: float = 0.08
 
 # ── 攻击力度转盘（纯代码自绘，攻击流中实例化叠加在中央框上）──
 const ATTACK_WHEEL_SCENE: PackedScene = preload("res://scenes/battle/AttackPowerWheel.tscn")
@@ -173,6 +175,25 @@ func run_timing_check(
 func _on_timing_impact_feedback(amplitude: float) -> void:
 	_impact_camera_noise.noise.amplitude = amplitude
 	_impact_camera_noise.emit()
+
+func play_player_hit(target: BattleUnit, strength: float) -> void:
+	var avatar: Control = _find_avatar_for_unit(target)
+	if avatar == null or avatar.get_child_count() == 0:
+		return
+	var flash_overlay: CanvasItem = null
+	for child in avatar.get_children():
+		if child.has_meta("hit_flash_overlay"):
+			flash_overlay = child as CanvasItem
+			break
+	if flash_overlay == null:
+		return
+	flash_overlay.modulate.a = 1.0
+	_on_timing_impact_feedback(strength)
+	var flash_tween := create_tween()
+	flash_tween.set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
+	flash_tween.tween_interval(HIT_FLASH_IN_SECONDS)
+	flash_tween.tween_property(flash_overlay, "modulate:a", 0.001, HIT_FLASH_OUT_SECONDS)
+	await flash_tween.finished
 
 func finish_timing_check(target: BattleUnit, timing_result: Dictionary) -> void:
 	if is_instance_valid(_timing_result_label):
@@ -904,10 +925,13 @@ static func _format_timing_result(target: BattleUnit, result: Dictionary) -> Str
 func _find_avatar_for_unit(unit) -> Control:
 	var pools: Array = [_enemy_container, _party_container]
 	for pool in pools:
-		for card in pool.get_children():
-			for sub in card.get_children():
-				if sub is Control and sub.has_meta("unit_ref") and sub.get_meta("unit_ref") == unit:
-					return sub
+		var avatar: Control = null
+		for node in pool.find_children("*", "Control", true, false):
+			if not node.is_queued_for_deletion() \
+					and node.has_meta("unit_ref") and node.get_meta("unit_ref") == unit:
+				avatar = node
+		if avatar != null:
+			return avatar
 	return null
 
 # ───────────────────────────────────────────── 输入（键盘闭环，沿用旧规则）

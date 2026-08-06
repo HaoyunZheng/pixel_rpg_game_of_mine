@@ -157,6 +157,9 @@ func run_timing_check(
 func finish_timing_check(target: BattleUnit, timing_result: Dictionary) -> void:
 	await _battle_ui.finish_timing_check(target, timing_result)
 
+func play_player_hit(target: BattleUnit, strength: float) -> void:
+	await _battle_ui.play_player_hit(target, strength)
+
 func _on_turn_order_calculated(order: Array) -> void:
 	_turn_order = order.duplicate()
 	_turn_index = 0

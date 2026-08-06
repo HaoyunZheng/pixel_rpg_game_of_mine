@@ -34,8 +34,15 @@ void fragment() {
 	COLOR = color;
 }
 """
+const HIT_FLASH_SHADER_CODE: String = """
+shader_type canvas_item;
+void fragment() {
+	COLOR = vec4(1.0, 1.0, 1.0, COLOR.a);
+}
+"""
 
 static var _circle_shader: Shader = null
+static var _hit_flash_shader: Shader = null
 
 # ───────────────────────────────────────────── 切片加载（缺失回退 null）
 
@@ -137,6 +144,7 @@ static func make_unit_sprite(
 	holder.size = holder.custom_minimum_size
 	holder.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	var portrait: Texture2D = get_battle_portrait(unit) if prefer_battle_portrait else get_unit_portrait(unit)
+	var visual: Control
 	if portrait != null:
 		var rect := TextureRect.new()
 		rect.texture = portrait
@@ -146,7 +154,7 @@ static func make_unit_sprite(
 		rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		if circular:
 			rect.material = make_circle_material()
-		holder.add_child(rect)
+		visual = rect
 	else:
 		# 无外观回退：阵营色占位，不阻断战斗流程。
 		var fill := ColorRect.new()
@@ -155,7 +163,14 @@ static func make_unit_sprite(
 		fill.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		if circular:
 			fill.material = make_circle_material()
-		holder.add_child(fill)
+		visual = fill
+	holder.add_child(visual)
+	if not is_party:
+		var flash_overlay := visual.duplicate() as Control
+		flash_overlay.material = make_hit_flash_material()
+		flash_overlay.modulate.a = 0.001
+		flash_overlay.set_meta("hit_flash_overlay", true)
+		holder.add_child(flash_overlay)
 	return holder
 
 static func make_stage_actor(unit, is_party: bool) -> Control:
@@ -193,6 +208,14 @@ static func make_circle_material() -> ShaderMaterial:
 		_circle_shader.code = CIRCLE_SHADER_CODE
 	var material := ShaderMaterial.new()
 	material.shader = _circle_shader
+	return material
+
+static func make_hit_flash_material() -> ShaderMaterial:
+	if _hit_flash_shader == null:
+		_hit_flash_shader = Shader.new()
+		_hit_flash_shader.code = HIT_FLASH_SHADER_CODE
+	var material := ShaderMaterial.new()
+	material.shader = _hit_flash_shader
 	return material
 
 static func make_stat_bar(

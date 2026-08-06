@@ -15,6 +15,7 @@ class FleeBattleController:
 	extends Node
 	signal timing_submitted(hit_results: Array)
 	signal intent_preview_released
+	signal player_hit_released
 
 	var party: Array = []
 	var enemies: Array = []
@@ -22,8 +23,10 @@ class FleeBattleController:
 	var freeze_count: int = 0
 	var wait_for_timing: bool = false
 	var wait_for_intent_preview: bool = false
+	var wait_for_player_hit: bool = false
 	var last_frozen_order: Array = []
 	var timing_summaries: Array[Dictionary] = []
+	var player_hit_events: Array[Dictionary] = []
 	var inventory_state := InventoryState.new()
 
 	func get_party_units() -> Array:
@@ -69,6 +72,11 @@ class FleeBattleController:
 	func finish_timing_check(_target: BattleUnit, timing_result: Dictionary) -> void:
 		timing_summaries.append(timing_result.duplicate(true))
 
+	func play_player_hit(target: BattleUnit, strength: float) -> void:
+		player_hit_events.append({"target": target, "strength": strength})
+		if wait_for_player_hit:
+			await player_hit_released
+
 func _ready() -> void:
 	_test_damage_calculator()
 	_test_enemy_ai_targeting()
@@ -82,6 +90,7 @@ func _ready() -> void:
 	_test_attack_front_samples()
 	_test_attack_duration_scale()
 	_test_impact_camera_feedback()
+	await _test_player_damage_waits_for_hit_feedback()
 	_test_battle_hud_frames()
 	await _test_turn_arc_bar()
 	await _test_reticle_animations()
@@ -860,6 +869,45 @@ func _test_impact_camera_feedback() -> void:
 		and is_equal_approx(parry._hit_stop_remaining, TIMING_CHECK.HIT_STOP_PARRY))
 	parry.free()
 
+func _test_player_damage_waits_for_hit_feedback() -> void:
+	var actor := _make_unit(20, 0, 10)
+	actor.is_player = true
+	var target := _make_unit(0, 5, 8, 30)
+	var controller := FleeBattleController.new()
+	controller.wait_for_player_hit = true
+	add_child(controller)
+	var sm := TurnStateMachine.new()
+	sm.battle_controller = controller
+	sm.damage_calculator = DamageCalculator.new()
+	add_child(sm)
+	var results: Array[Dictionary] = []
+	sm.action_executed.connect(func(result: Dictionary): results.append(result))
+	sm.start_turn(actor)
+	sm.select_command(BattleCommands.ATTACK)
+	sm.select_target(target)
+	_check("普攻伤害后等待命中反馈再结算",
+		target.hp == 15 and results.is_empty()
+		and controller.player_hit_events.size() == 1
+		and controller.player_hit_events[0].target == target
+		and is_equal_approx(controller.player_hit_events[0].strength, 8.0))
+	controller.wait_for_player_hit = false
+	controller.player_hit_released.emit()
+	await get_tree().process_frame
+	_check("命中反馈完成后放行普攻结算", results.size() == 1)
+
+	target.hp = target.max_hp
+	var skill := _make_skill(10, SkillData.DamageType.PHYSICAL)
+	sm.start_turn(actor)
+	sm.select_command(BattleCommands.SKILL, skill)
+	sm.select_target(target)
+	await get_tree().process_frame
+	_check("攻击技能使用更强命中反馈",
+		controller.player_hit_events.size() == 2
+		and controller.player_hit_events[1].target == target
+		and is_equal_approx(controller.player_hit_events[1].strength, 12.0))
+	sm.free()
+	controller.free()
+
 func _test_battle_hud_frames() -> void:
 	var battle_scene: Node = load("res://scenes/Battle.tscn").instantiate()
 	var ui: Control = battle_scene.get_node("UI/BattleUI")
@@ -957,9 +1005,14 @@ func _test_battle_hud_frames() -> void:
 	var enemy := _make_unit(10, 5, 8)
 	enemy.is_player = false
 	var enemy_card: Control = BattleWidgets.make_unit_card(enemy, false, false, 192, 1.0)
+	var enemy_avatar: Control = enemy_card.get_child(0)
 	_check("常态敌方区域只显示指定尺寸的纯立绘",
 		enemy_card.get_child_count() == 1
-		and enemy_card.get_child(0).custom_minimum_size == Vector2(192, 192))
+		and enemy_avatar.custom_minimum_size == Vector2(192, 192))
+	_check("敌方立绘预置透明命中闪白层",
+		enemy_avatar.get_child_count() == 2
+		and enemy_avatar.get_child(1).has_meta("hit_flash_overlay")
+		and enemy_avatar.get_child(1).material is ShaderMaterial)
 	enemy_card.free()
 
 	var overlay_parts: Dictionary = BattleWidgets.make_timing_overlay()
@@ -1081,6 +1134,9 @@ func _test_reticle_animations() -> void:
 	await get_tree().create_timer(0.21).timeout
 	var avatar_a: Control = ui._find_avatar_for_unit(enemy_a)
 	var avatar_b: Control = ui._find_avatar_for_unit(enemy_b)
+	_check("敌方单位定位返回含闪白层的实际立绘容器",
+		avatar_a.get_children().any(func(child): return child.has_meta("hit_flash_overlay"))
+		and avatar_b.get_children().any(func(child): return child.has_meta("hit_flash_overlay")))
 	_check("准星滑到新目标并切换敌方立绘明暗",
 		marker.position != first_position
 		and marker.position.is_equal_approx(BattleUI.calculate_target_reticle_position(
