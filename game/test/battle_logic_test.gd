@@ -1152,6 +1152,22 @@ func _test_reticle_animations() -> void:
 		compact_card.get_theme_font_size("font_size") == 23
 		and compact_card.custom_minimum_size.y == 37.0)
 	compact_card.free()
+	var direction := InputEventKey.new()
+	direction.pressed = true
+	direction.keycode = KEY_DOWN
+	ui._input(direction)
+	var down_index: int = ui.get("_selected_menu_index")
+	direction.keycode = KEY_RIGHT
+	ui._input(direction)
+	var right_index: int = ui.get("_selected_menu_index")
+	direction.keycode = KEY_UP
+	ui._input(direction)
+	var up_index: int = ui.get("_selected_menu_index")
+	direction.keycode = KEY_LEFT
+	ui._input(direction)
+	_check("行动菜单方向输入遵循两行空间位置且不跨边绕回",
+		down_index == 1 and right_index == 2 and up_index == 0
+		and ui.get("_selected_menu_index") == 0)
 	ui._activate_selected_menu_item()
 	var menu_particles: Array = reticle_layer.get_children().filter(
 		func(child): return child.has_meta("confirm_particles"))

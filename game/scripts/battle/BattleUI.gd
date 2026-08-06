@@ -1025,6 +1025,12 @@ func _input(event: InputEvent) -> void:
 
 func _handle_menu_input(keycode: Key) -> void:
 	# 命令栏四格为横向 → 左右切换；中央框技能选项为纵向 → 上下切换。两套方向键都接受。
+	if _menu_mode == MENU_MODE_ACTION and keycode in [
+		KEY_UP, KEY_W, KEY_LEFT, KEY_A, KEY_DOWN, KEY_S, KEY_RIGHT, KEY_D,
+	]:
+		_move_action_menu_selection(keycode)
+		accept_event()
+		return
 	match keycode:
 		KEY_UP, KEY_W, KEY_LEFT, KEY_A:
 			_move_menu_selection(-1)
@@ -1040,6 +1046,17 @@ func _handle_menu_input(keycode: Key) -> void:
 				_build_command_menu()
 				_message_label.text = _actor_turn_message(_current_actor)
 				accept_event()
+
+func _move_action_menu_selection(keycode: Key) -> void:
+	match keycode:
+		KEY_UP, KEY_W:
+			_select_menu_index(0)
+		KEY_DOWN, KEY_S:
+			_select_menu_index(1 if _selected_menu_index == 0 else _selected_menu_index)
+		KEY_LEFT, KEY_A:
+			_select_menu_index(1 if _selected_menu_index == 2 else _selected_menu_index)
+		KEY_RIGHT, KEY_D:
+			_select_menu_index(2 if _selected_menu_index == 1 else _selected_menu_index)
 
 func _handle_target_input(keycode: Key) -> void:
 	match keycode:
