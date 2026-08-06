@@ -325,11 +325,13 @@ func _build_command_menu() -> void:
 func _show_action_menu() -> void:
 	_menu_mode = MENU_MODE_ACTION
 	_clear_menu_highlight()
-	_render_central_options_header("✦ 选择姿态（Z确认 / X返回）")
+	_render_central_options_header("✦ 选择行动")
 	_add_central_option("攻击", func(): _on_cmd_pressed("攻击"), false)
 	var stance_row := HBoxContainer.new()
 	stance_row.set_meta("action_stance_row", true)
+	stance_row.custom_minimum_size.y = maxi(36, roundi(56.0 * _hud_scale))
 	stance_row.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	stance_row.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	stance_row.add_theme_constant_override("separation", maxi(16, roundi(24.0 * _hud_scale)))
 	stance_row.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_central_option_box.add_child(stance_row)
@@ -487,7 +489,7 @@ func _find_enabled_menu_index(start: int, step: int) -> int:
 		index = posmod(index + step, _menu_buttons.size())
 	return -1
 
-## 选项高亮：金色描边 + 金色「> 」指针（§B.3：金色指针/描边；置灰项保留位置）。
+## 命令栏沿用文字指针；中央选项用卡片承载面，避免指针破坏文字几何居中。
 func _update_menu_selection() -> void:
 	for i in range(_menu_buttons.size()):
 		var node: Control = _menu_buttons[i]
@@ -495,16 +497,29 @@ func _update_menu_selection() -> void:
 			continue
 		var lbl: Label = node
 		var is_sel: bool = i == _selected_menu_index
-		if _menu_disabled[i]:
-			lbl.modulate = BattleWidgets.COL_DIM
-		else:
-			lbl.modulate = BattleWidgets.COL_GOLD if is_sel else BattleWidgets.COL_BONE
-		# 金色描边仅当前项
-		lbl.add_theme_constant_override("outline_size", 6 if is_sel else 0)
-		lbl.add_theme_color_override("font_outline_color", BattleWidgets.COL_GOLD if is_sel else Color(0, 0, 0, 0))
-		# 命令格用「>」指针；中央框选项同样加指针
 		var base: String = _menu_labels[i]
-		lbl.text = ("▸ %s" % base) if is_sel else base
+		if _menu_mode == MENU_MODE_COMMAND:
+			lbl.modulate = (
+				BattleWidgets.COL_DIM if _menu_disabled[i]
+				else BattleWidgets.COL_GOLD if is_sel
+				else BattleWidgets.COL_BONE)
+			lbl.add_theme_constant_override("outline_size", 6 if is_sel else 0)
+			lbl.add_theme_color_override(
+				"font_outline_color",
+				BattleWidgets.COL_GOLD if is_sel else Color.TRANSPARENT)
+			lbl.text = ("▸ %s" % base) if is_sel else base
+			continue
+		lbl.modulate = Color.WHITE
+		lbl.add_theme_constant_override("outline_size", 0)
+		lbl.add_theme_color_override(
+			"font_color",
+			BattleWidgets.COL_DIM if _menu_disabled[i]
+			else BattleWidgets.COL_GOLD if is_sel
+			else BattleWidgets.COL_BONE)
+		lbl.add_theme_stylebox_override(
+			"normal",
+			BattleWidgets.make_menu_option_style(is_sel, _menu_disabled[i], _hud_scale))
+		lbl.text = base
 
 func _activate_selected_menu_item() -> void:
 	if _selected_menu_index < 0 or _selected_menu_index >= _menu_actions.size():

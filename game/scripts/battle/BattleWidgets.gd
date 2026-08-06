@@ -406,12 +406,32 @@ static func make_menu_option(ui_scale: float = 1.0) -> Label:
 	var item := Label.new()
 	item.custom_minimum_size.y = maxi(36, roundi(56.0 * ui_scale))
 	item.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	item.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	item.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	item.add_theme_font_size_override("font_size", maxi(23, roundi(34.0 * ui_scale)))
+	item.add_theme_color_override("font_color", COL_BONE)
+	item.add_theme_stylebox_override("normal", make_menu_option_style(false, false, ui_scale))
 	item.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	item.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	item.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	item.set_meta("menu_option_card", true)
 	return item
+
+static func make_menu_option_style(
+		selected: bool,
+		disabled: bool = false,
+		ui_scale: float = 1.0) -> StyleBoxFlat:
+	var style := StyleBoxFlat.new()
+	style.bg_color = Color("17151b") if disabled else Color("332a16") if selected else Color("211e27")
+	style.border_color = COL_DIM.darkened(0.25) if disabled else COL_GOLD if selected else Color("6c675f")
+	style.set_border_width_all(maxi(1, roundi((4.0 if selected else 2.0) * ui_scale)))
+	style.content_margin_left = roundi(24.0 * ui_scale)
+	style.content_margin_right = roundi(24.0 * ui_scale)
+	style.content_margin_top = roundi(6.0 * ui_scale)
+	style.content_margin_bottom = roundi(6.0 * ui_scale)
+	style.shadow_color = Color("08070b")
+	style.shadow_size = maxi(2, roundi(4.0 * ui_scale))
+	style.anti_aliasing = false
+	return style
 
 static func make_timing_overlay() -> Dictionary:
 	var overlay := Control.new()

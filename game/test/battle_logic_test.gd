@@ -1111,6 +1111,7 @@ func _test_reticle_animations() -> void:
 	ui.show_actor_turn(party)
 	var reticle_layer: Control = ui.get_node("ReticleLayer")
 	ui._activate_selected_menu_item()
+	await get_tree().process_frame
 	var action_buttons: Array = ui.get("_menu_buttons")
 	var action_labels: Array = ui.get("_menu_labels")
 	var action_box: VBoxContainer = ui.get("_central_option_box")
@@ -1129,6 +1130,27 @@ func _test_reticle_animations() -> void:
 		and action_buttons[0].get_theme_font_size("font_size") == 34
 		and action_buttons[0].custom_minimum_size.y == 56.0
 		and stance_row.get_theme_constant("separation") == 24)
+	_check("攻击卡跨满两列且防御闪避保持等宽",
+		absf(action_buttons[1].size.x - action_buttons[2].size.x) <= 1.0
+		and absf(action_buttons[0].size.x
+			- action_buttons[1].size.x - stance_row.get_theme_constant("separation")
+			- action_buttons[2].size.x) <= 1.0)
+	var attack_style := action_buttons[0].get_theme_stylebox("normal") as StyleBoxFlat
+	var defense_style := action_buttons[1].get_theme_stylebox("normal") as StyleBoxFlat
+	_check("行动卡使用暗色承载面且仅选中项呈现金色层级",
+		action_buttons.all(func(button): return button.has_meta("menu_option_card"))
+		and action_buttons[0].text == "攻击"
+		and attack_style.bg_color == Color("332a16")
+		and attack_style.border_color == BattleWidgets.COL_GOLD
+		and attack_style.border_width_left == 4
+		and defense_style.bg_color == Color("211e27")
+		and defense_style.border_color == Color("6c675f")
+		and defense_style.border_width_left == 2)
+	var compact_card := BattleWidgets.make_menu_option(2.0 / 3.0)
+	_check("720p 行动卡按 HUD 比例缩放且不低于可读字号",
+		compact_card.get_theme_font_size("font_size") == 23
+		and compact_card.custom_minimum_size.y == 37.0)
+	compact_card.free()
 	ui._activate_selected_menu_item()
 	var menu_particles: Array = reticle_layer.get_children().filter(
 		func(child): return child.has_meta("confirm_particles"))
