@@ -7,6 +7,7 @@
 | ID | 状态 | 条目 | 作用 |
 |---|---|---|---|
 | `region-northeast-storm-sea` | Proposed | [东北风暴海](northeast-storm-sea.md) | A 北岸—东北群岛之间的深水生态、灾害与运输阻抗 |
+| `region-northwest-volcanic-island` | Proposed | [西北火山岛](northwest-volcanic-island.md) | B 所在的寒带火山岛：火山、海岸、海洋、气候、地热与灾害系统 |
 
 后续生态条目必须：
 

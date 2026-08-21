@@ -20,6 +20,7 @@
 | `rules-world-baseline` | rule | Established | [`rules/_index.md`](rules/_index.md) | 人类、时代、当代、超自然和命名边界 |
 | `causal-worldbuilding-pilot` | rule/polity | Deprecated | [旧 A/E/O/P 试写](../docs/superpowers/specs/2026-08-17-causal-worldbuilding-pilot.md) | 正文完全废弃，不得继承任何设计 |
 | `region-northeast-storm-sea` | region | Proposed | [东北风暴海](ecology/northeast-storm-sea.md) | A 北岸至东北群岛的深水生态与灾害区 |
+| `region-northwest-volcanic-island` | region | Proposed | [西北火山岛](ecology/northwest-volcanic-island.md) | B 所在的寒带火山岛生态与灾害系统 |
 | `species-storm-leviathan-colony` | species | Proposed | [风暴利维坦殖群](species/storm-leviathan-colony.md) | 由小个体扣合、影响远航与逐海制度的超自然殖群 |
 | `institution-a-royal-storm-cult` | institution | Proposed | [A 王家风暴祭司团](institutions/a-royal-storm-cult.md) | 王权司法、风暴观测与远航许可机构 |
 | `polity-a` | polity | Proposed | [A｜驿河逐海王国](locations/polities/a.md) | 河谷驿传封建制与北海未知探索 |
