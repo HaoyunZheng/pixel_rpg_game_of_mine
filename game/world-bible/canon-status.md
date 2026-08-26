@@ -25,7 +25,8 @@
 | `institution-a-royal-storm-cult` | institution | Proposed | [A 王家风暴祭司团](institutions/a-royal-storm-cult.md) | 王权司法、风暴观测与远航许可机构 |
 | `polity-a` | polity | Proposed | [A｜驿河逐海王国](locations/polities/a.md) | 河谷驿传封建制与北海未知探索 |
 | `polity-b` | polity | Proposed | [B｜寒海火岛](locations/polities/b.md) | 寒带火山离岛，五家族渔猎与硫磺采集双轨 |
+| `polity-c` | polity | Proposed | [C｜呢绒商栈国](locations/polities/c.md) | 西北大岛羊毛呢绒与转口贸易，商栈城丧失伤痕 |
 
 ## 聚落体进度
 
-A、B 已形成 Proposed 主档案，等待作者审阅；C–P 尚未开始。远东封闭盆地是 P；旧图迁移过程中的另一个 P/Q 标记不构成第十七个聚落体。
+A、B、C 已形成 Proposed 主档案，等待作者审阅；D–P 尚未开始。远东封闭盆地是 P；旧图迁移过程中的另一个 P/Q 标记不构成第十七个聚落体。
