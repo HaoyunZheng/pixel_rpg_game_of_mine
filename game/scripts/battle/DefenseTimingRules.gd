@@ -20,6 +20,8 @@ static func evaluate_outcome(
 				damage = maxi(1, ceili(base_damage * 0.33)) if base_damage > 0 else 0
 				if base_damage > 0:
 					mp_change = -mini(current_mp, mini(2, ceili(max_mp * 0.02)))
+			else:
+				damage = maxi(1, ceili(base_damage * 0.60)) if base_damage > 0 else 0
 		BattleUnit.Stance.DODGE:
 			if outcome == Outcome.PERFECT:
 				damage = 0

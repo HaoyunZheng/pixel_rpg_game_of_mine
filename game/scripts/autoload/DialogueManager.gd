@@ -15,10 +15,16 @@ signal dialogue_finished(dialogue_id: String)
 ## dialogue_id → timeline 资源路径。外部只认 dialogue_id，路径变更只改这里。
 const REGISTRY: Dictionary = {
 	"forest_wanderer": "res://dialogue/timelines/forest_wanderer.dtl",
+	"forest_main_wood_sign": "res://dialogue/timelines/forest_main_wood_sign.dtl",
+	"forest_main_stone_sign": "res://dialogue/timelines/forest_main_stone_sign.dtl",
 }
 const TYPEWRITER_SFX: AudioStreamWAV = preload("res://assets/derived/audio/sfx/interface/speaking.wav")
 
 var _active_id: String = ""
+
+func _ready() -> void:
+	ProjectSettings.set_setting("dialogic/animations/cross_fade_default_length", 0.0)
+
 ## 是否有对话正在进行（场景层据此互斥：屏蔽移动 / 二次触发）。
 func is_active() -> bool:
 	return _active_id != ""

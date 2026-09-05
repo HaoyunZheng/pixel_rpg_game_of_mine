@@ -1,6 +1,6 @@
 extends Node
 ## 对话系统 确定性逻辑单元测试（headless，不触发 Dialogic GUI）
-## 覆盖：注册表、start 守卫、Dialogic 变量读写、跨场景保持、样板分支与玩法状态隔离。
+## 覆盖：注册表、start 守卫、Dialogic 变量读写、跨场景保持、像素字体接入、样板分支与玩法状态隔离。
 ## 以场景方式运行（自动加载单例须先就绪）：
 ##   /Applications/Godot.app/Contents/MacOS/Godot --headless --path . \
 ##       res://test/dialogue_logic_test.tscn
@@ -10,14 +10,20 @@ var _fails: int = 0
 var _texts: Array[String] = []
 var _question: Dictionary = {}
 
+const PIXEL_FONT_PATH := "res://assets/ui/fonts/fusion-pixel-font/fusion-pixel-12px-proportional-zh_hans.ttf"
+const SHARED_THEME_PATH := "res://assets/ui/battle/battle_theme.tres"
+
 func _ready() -> void:
 	_test_registry()
 	await _test_start_guards()
 	_test_variables()
 	await _test_cross_scene_persistence()
+	_test_pixel_font_resources()
 	_test_sample_resources_and_inputs()
 	await _test_sample_branch_loop()
 	Dialogic.VAR.reset()
+	await get_tree().process_frame
+	await get_tree().process_frame
 	print("[test] 结果：%s" % ("全部通过 ✅" if _fails == 0 else "%d 项失败 ❌" % _fails))
 	get_tree().quit(_fails)
 
@@ -37,13 +43,17 @@ func _test_registry() -> void:
 	var path: String = dm.REGISTRY.get("forest_wanderer", "")
 	_check("注册表含 forest_wanderer", not path.is_empty())
 	_check("forest_wanderer timeline 资源存在", ResourceLoader.exists(path))
+	for dialogue_id: String in ["forest_main_wood_sign", "forest_main_stone_sign"]:
+		var sign_path: String = dm.REGISTRY.get(dialogue_id, "")
+		_check("注册表含 %s" % dialogue_id, not sign_path.is_empty())
+		_check("%s timeline 资源存在" % dialogue_id, ResourceLoader.exists(sign_path))
 
 func _test_start_guards() -> void:
 	var dm := _dm()
 	_check("初始无对话进行", dm.is_active() == false)
 	_check("未登记 id 返回 false", dm.start("__not_registered__") == false)
 	_check("失败后仍无对话进行", dm.is_active() == false)
-	GameData.flags.erase("legacy_dialogue_hook")
+	GameData.set_flag("legacy_dialogue_hook", false)
 	GameData.set_bond("companion", 2)
 	var started: bool = dm.start("forest_wanderer", {
 		"set_flags": PackedStringArray(["legacy_dialogue_hook"]),
@@ -82,12 +92,71 @@ func _test_cross_scene_persistence() -> void:
 	wilderness.queue_free()
 	await get_tree().process_frame
 
+func _test_pixel_font_resources() -> void:
+	var pixel_font := load(PIXEL_FONT_PATH) as FontFile
+	_check("简体中文像素字体可加载", pixel_font != null)
+	_check("像素字体关闭抗锯齿、MSDF 与子像素定位", pixel_font != null
+		and pixel_font.antialiasing == 0
+		and not pixel_font.multichannel_signed_distance_field
+		and pixel_font.subpixel_positioning == 0)
+	var shared_theme := load(SHARED_THEME_PATH) as Theme
+	_check("战斗与背包共享 Theme 使用像素字体", shared_theme != null and shared_theme.default_font == pixel_font)
+
+	var forest := (load("res://scenes/ForestClearing.tscn") as PackedScene).instantiate()
+	_check("林间空地文字使用像素字体", _labels_use_font(forest, PackedStringArray([
+		"WildGate/Label", "Wanderer/Prompt",
+	]), pixel_font))
+	forest.free()
+
+	var wilderness := (load("res://scenes/Wilderness.tscn") as PackedScene).instantiate()
+	_check("野外场景文字使用像素字体", _labels_use_font(wilderness, PackedStringArray([
+		"Enemies/Enemy1/Label", "Enemies/Enemy2/Label", "ExitTrigger/Label",
+		"UI/Title", "UI/Subtitle", "UI/Hint",
+	]), pixel_font))
+	wilderness.free()
+
+	var style := load("res://dialogue/styles/project_dialogue_style.tres") as DialogicStyle
+	var base_overrides: Dictionary = style.get_layer_info("").overrides if style != null else {}
+	_check("Dialogic 项目样式覆写 global_font", base_overrides.get("global_font", "") == var_to_str(PIXEL_FONT_PATH))
+
+func _labels_use_font(root_node: Node, paths: PackedStringArray, pixel_font: Font) -> bool:
+	for path: String in paths:
+		var label := root_node.get_node_or_null(NodePath(path)) as Label
+		if label == null or label.get_theme_font("font") != pixel_font:
+			return false
+	return true
+
 func _test_sample_resources_and_inputs() -> void:
+	_check("对话表情切换不使用渐变",
+		ProjectSettings.get_setting("dialogic/animations/cross_fade_default_length") == 0.0)
 	var character := load("res://dialogue/characters/forest_wanderer.dch")
 	var style := load("res://dialogue/styles/project_dialogue_style.tres")
 	_check("流浪者 Character 可加载", character is DialogicCharacter)
 	_check("项目 Dialogic Style 可加载", style is DialogicStyle)
 	_check("项目 Style 继承内建 Speaker Textbox", style != null and style.inherits != null)
+	_check("流浪者默认使用正常微笑", character.default_portrait == "expression_02")
+	_check("流浪者注册八种表情", character.portraits.size() == 8)
+	for index in range(1, 9):
+		var expression := "expression_%02d" % index
+		var portrait_info: Dictionary = character.portraits.get(expression, {})
+		var image_path := str(portrait_info.get("export_overrides", {}).get("image", ""))
+		var expected_path := "res://assets/derived/ghost_expressions/dialogue_portraits/%s.png" % expression
+		var texture := load(image_path) as Texture2D if ResourceLoader.exists(image_path) else null
+		_check("%s 直接使用独立紫底抠图且尺寸统一" % expression,
+			texture != null
+			and texture.get_size() == Vector2(360, 336)
+			and image_path == expected_path)
+	var normal_image := (load(
+		"res://assets/derived/ghost_expressions/dialogue_portraits/expression_02.png"
+	) as Texture2D).get_image()
+	_check("紫底抠图保留蘑菇下沿与眼睛颜色",
+		normal_image.get_pixel(180, 95).a == 1.0
+		and normal_image.get_pixel(95, 195).a == 1.0
+		and normal_image.get_pixel(0, 0).a == 0.0)
+	var panic_image := (load(
+		"res://assets/derived/ghost_expressions/dialogue_portraits/expression_03.png"
+	) as Texture2D).get_image()
+	_check("慌张表情已移除头顶汗珠", panic_image.get_pixel(300, 110).a == 0.0)
 	_check("Z 可推进和确认选择", _action_has_key("ui_accept", KEY_Z))
 	_check("W/上方向可向上选择", _action_has_key("ui_up", KEY_W) and _action_has_key("ui_up", KEY_UP))
 	_check("S/下方向可向下选择", _action_has_key("ui_down", KEY_S) and _action_has_key("ui_down", KEY_DOWN))
@@ -102,35 +171,28 @@ func _test_sample_branch_loop() -> void:
 	Dialogic.Text.text_started.connect(_on_text_started)
 	Dialogic.Choices.question_shown.connect(_on_question_shown)
 	Dialogic.VAR.reset()
-	GameData.defeated_enemies.erase("Enemy1")
 
-	var first_cautious := await _play_sample(1)
-	_check("首次对话显示两个选择", first_cautious and _question.get("choices", []).size() == 2)
-	_check("谨慎选择记录相遇状态", Dialogic.VAR.get_variable("story.flags.met_forest_wanderer") == true)
-	_check("谨慎选择写入 cautious 分支", Dialogic.VAR.get_variable("story.branches.forest_wanderer") == "cautious")
-	_check("谨慎选择进入对应回应", _texts.any(func(text: String) -> bool: return "看见没有影子的火" in text))
+	var first_greeting := await _play_sample()
+	_check("首次问候可结束", first_greeting)
+	_check("首次问候不显示日常选项", _question.is_empty())
+	_check("首次问候包含乌迪决定相信玩家", _texts.any(func(text: String) -> bool: return "乌迪决定相信你" in text))
+	_check("首次问候记录相遇状态", Dialogic.VAR.get_variable("story.flags.met_forest_wanderer") == true)
+	_check("首次问候写入 greeted 分支", Dialogic.VAR.get_variable("story.branches.forest_wanderer") == "greeted")
 
-	var cautious_repeat := await _play_sample()
-	_check("谨慎重复分支可结束", cautious_repeat)
-	_check("谨慎重复分支命中", _texts.any(func(text: String) -> bool: return "谨慎不是退缩" in text))
-	_check("重复分支不再显示首次选择", _question.is_empty())
+	var normal_chat := await _play_sample(1)
+	_check("再次对话显示三个日常选项", normal_chat and _question.get("choices", []).size() == 3)
+	_check("再次对话以嗯？开场", not _texts.is_empty() and _texts.front() == "嗯？")
+	_check("日常对话分支可进入", _texts.any(func(text: String) -> bool: return "乌迪在这里已经很久很久了" in text))
+	_check("再次对话不再显示首次问候", not _texts.any(func(text: String) -> bool: return "不要攻击我" in text))
 
-	Dialogic.VAR.reset()
-	var first_defiant := await _play_sample(2)
-	_check("强行前进选择可结束", first_defiant)
-	_check("强行前进写入 defiant 分支", Dialogic.VAR.get_variable("story.branches.forest_wanderer") == "defiant")
-	_check("强行前进进入对应回应", _texts.any(func(text: String) -> bool: return "勇气错当成不死" in text))
+	var lost_item_chat := await _play_sample(2)
+	_check("丢失的东西分支可进入", lost_item_chat and _texts.any(
+		func(text: String) -> bool: return "很重要的东西丢在了森林里" in text))
 
-	var defiant_repeat := await _play_sample()
-	_check("强行前进重复分支可结束", defiant_repeat)
-	_check("强行前进重复分支命中", _texts.any(func(text: String) -> bool: return "承担代价" in text))
+	var mushroom_chat := await _play_sample(3)
+	_check("头上的蘑菇分支可进入", mushroom_chat and _texts.any(
+		func(text: String) -> bool: return "这可是乌迪的武器" in text))
 
-	GameData.mark_enemy_defeated("Enemy1")
-	var enemy_condition := await _play_sample()
-	_check("Enemy1 世界条件分支可结束", enemy_condition)
-	_check("Timeline 读取 Enemy1 世界事实", _texts.any(func(text: String) -> bool: return "荒野里的猎手已经倒下" in text))
-
-	GameData.defeated_enemies.erase("Enemy1")
 	Dialogic.Text.text_started.disconnect(_on_text_started)
 	Dialogic.Choices.question_shown.disconnect(_on_question_shown)
 

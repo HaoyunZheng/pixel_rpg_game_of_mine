@@ -1,0 +1,9 @@
+Use case: stylized-concept
+Asset type: production 2D pixel-art map prop, static campfire base layer for a Godot top-down RPG
+Input images: Image 1 is the current campfire identity and material reference; Image 2 is the project-native rock-pile style and pixel-scale reference.
+Primary request: Create one single static campfire base layer only: a low circular ring of charcoal slate stones surrounding two crossed burnt logs and a dark ember bed. No visible flame.
+Style/medium: project-native dark-fantasy pixel art, top-down 3/4 RPG view, crisp hard pixel edges, limited muted palette, sparse controlled dithering, near-black brown outlines. Match the compact readability and restrained detail of the rock reference while preserving the current campfire identity.
+Composition/framing: exactly one centered prop, symmetrical stable base, designed to downscale cleanly into one 64×64 runtime frame, subject occupies about the central 55–60%, generous empty margin on all four sides.
+Scene/backdrop: perfectly flat uniform solid #FF00FF chroma-key background, no gradient, no texture, no lighting variation.
+Color palette: charcoal gray, blue-gray slate, deep umber, near-black; only tiny restrained dark-red ember pixels in the center if needed. Do not use #FF00FF in the prop.
+Constraints: base only; stone ring, logs and shadow are fully visible and stationary; no flame, no smoke, no sparks, no glow cloud, no cast-light circle, no scenery, no floor plane, no text, no UI, no watermark, no border, no grid, no shadow outside the compact prop. Keep all pixels fully inside the image with generous chroma-key padding.

@@ -47,7 +47,15 @@ func _run() -> void:
 		push_error("[verify] ❌ 全局相机未正确接管")
 		fails += 1
 
-	# D: 野外传送（把玩家放到右端入口上，等 Area2D 重叠触发）
+	# D: 从 ForestMain 返回后落在北路内侧，不立即重新触发
+	scene.on_scene_enter({"from": "forest_main"})
+	if player.global_position == Vector2(768, 128):
+		print("[verify] ✅ 北路返回出生点：(768,128)")
+	else:
+		push_error("[verify] ❌ 北路返回出生点错误：%s" % player.global_position)
+		fails += 1
+
+	# E: 东端 Wilderness 传送保持不变
 	player.global_position = Vector2(1248, 480)
 	for _i in 6:
 		await physics_frame
@@ -59,5 +67,36 @@ func _run() -> void:
 		push_error("[verify] ❌ 野外传送未触发，pending=%s" % str(pending))
 		fails += 1
 
+	# F: 北端透明入口通往 ForestMain
+	if sm:
+		sm.set("_pending_scene", "")
+		sm.set("_pending_data", {})
+	scene.set("_is_transitioning", false)
+	var forest_main_gate: Area2D = scene.get_node("ForestMainGate")
+	if forest_main_gate.global_position == Vector2(768, -32) and not forest_main_gate.has_node("Visual"):
+		print("[verify] ✅ 北端传送口：透明且位置正确")
+	else:
+		push_error("[verify] ❌ 北端传送口可见或位置错误")
+		fails += 1
+	player.global_position = Vector2(768, 20)
+	await physics_frame
+	await physics_frame
+	pending = sm.get("_pending_scene") if sm else ""
+	var pending_data: Dictionary = sm.get("_pending_data") if sm else {}
+	if pending is String and pending.contains("ForestMain") \
+			and pending_data.get("scene_name", "") == "ForestMain":
+		print("[verify] ✅ 北端传送：SceneManager 目标 = %s" % pending)
+	else:
+		push_error("[verify] ❌ 北端传送未触发，pending=%s" % str(pending))
+		fails += 1
+
+	scene.queue_free()
+	await process_frame
+	await process_frame
+	if cam and not cam.enabled and not cam.is_processing():
+		print("[verify] ✅ 场景释放后全局相机停止跟随")
+	else:
+		push_error("[verify] ❌ 场景释放后全局相机仍在处理")
+		fails += 1
 	print("[verify] 结果：%s" % ("全部通过 ✅" if fails == 0 else "%d 项失败 ❌" % fails))
 	quit(fails)

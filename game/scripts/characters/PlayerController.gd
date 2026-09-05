@@ -27,8 +27,10 @@ func _physics_process(_delta: float) -> void:
 
 	velocity = input * speed
 	if input != Vector2.ZERO:
-		_facing = _cardinal_from_input(input)
-	_play_idle_for_facing()
+		var facing := _cardinal_from_input(input)
+		if facing != _facing:
+			_facing = facing
+			_play_idle_for_facing()
 	move_and_slide()
 
 ## 获取当前朝向（用于后续偷袭判定等扩展）

@@ -34,6 +34,8 @@ directories/dch_directory={
 "forest_wanderer": "res://dialogue/characters/forest_wanderer.dch"
 }
 directories/dtl_directory={
+"forest_main_stone_sign": "res://dialogue/timelines/forest_main_stone_sign.dtl",
+"forest_main_wood_sign": "res://dialogue/timelines/forest_main_wood_sign.dtl",
 "forest_wanderer": "res://dialogue/timelines/forest_wanderer.dtl"
 }
 layout/style_directory={

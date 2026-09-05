@@ -14,6 +14,7 @@ var max_mp: int = 0
 var atk: int = 0
 var def: int = 0
 var spd: int = 0
+var skill_ranks: Dictionary = {}
 
 var ai_type: int = EnemyStats.AIType.MUTANT
 var status_effects: Array[StatusEffect] = []
@@ -42,13 +43,19 @@ func restore_mp(amount: int) -> void:
 	mp = mini(max_mp, mp + amount)
 	Log.info("BattleUnit", "%s 回复 %d 点 MP，当前: %d/%d" % [display_name, amount, mp, max_mp])
 
+func get_skill_rank(skill_id: String) -> int:
+	return maxi(1, int(skill_ranks.get(skill_id, 1)))
+
+func get_skill_power(skill: SkillData) -> int:
+	return skill.power + (get_skill_rank(skill.id) - 1) * skill.power_per_rank
+
 func has_status(effect_type: StatusEffect.Type) -> bool:
 	for effect in status_effects:
 		if effect.type == effect_type:
 			return true
 	return false
 
-static func from_party_member(member: Dictionary, combat_bonuses: Dictionary = {}) -> BattleUnit:
+static func from_party_member(member: PartyMemberState, combat_bonuses: Dictionary = {}) -> BattleUnit:
 	var unit := BattleUnit.new()
 	unit.id = member.id
 	unit.display_name = member.display_name
@@ -59,8 +66,10 @@ static func from_party_member(member: Dictionary, combat_bonuses: Dictionary = {
 	unit.atk = member.atk + int(combat_bonuses.get("atk", 0))
 	unit.def = member.def + int(combat_bonuses.get("def", 0))
 	unit.spd = member.spd
+	unit.skill_ranks = member.skill_ranks.duplicate()
 	unit.is_player = true
-	unit.status_effects = member.status_effects.duplicate()
+	for effect: StatusEffect in member.status_effects:
+		unit.status_effects.append(effect.duplicate() as StatusEffect)
 	unit.stats_res = member.stats_res
 	return unit
 

@@ -10,16 +10,79 @@
 "style": "",
 "suffix": ""
 },
-&"default_portrait": "neutral",
-&"description": "林间空地的流浪者",
-&"display_name": "流浪者",
+&"default_portrait": "expression_02",
+&"description": "林间空地的小幽灵",
+&"display_name": "乌迪",
 &"mirror": false,
 &"nicknames": [""],
 &"offset": Vector2(0, 0),
 &"portraits": {
-"neutral": {
+"expression_01": {
 "export_overrides": {
-"image": ""
+"image": "res://assets/derived/ghost_expressions/dialogue_portraits/expression_01.png"
+},
+"mirror": false,
+"offset": Vector2(0, 0),
+"scale": 1,
+"scene": ""
+},
+"expression_02": {
+"export_overrides": {
+"image": "res://assets/derived/ghost_expressions/dialogue_portraits/expression_02.png"
+},
+"mirror": false,
+"offset": Vector2(0, 0),
+"scale": 1,
+"scene": ""
+},
+"expression_03": {
+"export_overrides": {
+"image": "res://assets/derived/ghost_expressions/dialogue_portraits/expression_03.png"
+},
+"mirror": false,
+"offset": Vector2(0, 0),
+"scale": 1,
+"scene": ""
+},
+"expression_04": {
+"export_overrides": {
+"image": "res://assets/derived/ghost_expressions/dialogue_portraits/expression_04.png"
+},
+"mirror": false,
+"offset": Vector2(0, 0),
+"scale": 1,
+"scene": ""
+},
+"expression_05": {
+"export_overrides": {
+"image": "res://assets/derived/ghost_expressions/dialogue_portraits/expression_05.png"
+},
+"mirror": false,
+"offset": Vector2(0, 0),
+"scale": 1,
+"scene": ""
+},
+"expression_06": {
+"export_overrides": {
+"image": "res://assets/derived/ghost_expressions/dialogue_portraits/expression_06.png"
+},
+"mirror": false,
+"offset": Vector2(0, 0),
+"scale": 1,
+"scene": ""
+},
+"expression_07": {
+"export_overrides": {
+"image": "res://assets/derived/ghost_expressions/dialogue_portraits/expression_07.png"
+},
+"mirror": false,
+"offset": Vector2(0, 0),
+"scale": 1,
+"scene": ""
+},
+"expression_08": {
+"export_overrides": {
+"image": "res://assets/derived/ghost_expressions/dialogue_portraits/expression_08.png"
 },
 "mirror": false,
 "offset": Vector2(0, 0),

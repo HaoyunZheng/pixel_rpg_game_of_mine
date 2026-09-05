@@ -41,15 +41,15 @@ static func _roll_attack_pattern(ai_type: EnemyStats.AIType) -> Dictionary:
 		EnemyStats.AIType.HUNTER:
 			var hunter_pattern: int = randi() % 3
 			if hunter_pattern == 0:
-				var offset := Vector2(randf_range(-48.0, 48.0), randf_range(-48.0, 48.0)).limit_length(48.0)
+				var offset := Vector2(randf_range(-40.0, 40.0), randf_range(-40.0, 40.0)).limit_length(40.0)
 				return {
 					"id": PATTERN_HUNTER_LOCK_THRUST,
 					"params": {
 						"hit_count": randi_range(2, 3),
-						"telegraph": randf_range(0.45, 0.75),
-						"active": randf_range(0.16, 0.24),
-						"gap": randf_range(0.12, 0.22),
-						"width": randf_range(42.0, 56.0),
+						"telegraph": randf_range(0.42, 0.58),
+						"active": randf_range(0.14, 0.20),
+						"gap": randf_range(0.16, 0.24),
+						"width": randf_range(28.0, 36.0),
 						"aim_offset": offset,
 					},
 				}
@@ -58,11 +58,11 @@ static func _roll_attack_pattern(ai_type: EnemyStats.AIType) -> Dictionary:
 					"id": PATTERN_HUNTER_CROSS_THRUST,
 					"params": {
 						"hit_count": 2,
-						"angle_degrees": randf_range(20.0, 35.0),
-						"stagger": randf_range(0.16, 0.30),
-						"telegraph": randf_range(0.65, 0.95),
-						"active": randf_range(0.25, 0.40),
-						"width": randf_range(38.0, 52.0),
+						"angle_degrees": randf_range(24.0, 34.0),
+						"stagger": randf_range(0.18, 0.26),
+						"telegraph": randf_range(0.55, 0.72),
+						"active": randf_range(0.20, 0.28),
+						"width": randf_range(30.0, 40.0),
 					},
 				}
 			return {
@@ -71,14 +71,14 @@ static func _roll_attack_pattern(ai_type: EnemyStats.AIType) -> Dictionary:
 					"hit_count": 3,
 					"subtype": BARRAGE_STRAIGHT if randi() % 2 == 0 else BARRAGE_MONTE_CARLO,
 					"seed": randi() & 0x7fffffff,
-					"bullet_count": 36,
-					"bullet_speed": 240.0,
-					"bullet_radius": 8.0,
-					"spawn_interval": 0.10,
-					"wander_interval": 0.22,
-					"wander_vertical_speed": 110.0,
-					"telegraph": 0.45,
-					"active": 5.2,
+					"bullet_count": 24,
+					"bullet_speed": 280.0,
+					"bullet_radius": 7.0,
+					"spawn_interval": 0.16,
+					"wander_interval": 0.32,
+					"wander_vertical_speed": 85.0,
+					"telegraph": 0.55,
+					"active": 4.6,
 					"gap": 0.25,
 				},
 			}
@@ -117,23 +117,23 @@ static func _roll_attack_pattern(ai_type: EnemyStats.AIType) -> Dictionary:
 					"params": {
 						"hit_count": 2,
 						"clockwise": randi() % 2 == 0,
-						"telegraph": randf_range(0.80, 1.15),
-						"active": randf_range(0.50, 0.75),
-						"gap": randf_range(0.18, 0.35),
-						"arc_degrees": randf_range(100.0, 140.0),
-						"width": randf_range(72.0, 96.0),
+						"telegraph": randf_range(0.85, 1.05),
+						"active": randf_range(0.60, 0.78),
+						"gap": randf_range(0.28, 0.38),
+						"arc_degrees": randf_range(110.0, 130.0),
+						"width": randf_range(60.0, 72.0),
 					},
 				}
 			return {
 				"id": PATTERN_MUTANT_CLEAVE,
 				"params": {
 					"hit_count": 3,
-					"offset_x": randf_range(-120.0, 120.0),
-					"telegraph": randf_range(1.0, 1.4),
-					"active": randf_range(0.25, 0.40),
-					"aftershock_delay": randf_range(0.18, 0.35),
-					"width": randf_range(84.0, 116.0),
-					"aftershock_spacing": randf_range(100.0, 160.0),
+					"offset_x": randf_range(-100.0, 100.0),
+					"telegraph": randf_range(0.95, 1.20),
+					"active": randf_range(0.30, 0.40),
+					"aftershock_delay": randf_range(0.26, 0.36),
+					"width": randf_range(72.0, 88.0),
+					"aftershock_spacing": randf_range(120.0, 150.0),
 				},
 			}
 		_:

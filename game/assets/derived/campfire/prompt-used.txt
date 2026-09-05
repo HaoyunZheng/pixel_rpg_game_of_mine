@@ -1,0 +1,9 @@
+Use case: stylized-concept
+Asset type: production 2D pixel-art flame-only animation sheet for a layered Godot campfire prop
+Input images: Image 1 is the old campfire animation and flame identity reference; Image 2 is the project-native pixel scale/style reference; Image 3 is the newly accepted static stone-and-log base that this flame will be layered above.
+Primary request: Create exactly four flame-only animation frames in a 2×2 grid, read left-to-right across the top row and then the bottom row. No stone ring, no logs, no ember bed, no base shadow: only the compact fire silhouette.
+Animation phases: frame 1 compact lean left; frame 2 only modestly taller and centered; frame 3 compact lean right; frame 4 settling close to frame 1. The flame root must be at the identical x/y coordinate in all four cells and the lower 25% of the flame must keep essentially the same width and shape. Motion belongs mainly to the upper flame. Same pixel scale in every frame; no whole-object translation or scale change.
+Style/medium: project-native dark-fantasy pixel art, crisp hard pixel edges, limited muted palette, near-black deep-red outline, dark red-orange outer flame, ember orange, restrained warm gold, tiny pale-yellow hot core. Match the old flame identity, but keep it compact enough to sit over the center of Image 3.
+Composition/framing: exactly four equal invisible cells in a 2×2 grid, generous padding in every cell, each flame occupies the same centered footprint and remains fully inside its cell.
+Scene/backdrop: perfectly flat uniform solid #FF00FF chroma-key background, no gradient, texture, shadow, lighting variation, grid, border, or guide marks. Do not use #FF00FF in the flame.
+Constraints: flame only; fixed root and anchor; no stones, logs, coals, smoke, sparks, detached particles, glow cloud, cast-light circle, scenery, text, UI, watermark, borders, or visible cell dividers. Nothing may cross a cell edge.

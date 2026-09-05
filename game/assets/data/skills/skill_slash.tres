@@ -10,5 +10,5 @@ description = "用剑斩击单个敌人。"
 skill_type = 0
 damage_type = 0
 power = 10
-mp_cost = 0
+mp_cost = 12
 target_type = "single_enemy"

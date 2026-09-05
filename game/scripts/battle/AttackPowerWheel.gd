@@ -23,7 +23,7 @@ enum AssistMode { OFF, EASY, AUTO }
 
 # ── 旋转 / 时序（§4）──
 @export var spin_speed: float = 4.0                 # 指针转速（弧度/秒，匀速）
-@export var result_hold: float = 0.6                # 定格后停留显示时长（秒）
+@export var result_hold: float = 0.25               # 定格后停留显示时长（秒）
 @export var randomize_start_angle: bool = false     # 起点是否随机（默认确定性）
 
 # ── 四档角度占比（整环合计=1.0，§1.4）──
@@ -45,7 +45,7 @@ enum AssistMode { OFF, EASY, AUTO }
 
 # ── 几何（px @1080p，§4）──
 @export var ring_radius: float = 200.0              # 环外径
-@export var ring_width: float = 32.0               # 环宽
+@export var ring_width: float = 16.0               # 环宽；中心预留角色攻击动画空间
 @export var perfect_glow_alpha: float = 0.5        # 完美档内外发光 alpha（提亮，glow 更显现）
 
 # ── 黑色粗像素边框（chunky，像素质感；段间分隔 + 环内外缘）──

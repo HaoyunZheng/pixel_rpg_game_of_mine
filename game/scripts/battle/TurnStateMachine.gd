@@ -105,7 +105,7 @@ func _on_action_execute() -> void:
 	if not _current_actor.is_player and _pending_command == BattleCommands.ATTACK:
 		result = await _execute_enemy_attack()
 	else:
-		result = _execute_action()
+		result = await _execute_action()
 	action_executed.emit(result)
 	if result.fled:
 		# 逃跑成功由战斗控制器立即切回野外；不能再进入结算并发出 turn_finished，
@@ -124,6 +124,7 @@ func _execute_action() -> Dictionary:
 					var damage: int = damage_calculator.calc_physical(_current_actor, target)
 					target.take_damage(damage)
 					result.damage += damage
+					await _play_player_hit(target, 8.0)
 			_current_actor.power_multiplier = 1.0   # 攻击结算后复位，防泄漏到该单位下次行动
 		BattleCommands.SKILL:
 			if _pending_skill and not action_targets.is_empty() and damage_calculator != null:
@@ -134,15 +135,19 @@ func _execute_action() -> Dictionary:
 						var damage: int = damage_calculator.calc_skill(_current_actor, target, _pending_skill)
 						target.take_damage(damage)
 						result.damage += damage
+						await _play_player_hit(target, 12.0)
 					elif _pending_skill.skill_type == SkillData.SkillType.HEAL:
-						target.heal(_pending_skill.power)
-						result.heal += _pending_skill.power
+						var healing: int = _current_actor.get_skill_power(_pending_skill)
+						target.heal(healing)
+						result.heal += healing
 		BattleCommands.FLEE:
 			result.fled = _try_flee()
 		BattleCommands.ITEM:
 			if _pending_item != null and not action_targets.is_empty():
 				var target: BattleUnit = action_targets[0]
-				if GameData.remove_item(_pending_item.id, 1):
+				if battle_controller != null \
+						and battle_controller.has_method("consume_item") \
+						and battle_controller.consume_item(_pending_item.id):
 					result.item = _pending_item
 					match _pending_item.effect_type:
 						ItemData.EffectType.HEAL_HP:
@@ -155,6 +160,10 @@ func _execute_action() -> Dictionary:
 							result.damage = _pending_item.effect_value
 							target.take_damage(result.damage)
 	return result
+
+func _play_player_hit(target: BattleUnit, strength: float) -> void:
+	if battle_controller != null and battle_controller.has_method("play_player_hit"):
+		await battle_controller.play_player_hit(target, strength)
 
 func _execute_enemy_attack() -> Dictionary:
 	var action_targets: Array = _get_action_targets()

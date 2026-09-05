@@ -1,4 +1,4 @@
-[gd_scene load_steps=12 format=3]
+[gd_scene load_steps=13 format=3]
 
 [ext_resource type="Script" path="res://scripts/Wilderness.gd" id="1_wilderness"]
 [ext_resource type="PackedScene" path="res://scenes/WildernessMap.tscn" id="2_map"]
@@ -7,6 +7,7 @@
 [ext_resource type="SpriteFrames" path="res://assets/sprites/hooded_player/hooded_player_frames.tres" id="4_player_frames"]
 [ext_resource type="SpriteFrames" path="res://assets/sprites/hunter/hunter_frames.tres" id="5_hunter_frames"]
 [ext_resource type="SpriteFrames" path="res://assets/sprites/mutant/mutant_frames.tres" id="6_mutant_frames"]
+[ext_resource type="FontFile" path="res://assets/ui/fonts/fusion-pixel-font/fusion-pixel-12px-proportional-zh_hans.ttf" id="7_font"]
 
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_player"]
 size = Vector2(40, 40)
@@ -25,7 +26,7 @@ script = ExtResource("1_wilderness")
 
 [node name="Map" parent="." instance=ExtResource("2_map")]
 
-[node name="Player" type="CharacterBody2D" parent="."]
+[node name="Player" type="CharacterBody2D" parent="." groups=["player"]]
 position = Vector2(672, 800)
 script = ExtResource("2_player")
 sprite_frames = ExtResource("4_player_frames")
@@ -59,7 +60,6 @@ color = Color(0.2, 0.82, 0.52, 1)
 position = Vector2(1056, 800)
 script = ExtResource("3_patrol")
 encounter_key = "Enemy1"
-patrol_points = [Vector2(-200, 0), Vector2(200, 0)]
 move_speed = 60.0
 sprite_frames = ExtResource("5_hunter_frames")
 
@@ -75,6 +75,7 @@ theme_override_colors/font_color = Color(1, 0.85, 0.85, 1)
 theme_override_colors/font_shadow_color = Color(0.3, 0.05, 0.05, 0.8)
 theme_override_constants/shadow_offset_x = 1
 theme_override_constants/shadow_offset_y = 1
+theme_override_fonts/font = ExtResource("7_font")
 theme_override_font_sizes/font_size = 10
 horizontal_alignment = 1
 vertical_alignment = 1
@@ -90,7 +91,6 @@ shape = SubResource("RectangleShape2D_enemy")
 position = Vector2(1120, 480)
 script = ExtResource("3_patrol")
 encounter_key = "Enemy2"
-patrol_points = [Vector2(0, -96), Vector2(0, 96)]
 move_speed = 50.0
 sprite_frames = ExtResource("6_mutant_frames")
 sprite_offset = Vector2(0, -24)
@@ -107,6 +107,7 @@ theme_override_colors/font_color = Color(1, 0.85, 0.85, 1)
 theme_override_colors/font_shadow_color = Color(0.3, 0.05, 0.05, 0.8)
 theme_override_constants/shadow_offset_x = 1
 theme_override_constants/shadow_offset_y = 1
+theme_override_fonts/font = ExtResource("7_font")
 theme_override_font_sizes/font_size = 10
 horizontal_alignment = 1
 vertical_alignment = 1
@@ -141,6 +142,7 @@ theme_override_colors/font_color = Color(0.75, 0.88, 1.0, 1)
 theme_override_colors/font_shadow_color = Color(0.05, 0.15, 0.25, 0.7)
 theme_override_constants/shadow_offset_x = 1
 theme_override_constants/shadow_offset_y = 1
+theme_override_fonts/font = ExtResource("7_font")
 theme_override_font_sizes/font_size = 12
 horizontal_alignment = 1
 vertical_alignment = 1
@@ -172,6 +174,7 @@ theme_override_colors/font_color = Color(0.75, 0.72, 0.65, 1)
 theme_override_colors/font_shadow_color = Color(0.05, 0.05, 0.05, 0.8)
 theme_override_constants/shadow_offset_x = 2
 theme_override_constants/shadow_offset_y = 2
+theme_override_fonts/font = ExtResource("7_font")
 theme_override_font_sizes/font_size = 24
 horizontal_alignment = 1
 text = "野外 — 梦召道"
@@ -189,6 +192,7 @@ theme_override_colors/font_color = Color(0.5, 0.52, 0.45, 1)
 theme_override_colors/font_shadow_color = Color(0.05, 0.05, 0.05, 0.6)
 theme_override_constants/shadow_offset_x = 1
 theme_override_constants/shadow_offset_y = 1
+theme_override_fonts/font = ExtResource("7_font")
 theme_override_font_sizes/font_size = 13
 horizontal_alignment = 1
 text = "WASD 移动，Shift 跑步。触碰敌人进入战斗，走到左侧出口返回林间空地。"
@@ -223,6 +227,7 @@ theme_override_colors/font_color = Color(0.6, 0.63, 0.55, 1)
 theme_override_colors/font_shadow_color = Color(0.05, 0.05, 0.05, 0.6)
 theme_override_constants/shadow_offset_x = 1
 theme_override_constants/shadow_offset_y = 1
+theme_override_fonts/font = ExtResource("7_font")
 theme_override_font_sizes/font_size = 13
 horizontal_alignment = 1
 text = "躲避巡逻的敌人，或使用左侧出口返回林间空地"

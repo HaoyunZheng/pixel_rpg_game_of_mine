@@ -34,8 +34,16 @@ void fragment() {
 	COLOR = color;
 }
 """
+const HIT_FLASH_SHADER_CODE: String = """
+shader_type canvas_item;
+void fragment() {
+	float alpha = texture(TEXTURE, UV).a * COLOR.a;
+	COLOR = vec4(1.0, 1.0, 1.0, alpha);
+}
+"""
 
 static var _circle_shader: Shader = null
+static var _hit_flash_shader: Shader = null
 
 # ───────────────────────────────────────────── 切片加载（缺失回退 null）
 
@@ -137,6 +145,7 @@ static func make_unit_sprite(
 	holder.size = holder.custom_minimum_size
 	holder.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	var portrait: Texture2D = get_battle_portrait(unit) if prefer_battle_portrait else get_unit_portrait(unit)
+	var visual: Control
 	if portrait != null:
 		var rect := TextureRect.new()
 		rect.texture = portrait
@@ -146,7 +155,7 @@ static func make_unit_sprite(
 		rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		if circular:
 			rect.material = make_circle_material()
-		holder.add_child(rect)
+		visual = rect
 	else:
 		# 无外观回退：阵营色占位，不阻断战斗流程。
 		var fill := ColorRect.new()
@@ -155,7 +164,14 @@ static func make_unit_sprite(
 		fill.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		if circular:
 			fill.material = make_circle_material()
-		holder.add_child(fill)
+		visual = fill
+	holder.add_child(visual)
+	if not is_party:
+		var flash_overlay := visual.duplicate() as Control
+		flash_overlay.material = make_hit_flash_material()
+		flash_overlay.modulate.a = 0.001
+		flash_overlay.set_meta("hit_flash_overlay", true)
+		holder.add_child(flash_overlay)
 	return holder
 
 static func make_stage_actor(unit, is_party: bool) -> Control:
@@ -193,6 +209,14 @@ static func make_circle_material() -> ShaderMaterial:
 		_circle_shader.code = CIRCLE_SHADER_CODE
 	var material := ShaderMaterial.new()
 	material.shader = _circle_shader
+	return material
+
+static func make_hit_flash_material() -> ShaderMaterial:
+	if _hit_flash_shader == null:
+		_hit_flash_shader = Shader.new()
+		_hit_flash_shader.code = HIT_FLASH_SHADER_CODE
+	var material := ShaderMaterial.new()
+	material.shader = _hit_flash_shader
 	return material
 
 static func make_stat_bar(
@@ -367,25 +391,48 @@ static func make_intent_marker(avatar: Control, lock_count: int) -> Control:
 
 # ───────────────────────────────────────────── ③ 中央框临时视图
 
-static func make_central_option_box() -> VBoxContainer:
+static func make_central_option_box(ui_scale: float = 1.0) -> VBoxContainer:
 	var box := VBoxContainer.new()
-	box.set_anchors_and_offsets_preset(Control.PRESET_CENTER_BOTTOM)
-	box.anchor_top = 0.35
-	box.anchor_bottom = 1.0
-	box.offset_left = -200
-	box.offset_right = 200
-	box.offset_bottom = -24
+	box.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	box.offset_left = roundi(48.0 * ui_scale)
+	box.offset_top = roundi(84.0 * ui_scale)
+	box.offset_right = -roundi(48.0 * ui_scale)
+	box.offset_bottom = -roundi(28.0 * ui_scale)
 	box.alignment = BoxContainer.ALIGNMENT_CENTER
-	box.add_theme_constant_override("separation", 6)
+	box.add_theme_constant_override("separation", maxi(8, roundi(12.0 * ui_scale)))
 	box.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	return box
 
-static func make_menu_option() -> Label:
+static func make_menu_option(ui_scale: float = 1.0) -> Label:
 	var item := Label.new()
-	item.add_theme_font_size_override("font_size", 24)
+	item.custom_minimum_size.y = maxi(36, roundi(56.0 * ui_scale))
+	item.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	item.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	item.add_theme_font_size_override("font_size", maxi(23, roundi(34.0 * ui_scale)))
+	item.add_theme_color_override("font_color", COL_BONE)
+	item.add_theme_stylebox_override("normal", make_menu_option_style(false, false, ui_scale))
 	item.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	item.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	item.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	item.set_meta("menu_option_card", true)
 	return item
+
+static func make_menu_option_style(
+		selected: bool,
+		disabled: bool = false,
+		ui_scale: float = 1.0) -> StyleBoxFlat:
+	var style := StyleBoxFlat.new()
+	style.bg_color = Color("17151b") if disabled else Color("332a16") if selected else Color("211e27")
+	style.border_color = COL_DIM.darkened(0.25) if disabled else COL_GOLD if selected else Color("6c675f")
+	style.set_border_width_all(maxi(1, roundi((4.0 if selected else 2.0) * ui_scale)))
+	style.content_margin_left = roundi(24.0 * ui_scale)
+	style.content_margin_right = roundi(24.0 * ui_scale)
+	style.content_margin_top = roundi(6.0 * ui_scale)
+	style.content_margin_bottom = roundi(6.0 * ui_scale)
+	style.shadow_color = Color("08070b")
+	style.shadow_size = maxi(2, roundi(4.0 * ui_scale))
+	style.anti_aliasing = false
+	return style
 
 static func make_timing_overlay() -> Dictionary:
 	var overlay := Control.new()

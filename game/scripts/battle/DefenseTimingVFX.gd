@@ -2,7 +2,7 @@ class_name DefenseTimingVFX
 extends RefCounted
 ## 防御动作场固定粒子素材工厂。
 
-static func create(parent: Node) -> Array[GPUParticles2D]:
+static func make_particle_texture() -> GradientTexture2D:
 	var texture := GradientTexture2D.new()
 	texture.width = 32
 	texture.height = 12
@@ -17,6 +17,10 @@ static func create(parent: Node) -> Array[GPUParticles2D]:
 		Color(1.0, 1.0, 1.0, 0.0),
 	])
 	texture.gradient = texture_gradient
+	return texture
+
+static func create(parent: Node) -> Array[GPUParticles2D]:
+	var texture := make_particle_texture()
 
 	var trail := GPUParticles2D.new()
 	trail.amount = 28

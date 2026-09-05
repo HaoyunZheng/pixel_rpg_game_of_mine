@@ -1,0 +1,54 @@
+[gd_scene load_steps=7 format=3]
+
+[ext_resource type="SpriteFrames" path="res://assets/derived/campfire/campfire_frames.tres" id="1_frames"]
+[ext_resource type="Script" path="res://scripts/characters/Campfire.gd" id="2_script"]
+[ext_resource type="FontFile" path="res://assets/ui/fonts/fusion-pixel-font/fusion-pixel-12px-proportional-zh_hans.ttf" id="3_font"]
+[ext_resource type="Texture2D" path="res://assets/derived/campfire/base-layer/base-1.png" id="4_base"]
+
+[sub_resource type="CircleShape2D" id="CircleShape2D_interaction"]
+radius = 56.0
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_body"]
+size = Vector2(40, 18)
+
+[node name="Campfire" type="Area2D" groups=["campfires"]]
+collision_layer = 0
+collision_mask = 1
+script = ExtResource("2_script")
+
+[node name="InteractionShape" type="CollisionShape2D" parent="."]
+position = Vector2(0, -20)
+shape = SubResource("CircleShape2D_interaction")
+
+[node name="Base" type="Sprite2D" parent="."]
+position = Vector2(0, -23)
+texture = ExtResource("4_base")
+
+[node name="Flame" type="AnimatedSprite2D" parent="."]
+position = Vector2(0, -30)
+sprite_frames = ExtResource("1_frames")
+animation = &"burn"
+autoplay = "burn"
+
+[node name="Body" type="StaticBody2D" parent="."]
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Body"]
+position = Vector2(0, -9)
+shape = SubResource("RectangleShape2D_body")
+
+[node name="Prompt" type="Label" parent="."]
+visible = false
+z_index = 2
+offset_left = -60.0
+offset_top = -88.0
+offset_right = 60.0
+offset_bottom = -66.0
+theme_override_colors/font_color = Color(0.902, 0.753, 0.29, 1)
+theme_override_colors/font_shadow_color = Color(0.03, 0.02, 0.04, 0.9)
+theme_override_constants/shadow_offset_x = 1
+theme_override_constants/shadow_offset_y = 1
+theme_override_fonts/font = ExtResource("3_font")
+theme_override_font_sizes/font_size = 12
+text = "Z 触碰篝火"
+horizontal_alignment = 1
+vertical_alignment = 1

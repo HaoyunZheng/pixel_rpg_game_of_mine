@@ -1,0 +1,74 @@
+[gd_scene load_steps=10 format=3]
+
+[ext_resource type="Script" path="res://scripts/ForestMain.gd" id="1_forest_main"]
+[ext_resource type="PackedScene" path="res://scenes/ForestMainMap.tscn" id="2_map"]
+[ext_resource type="Script" path="res://scripts/characters/PlayerController.gd" id="3_player"]
+[ext_resource type="SpriteFrames" path="res://assets/sprites/hooded_player/hooded_player_frames.tres" id="4_player_frames"]
+[ext_resource type="NavigationPolygon" path="res://assets/derived/maps/forest-main/forest_main_navigation.tres" id="5_navigation"]
+[ext_resource type="PackedScene" path="res://scenes/Campfire.tscn" id="6_campfire"]
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_player"]
+size = Vector2(40, 40)
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_sensor"]
+size = Vector2(44, 44)
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_gate"]
+size = Vector2(128, 64)
+
+[node name="ForestMain" type="Node2D"]
+y_sort_enabled = true
+script = ExtResource("1_forest_main")
+
+[node name="NavigationRegion2D" type="NavigationRegion2D" parent="."]
+navigation_polygon = ExtResource("5_navigation")
+
+[node name="Map" parent="." instance=ExtResource("2_map")]
+
+[node name="Enemies" type="Node2D" parent="."]
+y_sort_enabled = true
+
+[node name="Campfire_ForestRuins" parent="." instance=ExtResource("6_campfire")]
+position = Vector2(1280, 1088)
+campfire_id = &"forest_ruins"
+display_name = "路边废墟"
+
+[node name="CampfireSpawn_ForestRuins" type="Marker2D" parent="."]
+position = Vector2(1280, 1152)
+
+[node name="Player" type="CharacterBody2D" parent="." groups=["player"]]
+position = Vector2(2368, 1888)
+script = ExtResource("3_player")
+sprite_frames = ExtResource("4_player_frames")
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Player"]
+shape = SubResource("RectangleShape2D_player")
+
+[node name="Visual" type="ColorRect" parent="Player"]
+offset_left = -20.0
+offset_top = -20.0
+offset_right = 20.0
+offset_bottom = 20.0
+color = Color(0.22, 0.52, 0.82, 1)
+
+[node name="GateSensor" type="Area2D" parent="Player"]
+collision_layer = 0
+collision_mask = 4
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Player/GateSensor"]
+shape = SubResource("RectangleShape2D_sensor")
+
+[node name="BattleTrigger" type="Area2D" parent="Player"]
+collision_layer = 0
+collision_mask = 2
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Player/BattleTrigger"]
+shape = SubResource("RectangleShape2D_sensor")
+
+[node name="ForestClearingGate" type="Area2D" parent="."]
+position = Vector2(2368, 2080)
+collision_layer = 4
+collision_mask = 0
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="ForestClearingGate"]
+shape = SubResource("RectangleShape2D_gate")

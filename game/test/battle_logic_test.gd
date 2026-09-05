@@ -1,5 +1,5 @@
 extends Node
-## 战斗 / 背包 确定性逻辑单元测试（headless，无资产依赖）
+## 战斗 / 背包 确定性逻辑单元测试（headless）
 ## 覆盖：DamageCalculator 公式、EnemyAI 选靶、BattleUnit 钳制、GameData 背包/装备边界。
 ## 以场景方式运行（自动加载单例须先就绪，故不用 --script SceneTree）：
 ##   /Applications/Godot.app/Contents/MacOS/Godot --headless --path . \
@@ -15,6 +15,7 @@ class FleeBattleController:
 	extends Node
 	signal timing_submitted(hit_results: Array)
 	signal intent_preview_released
+	signal player_hit_released
 
 	var party: Array = []
 	var enemies: Array = []
@@ -22,8 +23,11 @@ class FleeBattleController:
 	var freeze_count: int = 0
 	var wait_for_timing: bool = false
 	var wait_for_intent_preview: bool = false
+	var wait_for_player_hit: bool = false
 	var last_frozen_order: Array = []
 	var timing_summaries: Array[Dictionary] = []
+	var player_hit_events: Array[Dictionary] = []
+	var inventory_state := InventoryState.new()
 
 	func get_party_units() -> Array:
 		return party
@@ -35,6 +39,12 @@ class FleeBattleController:
 		var units: Array = party.duplicate()
 		units.append_array(enemies)
 		return units
+
+	func get_inventory_slots() -> Array[InventoryState.Slot]:
+		return inventory_state.get_slots()
+
+	func consume_item(item_id: String) -> bool:
+		return inventory_state.remove_item(item_id, 1)
 
 	func freeze_enemy_intents(turn_order: Array) -> void:
 		freeze_count += 1
@@ -62,6 +72,11 @@ class FleeBattleController:
 	func finish_timing_check(_target: BattleUnit, timing_result: Dictionary) -> void:
 		timing_summaries.append(timing_result.duplicate(true))
 
+	func play_player_hit(target: BattleUnit, strength: float) -> void:
+		player_hit_events.append({"target": target, "strength": strength})
+		if wait_for_player_hit:
+			await player_hit_released
+
 func _ready() -> void:
 	_test_damage_calculator()
 	_test_enemy_ai_targeting()
@@ -72,8 +87,10 @@ func _ready() -> void:
 	_test_battle_unit_clamp()
 	_test_stance_lifecycle()
 	_test_defense_timing_rules()
+	_test_attack_front_samples()
 	_test_attack_duration_scale()
 	_test_impact_camera_feedback()
+	await _test_player_damage_waits_for_hit_feedback()
 	_test_battle_hud_frames()
 	await _test_turn_arc_bar()
 	await _test_reticle_animations()
@@ -82,8 +99,13 @@ func _ready() -> void:
 	_test_flee_turn_flow()
 	_test_inventory()
 	_test_equipment_battle_copy()
-	_test_inventory_pagination()
+	_test_battle_session_transactions()
+	_test_campfire_progression()
+	_test_forest_battle_routing()
+	await _test_inventory_pagination()
 	_test_inventory_detail_layout()
+	await _test_inventory_lifecycle()
+	await _cleanup_test_nodes()
 	print("[test] 结果：%s" % ("全部通过 ✅" if _fails == 0 else "%d 项失败 ❌" % _fails))
 	get_tree().quit(_fails)
 
@@ -109,6 +131,18 @@ func _make_skill(power: int, dmg_type: SkillData.DamageType) -> SkillData:
 	s.damage_type = dmg_type
 	s.skill_type = SkillData.SkillType.ATTACK
 	return s
+
+func _cleanup_test_nodes() -> void:
+	for child: Node in get_children():
+		child.queue_free()
+	await get_tree().process_frame
+	await get_tree().process_frame
+
+func _clear_gamedata_inventory(gd: Node) -> void:
+	for slot: InventoryState.Slot in gd.get_inventory_slots():
+		gd.remove_item(slot.item.id, slot.count)
+	for slot: String in InventoryState.EQUIPMENT_SLOTS:
+		gd.unequip_item(slot)
 
 func _test_damage_calculator() -> void:
 	var calc := DamageCalculator.new()
@@ -200,26 +234,26 @@ func _attack_pattern_params_valid(intent: Dictionary) -> bool:
 	match intent.attack_pattern:
 		EnemyAI.PATTERN_HUNTER_LOCK_THRUST:
 			return params.hit_count in [2, 3] \
-				and params.telegraph >= 0.45 and params.telegraph <= 0.75 \
-				and params.active >= 0.16 and params.active <= 0.24 \
-				and params.gap >= 0.12 and params.gap <= 0.22 \
-				and params.width >= 42.0 and params.width <= 56.0 \
-				and params.aim_offset.length() <= 48.01
+				and params.telegraph >= 0.42 and params.telegraph <= 0.58 \
+				and params.active >= 0.14 and params.active <= 0.20 \
+				and params.gap >= 0.16 and params.gap <= 0.24 \
+				and params.width >= 28.0 and params.width <= 36.0 \
+				and params.aim_offset.length() <= 40.01
 		EnemyAI.PATTERN_HUNTER_CROSS_THRUST:
 			return params.hit_count == 2 \
-				and params.angle_degrees >= 20.0 and params.angle_degrees <= 35.0 \
-				and params.stagger >= 0.16 and params.stagger <= 0.30 \
-				and params.telegraph >= 0.65 and params.telegraph <= 0.95 \
-				and params.active >= 0.25 and params.active <= 0.40 \
-				and params.width >= 38.0 and params.width <= 52.0
+				and params.angle_degrees >= 24.0 and params.angle_degrees <= 34.0 \
+				and params.stagger >= 0.18 and params.stagger <= 0.26 \
+				and params.telegraph >= 0.55 and params.telegraph <= 0.72 \
+				and params.active >= 0.20 and params.active <= 0.28 \
+				and params.width >= 30.0 and params.width <= 40.0
 		EnemyAI.PATTERN_HUNTER_SLOW_BARRAGE:
 			return params.hit_count == 3 \
 				and params.subtype in [EnemyAI.BARRAGE_STRAIGHT, EnemyAI.BARRAGE_MONTE_CARLO] \
-				and params.seed is int and params.bullet_count == 36 \
-				and params.bullet_speed == 240.0 and params.bullet_radius == 8.0 \
-				and params.spawn_interval == 0.10 and params.wander_interval == 0.22 \
-				and params.wander_vertical_speed == 110.0 \
-				and params.telegraph == 0.45 and params.active == 5.2 and params.gap == 0.25
+				and params.seed is int and params.bullet_count == 24 \
+				and params.bullet_speed == 280.0 and params.bullet_radius == 7.0 \
+				and params.spawn_interval == 0.16 and params.wander_interval == 0.32 \
+				and params.wander_vertical_speed == 85.0 \
+				and params.telegraph == 0.55 and params.active == 4.6 and params.gap == 0.25
 		EnemyAI.PATTERN_BURNER_ERUPTION:
 			return params.hit_count in [2, 3] \
 				and params.telegraph >= 0.50 and params.telegraph <= 0.72 \
@@ -238,19 +272,19 @@ func _attack_pattern_params_valid(intent: Dictionary) -> bool:
 				and params.vertical_offset >= -48.0 and params.vertical_offset <= 48.0
 		EnemyAI.PATTERN_MUTANT_SWEEP:
 			return params.hit_count == 2 and params.clockwise is bool \
-				and params.telegraph >= 0.80 and params.telegraph <= 1.15 \
-				and params.active >= 0.50 and params.active <= 0.75 \
-				and params.gap >= 0.18 and params.gap <= 0.35 \
-				and params.arc_degrees >= 100.0 and params.arc_degrees <= 140.0 \
-				and params.width >= 72.0 and params.width <= 96.0
+				and params.telegraph >= 0.85 and params.telegraph <= 1.05 \
+				and params.active >= 0.60 and params.active <= 0.78 \
+				and params.gap >= 0.28 and params.gap <= 0.38 \
+				and params.arc_degrees >= 110.0 and params.arc_degrees <= 130.0 \
+				and params.width >= 60.0 and params.width <= 72.0
 		EnemyAI.PATTERN_MUTANT_CLEAVE:
 			return params.hit_count == 3 \
-				and params.offset_x >= -120.0 and params.offset_x <= 120.0 \
-				and params.telegraph >= 1.0 and params.telegraph <= 1.4 \
-				and params.active >= 0.25 and params.active <= 0.40 \
-				and params.aftershock_delay >= 0.18 and params.aftershock_delay <= 0.35 \
-				and params.width >= 84.0 and params.width <= 116.0 \
-				and params.aftershock_spacing >= 100.0 and params.aftershock_spacing <= 160.0
+				and params.offset_x >= -100.0 and params.offset_x <= 100.0 \
+				and params.telegraph >= 0.95 and params.telegraph <= 1.20 \
+				and params.active >= 0.30 and params.active <= 0.40 \
+				and params.aftershock_delay >= 0.26 and params.aftershock_delay <= 0.36 \
+				and params.width >= 72.0 and params.width <= 88.0 \
+				and params.aftershock_spacing >= 120.0 and params.aftershock_spacing <= 150.0
 		_:
 			return false
 
@@ -281,25 +315,63 @@ func _test_right_side_attack_origins_and_barrage() -> void:
 	straight.start(BattleUnit.Stance.ATTACK, Rect2(0, 0, 960, 540),
 		EnemyAI.PATTERN_HUNTER_SLOW_BARRAGE, {
 			"subtype": EnemyAI.BARRAGE_STRAIGHT, "seed": 71,
-			"bullet_count": 36, "hit_count": 3,
+			"bullet_count": 24, "hit_count": 3,
 		})
+	var query_id: int = straight._hazard_query.get_instance_id()
+	straight._hazard_hits_player()
+	_check("连续物理判定复用同一查询参数",
+		straight._hazard_query.get_instance_id() == query_id
+		and straight.texture_filter == CanvasItem.TEXTURE_FILTER_NEAREST)
 	var child_count: int = straight.get_child_count()
 	straight._advance_phase()
 	_check("慢速弹幕可从预警态无错切入活跃态",
 		straight._phase == straight.Phase.ACTIVE)
-	straight._phase_elapsed = 0.21
-	straight._update_barrage(0.01)
+	straight._phase_elapsed = 0.0
+	straight._update_barrage(0.0)
+	var first_aim: Vector2 = straight._enemy_origin.direction_to(straight._player_position)
+	var first_velocity: Vector2 = straight._bullet_base_velocities[0]
+	straight._player_position += Vector2(0.0, -100.0)
+	straight._phase_elapsed = 0.33
+	straight._update_barrage(0.0)
 	var straight_leftward: bool = true
 	for index in range(straight._bullets_spawned):
 		straight_leftward = straight_leftward and straight._bullet_velocities[index].x < 0.0
-	_check("直线慢速弹幕按 36 发上限复用紧凑数组且全部向左",
-		straight._bullet_positions.size() == 36 and straight._bullets_spawned == 3
+	var second_aim: Vector2 = straight._enemy_origin.direction_to(straight._player_position)
+	_check("弹幕生成时瞄准主角并仅影响后续弹体",
+		first_velocity == straight._bullet_base_velocities[0]
+		and absf(first_aim.angle_to(first_velocity.normalized()))
+			<= TIMING_CHECK.BARRAGE_AIM_SPREAD_RADIANS + 0.0001
+		and absf(second_aim.angle_to(straight._bullet_base_velocities[1].normalized()))
+			<= TIMING_CHECK.BARRAGE_AIM_SPREAD_RADIANS + 0.0001)
+	_check("直线慢速弹幕按 24 发配置复用紧凑数组且全部向左",
+		straight._bullet_positions.size() == 24 and straight._bullets_spawned == 3
 		and straight_leftward and straight.get_child_count() == child_count)
 	straight._finish_barrage_results()
 	_check("弹幕无接触时仍固定回传三个伤害槽",
 		straight._hit_results.size() == 3
 		and straight._hit_results.all(func(result): return not result.contact))
 	straight.free()
+
+	var contact_bolt := TIMING_CHECK.new()
+	add_child(contact_bolt)
+	contact_bolt.start(BattleUnit.Stance.ATTACK, Rect2(0, 0, 960, 540),
+		EnemyAI.PATTERN_HUNTER_SLOW_BARRAGE, {
+			"subtype": EnemyAI.BARRAGE_STRAIGHT, "seed": 9,
+			"bullet_count": 1, "hit_count": 3,
+		})
+	contact_bolt._player_position = contact_bolt._enemy_origin + Vector2(-20.0, 0.0)
+	contact_bolt._player_area.position = contact_bolt._player_position
+	contact_bolt._advance_phase()
+	contact_bolt._update_barrage(0.10)
+	contact_bolt._finish_barrage_results()
+	var bolt_result: Dictionary = contact_bolt._hit_results[0]
+	_check("弹体 sprite 接触回传画面帧且空伤害槽不继承接触证物",
+		contact_bolt._hit_results.size() == 3 and bolt_result.contact
+		and bolt_result.contact_position != Vector2.ZERO
+		and bolt_result.visual_frame >= 0 and bolt_result.visual_frame < 6
+		and contact_bolt._hit_results[1].contact_position == Vector2.ZERO
+		and contact_bolt._hit_results[1].visual_frame == -1)
+	contact_bolt.free()
 
 	var random_a := TIMING_CHECK.new()
 	var random_b := TIMING_CHECK.new()
@@ -319,14 +391,19 @@ func _test_right_side_attack_origins_and_barrage() -> void:
 		timing._update_barrage(0.23)
 	_check("相同种子的伪蒙特卡洛弹幕可复现且保持左移",
 		random_a._bullet_positions == random_b._bullet_positions
+		and random_a._bullet_base_velocities == random_b._bullet_base_velocities
 		and random_a._bullet_velocities == random_b._bullet_velocities
 		and random_a._bullet_velocities[0].x < 0.0
 		and not is_equal_approx(
-			TIMING_CHECK.barrage_vertical_speed(20260718, 0, 0, 110.0),
-			TIMING_CHECK.barrage_vertical_speed(20260718, 0, 1, 110.0)))
+			TIMING_CHECK.barrage_vertical_speed(20260718, 0, 0, 85.0),
+			TIMING_CHECK.barrage_vertical_speed(20260718, 0, 1, 85.0)))
+	var monte_carlo_base: Vector2 = random_a._bullet_base_velocities[0]
+	_check("伪蒙特卡洛游走不覆盖生成时的基础瞄准速度",
+		is_equal_approx(random_a._bullet_velocities[0].dot(monte_carlo_base.normalized()),
+			monte_carlo_base.length()))
 	_check("慢速弹幕使用扫掠圆判定避免大 delta 穿透",
 		TIMING_CHECK.swept_circle_hits(
-			Vector2(100.0, 0.0), Vector2(-100.0, 0.0), Vector2.ZERO, 18.0))
+			Vector2(100.0, 0.0), Vector2(-100.0, 0.0), Vector2.ZERO, 17.0))
 	random_a._barrage_results_recorded = 0
 	random_a._hit_results.clear()
 	for _contact in range(4):
@@ -465,7 +542,7 @@ func _test_defense_timing_rules() -> void:
 	_check("完美防御零伤害零 MP", defend_perfect.damage == 0 and defend_perfect.mp_change == 0)
 	_check("普通防御向上取整并最多消耗 2 MP", defend_success.damage == 2 and defend_success.mp_change == -2)
 	_check("普通防御 MP 不足时只扣现有值", defend_low_mp.damage == 4 and defend_low_mp.mp_change == -1)
-	_check("防御失败承受完整伤害", defend_fail.damage == 10 and defend_fail.mp_change == 0)
+	_check("防御失败保底承受六成伤害", defend_fail.damage == 6 and defend_fail.mp_change == 0)
 
 	var dodge_perfect: Dictionary = TIMING_RULES.evaluate_outcome(
 		BattleUnit.Stance.DODGE, TIMING_RULES.Outcome.PERFECT, 10, 9, 10)
@@ -486,6 +563,44 @@ func _test_defense_timing_rules() -> void:
 			4, repeated_target.mp, repeated_target.max_mp)
 		TIMING_RULES.apply(repeated_target, hit)
 	_check("连续受击逐次结算同一姿态", repeated_target.hp == 16 and repeated_target.mp == 0)
+
+func _test_attack_front_samples() -> void:
+	var sampler := TIMING_CHECK.new()
+	add_child(sampler)
+	var all_covered: bool = true
+	var monotonic: bool = true
+	var exact_keyframes: bool = true
+	var continuous: bool = true
+	for animation in [&"mutant_slash", &"mutant_claw"]:
+		var slash: bool = animation == &"mutant_slash"
+		var segment_count: int = 1 if slash else 3
+		var points: Array[Vector2] = TIMING_CHECK.SLASH_FRONT_POINTS \
+			if slash else TIMING_CHECK.CLAW_FRONT_POINTS
+		var widths: Array[float] = TIMING_CHECK.SLASH_FRONT_WIDTHS \
+			if slash else TIMING_CHECK.CLAW_FRONT_WIDTHS
+		var frame_count: int = TIMING_CHECK.ATTACK_SPRITE_FRAMES.get_frame_count(animation)
+		var frame_times: PackedFloat32Array = TIMING_CHECK.attack_front_frame_times(animation)
+		var duration: float = TIMING_CHECK._animation_duration(animation)
+		all_covered = all_covered and frame_times.size() == frame_count \
+			and points.size() == frame_count * segment_count * 2 \
+			and widths.size() == frame_count
+		for frame_index in range(frame_count):
+			if frame_index > 0:
+				monotonic = monotonic and frame_times[frame_index] > frame_times[frame_index - 1]
+			var progress: float = frame_times[frame_index] / duration
+			sampler._sample_attack_front(animation, progress, sampler._front_local_segments)
+			for point_index in range(segment_count * 2):
+				exact_keyframes = exact_keyframes and sampler._front_local_segments[point_index].is_equal_approx(
+					points[frame_index * segment_count * 2 + point_index])
+			if frame_index > 0:
+				sampler._sample_attack_front(
+					animation, maxf(0.0, progress - 0.0001), sampler._front_local_segments)
+				var before: Vector2 = sampler._front_local_segments[0]
+				sampler._sample_attack_front(animation, progress, sampler._front_local_segments)
+				continuous = continuous and before.distance_to(sampler._front_local_segments[0]) < 0.1
+	_check("攻击前沿样本覆盖全部关键帧且累计时间严格递增", all_covered and monotonic)
+	_check("攻击前沿插值准确回到关键帧端点且跨帧连续", exact_keyframes and continuous)
+	sampler.free()
 
 func _test_defense_action_field() -> void:
 	_check("弹反按下后 0.05s 内为完美", TIMING_CHECK.classify_contact(
@@ -626,11 +741,40 @@ func _test_defense_action_field() -> void:
 			"arc_degrees": 140.0, "width": 56.0, "clockwise": true,
 		})
 	sweep.set_physics_process(false)
+	var sweep_stage: Dictionary = sweep._stages[0]
+	var sweep_mid_direction := Vector2.from_angle(
+		lerpf(float(sweep_stage.angle_from), float(sweep_stage.angle_to), 0.5))
+	_check("横扫弧线中心对准冻结的玩家方位",
+		sweep_mid_direction.dot(sweep._enemy_origin.direction_to(sweep._player_position)) > 0.999)
 	await get_tree().physics_frame
 	sweep._physics_process(1.3 * TIMING_CHECK.ACTION_DURATION_SCALE)
-	_check("横扫在大 delta 下仍命中经过的玩家", not sweep._hit_results.is_empty()
-		and sweep._hit_results[0].contact)
+	var sweep_result: Dictionary = sweep._hit_results[0] if not sweep._hit_results.is_empty() else {}
+	_check("横扫三条窄前沿在大 delta 下只结算一次且不会穿透", sweep._hit_results.size() == 1
+		and bool(sweep_result.get("contact", false)) and sweep._front_segment_count == 3
+		and sweep._max_front_sample_displacement <= TIMING_CHECK.MAX_FRONT_SAMPLE_DISTANCE + 0.001)
+	_check("横扫命中回传稳定接触点、方向、进度与画面帧", sweep_result.get(
+		"contact_position", Vector2.ZERO) != Vector2.ZERO
+		and is_equal_approx(Vector2(sweep_result.get("incoming_direction", Vector2.ZERO)).length(), 1.0)
+		and float(sweep_result.get("front_progress", -1.0)) >= 0.0
+		and int(sweep_result.get("visual_frame", -1)) in [0, 1])
 	sweep.queue_free()
+
+	var tail_safe := TIMING_CHECK.new()
+	add_child(tail_safe)
+	tail_safe.start(BattleUnit.Stance.ATTACK, Rect2(0, 0, 960, 540),
+		EnemyAI.PATTERN_MUTANT_SWEEP, {
+			"hit_count": 2, "telegraph": 0.2, "active": 0.5, "gap": 0.2,
+			"arc_degrees": 140.0, "width": 56.0, "clockwise": true,
+		})
+	tail_safe.set_physics_process(false)
+	var frozen_target: Vector2 = tail_safe._player_position
+	tail_safe._player_position = tail_safe._enemy_origin.lerp(frozen_target, 0.5)
+	tail_safe._player_area.position = tail_safe._player_position
+	await get_tree().physics_frame
+	tail_safe._physics_process(0.7 * TIMING_CHECK.ACTION_DURATION_SCALE)
+	_check("抓痕尾迹与敌人到前沿之间的透明半径不造成伤害",
+		tail_safe._hit_results.size() == 1 and not tail_safe._hit_results[0].contact)
+	tail_safe.queue_free()
 
 	var sweep_parry := TIMING_CHECK.new()
 	add_child(sweep_parry)
@@ -665,9 +809,14 @@ func _test_defense_action_field() -> void:
 			timing._physics_process(delta)
 	while is_instance_valid(timing) and timing._running:
 		timing._physics_process(0.37)
+	var cleave_max_displacement: float = timing._max_front_sample_displacement
 	await get_tree().process_frame
 	_check("秒制动作场完整回传三段重劈结果", action_results.size() == 3
-		and action_results[0].contact)
+		and action_results[0].contact
+		and action_results[0].contact_position != Vector2.ZERO
+		and action_results[0].visual_frame >= 0
+		and cleave_max_displacement > 0.0
+		and cleave_max_displacement <= TIMING_CHECK.MAX_FRONT_SAMPLE_DISTANCE + 0.001)
 
 func _test_attack_duration_scale() -> void:
 	var timing := TIMING_CHECK.new()
@@ -719,6 +868,49 @@ func _test_impact_camera_feedback() -> void:
 		failure_paused and feedback_amplitudes == [12.0, 16.0]
 		and is_equal_approx(parry._hit_stop_remaining, TIMING_CHECK.HIT_STOP_PARRY))
 	parry.free()
+
+func _test_player_damage_waits_for_hit_feedback() -> void:
+	var actor := _make_unit(20, 0, 10)
+	actor.is_player = true
+	actor.mp = 20
+	actor.max_mp = 20
+	var target := _make_unit(0, 5, 8, 30)
+	var controller := FleeBattleController.new()
+	controller.wait_for_player_hit = true
+	add_child(controller)
+	var sm := TurnStateMachine.new()
+	sm.battle_controller = controller
+	sm.damage_calculator = DamageCalculator.new()
+	add_child(sm)
+	var results: Array[Dictionary] = []
+	sm.action_executed.connect(func(result: Dictionary): results.append(result))
+	sm.start_turn(actor)
+	sm.select_command(BattleCommands.ATTACK)
+	sm.select_target(target)
+	_check("普攻伤害后等待命中反馈再结算",
+		target.hp == 15 and results.is_empty()
+		and controller.player_hit_events.size() == 1
+		and controller.player_hit_events[0].target == target
+		and is_equal_approx(controller.player_hit_events[0].strength, 8.0))
+	controller.wait_for_player_hit = false
+	controller.player_hit_released.emit()
+	await get_tree().process_frame
+	_check("命中反馈完成后放行普攻结算", results.size() == 1)
+
+	target.hp = target.max_hp
+	var skill := load("res://assets/data/skills/skill_slash.tres") as SkillData
+	sm.start_turn(actor)
+	sm.select_command(BattleCommands.SKILL, skill)
+	sm.select_target(target)
+	await get_tree().process_frame
+	_check("斩击消耗 12 MP 并使用更强命中反馈",
+		skill.mp_cost == 12 and actor.mp == 8
+		and target.hp == 5
+		and controller.player_hit_events.size() == 2
+		and controller.player_hit_events[1].target == target
+		and is_equal_approx(controller.player_hit_events[1].strength, 12.0))
+	sm.free()
+	controller.free()
 
 func _test_battle_hud_frames() -> void:
 	var battle_scene: Node = load("res://scenes/Battle.tscn").instantiate()
@@ -773,6 +965,11 @@ func _test_battle_hud_frames() -> void:
 		and BattleUI.calculate_party_avatar_size(normal.party.size.y, 3, 1.0) == 120
 		and BattleUI.calculate_party_avatar_size(normal.party.size.y, 4, 1.0) == 101
 		and BattleUI.calculate_party_avatar_size(293.3333, 4, 2.0 / 3.0) == 67)
+	var wheel := AttackPowerWheel.new()
+	_check("攻击转盘保留 200 半径并使用 16 窄环与 0.25 秒停留",
+		wheel.ring_radius == 200.0 and wheel.ring_width == 16.0
+		and wheel.result_hold == 0.25)
+	wheel.free()
 	battle_scene.free()
 
 	var party := _make_unit(10, 5, 8)
@@ -817,9 +1014,15 @@ func _test_battle_hud_frames() -> void:
 	var enemy := _make_unit(10, 5, 8)
 	enemy.is_player = false
 	var enemy_card: Control = BattleWidgets.make_unit_card(enemy, false, false, 192, 1.0)
+	var enemy_avatar: Control = enemy_card.get_child(0)
 	_check("常态敌方区域只显示指定尺寸的纯立绘",
 		enemy_card.get_child_count() == 1
-		and enemy_card.get_child(0).custom_minimum_size == Vector2(192, 192))
+		and enemy_avatar.custom_minimum_size == Vector2(192, 192))
+	_check("敌方立绘预置透明命中闪白层",
+		enemy_avatar.get_child_count() == 2
+		and enemy_avatar.get_child(1).has_meta("hit_flash_overlay")
+		and enemy_avatar.get_child(1).material is ShaderMaterial
+		and BattleWidgets.HIT_FLASH_SHADER_CODE.contains("texture(TEXTURE, UV).a"))
 	enemy_card.free()
 
 	var overlay_parts: Dictionary = BattleWidgets.make_timing_overlay()
@@ -899,11 +1102,106 @@ func _test_reticle_animations() -> void:
 	var enemy_b := _make_unit(10, 5, 6)
 	enemy_b.is_player = false
 	enemy_b.display_name = "敌B"
+	enemy_b.hp = 0
 	var controller := FleeBattleController.new()
 	controller.party = [party]
 	controller.enemies = [enemy_a, enemy_b]
 	add_child(controller)
 	ui.setup([party], [enemy_a, enemy_b], controller, null)
+	ui.refresh()
+	ui.show_actor_turn(party)
+	var reticle_layer: Control = ui.get_node("ReticleLayer")
+	ui._activate_selected_menu_item()
+	await get_tree().process_frame
+	var action_buttons: Array = ui.get("_menu_buttons")
+	var action_labels: Array = ui.get("_menu_labels")
+	var action_box: VBoxContainer = ui.get("_central_option_box")
+	var stance_row: HBoxContainer = action_box.get_child(1)
+	_check("行动菜单只保留攻击、防御、闪避三个选项",
+		action_labels == ["攻击", "防御", "闪避"] and action_buttons.size() == 3)
+	_check("攻击独占首行且防御闪避在第二行等宽双列",
+		action_buttons[0].get_parent() == action_box
+		and stance_row.has_meta("action_stance_row")
+		and action_buttons[1].get_parent() == stance_row
+		and action_buttons[2].get_parent() == stance_row
+		and action_buttons[1].size_flags_horizontal == Control.SIZE_EXPAND_FILL
+		and action_buttons[2].size_flags_horizontal == Control.SIZE_EXPAND_FILL)
+	_check("1080p 行动选项使用宽布局、大字号与独立行高",
+		action_box.offset_left == 48.0 and action_box.offset_right == -48.0
+		and action_buttons[0].get_theme_font_size("font_size") == 34
+		and action_buttons[0].custom_minimum_size.y == 56.0
+		and stance_row.get_theme_constant("separation") == 24)
+	_check("攻击卡跨满两列且防御闪避保持等宽",
+		absf(action_buttons[1].size.x - action_buttons[2].size.x) <= 1.0
+		and absf(action_buttons[0].size.x
+			- action_buttons[1].size.x - stance_row.get_theme_constant("separation")
+			- action_buttons[2].size.x) <= 1.0)
+	var attack_style := action_buttons[0].get_theme_stylebox("normal") as StyleBoxFlat
+	var defense_style := action_buttons[1].get_theme_stylebox("normal") as StyleBoxFlat
+	_check("行动卡使用暗色承载面且仅选中项呈现金色层级",
+		action_buttons.all(func(button): return button.has_meta("menu_option_card"))
+		and action_buttons[0].text == "攻击"
+		and attack_style.bg_color == Color("332a16")
+		and attack_style.border_color == BattleWidgets.COL_GOLD
+		and attack_style.border_width_left == 4
+		and defense_style.bg_color == Color("211e27")
+		and defense_style.border_color == Color("6c675f")
+		and defense_style.border_width_left == 2)
+	var compact_card := BattleWidgets.make_menu_option(2.0 / 3.0)
+	_check("720p 行动卡按 HUD 比例缩放且不低于可读字号",
+		compact_card.get_theme_font_size("font_size") == 23
+		and compact_card.custom_minimum_size.y == 37.0)
+	compact_card.free()
+	var direction := InputEventKey.new()
+	direction.pressed = true
+	direction.keycode = KEY_DOWN
+	ui._input(direction)
+	var down_index: int = ui.get("_selected_menu_index")
+	direction.keycode = KEY_RIGHT
+	ui._input(direction)
+	var right_index: int = ui.get("_selected_menu_index")
+	direction.keycode = KEY_UP
+	ui._input(direction)
+	var up_index: int = ui.get("_selected_menu_index")
+	direction.keycode = KEY_LEFT
+	ui._input(direction)
+	_check("行动菜单方向输入遵循两行空间位置且不跨边绕回",
+		down_index == 1 and right_index == 2 and up_index == 0
+		and ui.get("_selected_menu_index") == 0)
+	ui._activate_selected_menu_item()
+	var menu_particles: Array = reticle_layer.get_children().filter(
+		func(child): return child.has_meta("confirm_particles"))
+	var menu_particle := menu_particles.back() as GPUParticles2D
+	var menu_material := menu_particle.process_material as ParticleProcessMaterial
+	_check("一级与二级菜单确认复用 16 粒金色迸放",
+		menu_particles.size() == 2 and menu_particle.amount == 16
+		and is_equal_approx(menu_particle.lifetime, 0.28)
+		and menu_material.initial_velocity_min == 90.0
+		and menu_material.initial_velocity_max == 180.0)
+	var particles_before_disabled: int = menu_particles.size()
+	ui.get("_menu_disabled")[ui.get("_selected_menu_index")] = true
+	ui._activate_selected_menu_item()
+	_check("不可用选项不触发确认粒子",
+		reticle_layer.get_children().filter(
+			func(child): return child.has_meta("confirm_particles")).size()
+		== particles_before_disabled)
+	for particle in menu_particles:
+		particle.queue_free()
+	await get_tree().process_frame
+	ui.show_actor_turn(party)
+	var auto_picked: Array = []
+	ui._start_target_select(BattleUI.TARGET_GROUP_ENEMY, func(target): auto_picked.append(target))
+	var auto_particles: Array = reticle_layer.get_children().filter(
+		func(child): return child.has_meta("confirm_particles"))
+	_check("单目标跳过选择界面并延后一帧提交",
+		ui.get("_target_confirming") and not ui.get("_is_selecting_target")
+		and ui.get("_target_reticle") == null and auto_picked.is_empty()
+		and auto_particles.is_empty())
+	_check("自动目标确认不在敌方立绘上触发金色粒子", auto_particles.is_empty())
+	await get_tree().process_frame
+	_check("单目标下一帧自动提交且解除确认锁",
+		auto_picked == [enemy_a] and not ui.get("_target_confirming"))
+	enemy_b.hp = enemy_b.max_hp
 	ui.refresh()
 	ui.show_actor_turn(party)
 	_check("战斗开场同帧刷新不会叠加旧角色卡",
@@ -941,6 +1239,9 @@ func _test_reticle_animations() -> void:
 	await get_tree().create_timer(0.21).timeout
 	var avatar_a: Control = ui._find_avatar_for_unit(enemy_a)
 	var avatar_b: Control = ui._find_avatar_for_unit(enemy_b)
+	_check("敌方单位定位返回含闪白层的实际立绘容器",
+		avatar_a.get_children().any(func(child): return child.has_meta("hit_flash_overlay"))
+		and avatar_b.get_children().any(func(child): return child.has_meta("hit_flash_overlay")))
 	_check("准星滑到新目标并切换敌方立绘明暗",
 		marker.position != first_position
 		and marker.position.is_equal_approx(BattleUI.calculate_target_reticle_position(
@@ -948,24 +1249,29 @@ func _test_reticle_animations() -> void:
 		and avatar_a.modulate.r < 0.5 and avatar_b.modulate == Color.WHITE)
 
 	ui._pick_selected_target()
-	await get_tree().create_timer(0.22).timeout
-	_check("确认脉冲开始即封锁输入且尚未执行回调",
-		ui.get("_target_confirming") and not ui.get("_is_selecting_target") and picked.is_empty()
+	var manual_particles: Array = reticle_layer.get_children().filter(
+		func(child): return child.has_meta("confirm_particles"))
+	_check("手动目标确认不在敌方立绘上触发金色粒子", manual_particles.is_empty())
+	await get_tree().create_timer(0.07).timeout
+	_check("目标确认按压阶段封锁输入且尚未提交",
+		ui.get("_target_confirming") and not ui.get("_is_selecting_target") and picked.is_empty())
+	await get_tree().create_timer(0.07).timeout
+	_check("目标按压完成即提交且外扩脉冲后台播放",
+		picked == [enemy_b] and not ui.get("_target_confirming")
 		and ui.get_node("ReticleLayer").get_children().any(
 			func(child): return child.has_meta("target_pulse")))
-	await get_tree().create_timer(0.36).timeout
-	_check("外扩环完整播放前不提交目标回调",
-		ui.get("_target_confirming") and picked.is_empty())
-	await get_tree().create_timer(0.08).timeout
+	await get_tree().create_timer(0.19).timeout
 	await get_tree().process_frame
-	_check("准星完整脉冲结束后才执行目标回调", picked == [enemy_b])
+	_check("后台外扩脉冲按时自动释放",
+		not ui.get_node("ReticleLayer").get_children().any(
+			func(child): return child.has_meta("target_pulse")))
 
 	ui._show_action_menu()
 	ui._start_target_select(BattleUI.TARGET_GROUP_ENEMY, func(_target): pass)
 	await get_tree().create_timer(0.21).timeout
 	ui._move_target_selection(1)
 	ui._cancel_target_select()
-	await get_tree().create_timer(0.13).timeout
+	await get_tree().create_timer(0.09).timeout
 	await get_tree().process_frame
 	_check("X 淡出准星并恢复所有敌人亮度",
 		ui.get("_target_reticle") == null
@@ -1057,20 +1363,18 @@ func _test_enemy_damage_waits_for_timing() -> void:
 	await get_tree().process_frame
 	var summary: Dictionary = controller.timing_summaries[0] \
 		if not controller.timing_summaries.is_empty() else {}
-	_check("污染兽重劈三段依次应用实际伤害和 MP", target.hp == 23 and target.mp == 3)
+	_check("污染兽重劈三段依次应用实际伤害和 MP", target.hp == 25 and target.mp == 3)
 	_check("混合成功失败汇总保留三段完整计数",
 		summary.get("hit_count", 0) == 3
 		and summary.get("success_count", 0) == 2
 		and summary.get("failure_count", 0) == 1
 		and summary.get("outcome", TIMING_RULES.Outcome.PERFECT) == TIMING_RULES.Outcome.FAILURE
-		and summary.get("damage", 0) == 7
+		and summary.get("damage", 0) == 5
 		and summary.get("mp_change", 0) == -2)
-	var result_ui := BattleUI.new()
 	target.display_name = "主角"
 	_check("混合多段结果显示部分成功与实际伤害",
-		result_ui._format_timing_result(target, summary)
-		== "主角 部分成功 2/3｜7 伤害｜MP -2")
-	result_ui.free()
+		BattleUI._format_timing_result(target, summary)
+		== "主角 部分成功 2/3｜5 伤害｜MP -2")
 	sm.free()
 	controller.free()
 
@@ -1115,7 +1419,7 @@ func _test_flee_turn_flow() -> void:
 func _test_inventory() -> void:
 	# 自动加载单例在 --script 运行下不作为全局标识符暴露，按节点取（对齐 verify_*.gd）。
 	var gd: Node = get_node("/root/GameData")
-	gd.inventory.clear()
+	_clear_gamedata_inventory(gd)
 	var item := ItemData.new()
 	item.id = "test_potion"
 	item.category = ItemData.ItemCategory.CONSUMABLE
@@ -1137,26 +1441,28 @@ func _test_inventory() -> void:
 	gd.remove_item("test_potion", 3)
 	_check("扣到 0 移除槽位", gd.get_item_count("test_potion") == 0)
 
-	var member: Dictionary = gd.party_members[0]
+	var member: PartyMemberState = gd.get_party_member(0)
 	item.effect_type = ItemData.EffectType.HEAL_HP
 	item.effect_value = 20
 	item.usable = true
 	gd.add_item(item, 2)
-	member.hp = member.max_hp
+	gd.set_party_member_vitals(0, member.max_hp, member.max_mp)
 	_check("满 HP 时 can_use_item = false", gd.can_use_item(item.id) == false)
 	_check("满 HP 时 use_item = false", gd.use_item(item.id) == false)
 	_check("满 HP 不消耗物品", gd.get_item_count(item.id) == 2)
-	member.hp = member.max_hp - 10
+	gd.set_party_member_vitals(0, member.max_hp - 10, member.max_mp)
 	_check("缺 HP 时 can_use_item = true", gd.can_use_item(item.id) == true)
 	_check("缺 HP 时 use_item = true", gd.use_item(item.id) == true)
-	_check("使用后恢复并消耗 1 个", member.hp == member.max_hp and gd.get_item_count(item.id) == 1)
+	_check("使用后恢复并消耗 1 个",
+		gd.get_party_member(0).hp == member.max_hp and gd.get_item_count(item.id) == 1)
 	item.effect_type = ItemData.EffectType.HEAL_MP
-	member.mp = member.max_mp
+	gd.set_party_member_vitals(0, member.max_hp, member.max_mp)
 	_check("满 MP 时 use_item = false", gd.use_item(item.id) == false)
 	_check("满 MP 不消耗物品", gd.get_item_count(item.id) == 1)
-	member.mp = member.max_mp - 10
+	gd.set_party_member_vitals(0, member.max_hp, member.max_mp - 10)
 	_check("缺 MP 时 use_item = true", gd.use_item(item.id) == true)
-	_check("使用后恢复 MP 并消耗", member.mp == member.max_mp and gd.get_item_count(item.id) == 0)
+	_check("使用后恢复 MP 并消耗",
+		gd.get_party_member(0).mp == member.max_mp and gd.get_item_count(item.id) == 0)
 
 	var weapon_a := ItemData.new()
 	weapon_a.id = "test_weapon_a"
@@ -1173,10 +1479,10 @@ func _test_inventory() -> void:
 	gd.add_item(weapon_a)
 	gd.add_item(weapon_b)
 	gd.add_item(armor)
-	gd.equipment = {"weapon": "", "armor": "", "accessory": ""}
 	_check("装备第一把武器", gd.equip_item(weapon_a.id) == true)
 	_check("重复装备同一物品返回 false", gd.equip_item(weapon_a.id) == false)
-	_check("替换武器成功", gd.equip_item(weapon_b.id) == true and gd.equipment.weapon == weapon_b.id)
+	_check("替换武器成功", gd.equip_item(weapon_b.id) == true
+		and gd.get_equipped_item_id("weapon") == weapon_b.id)
 	_check("替换装备不移除旧物品", gd.get_item_count(weapon_a.id) == 1)
 	_check("装备护甲成功", gd.equip_item(armor.id) == true)
 	_check("未知槽位无法卸下", gd.unequip_item("unknown") == false)
@@ -1184,16 +1490,16 @@ func _test_inventory() -> void:
 	var bonuses: Dictionary = gd.get_equipment_bonuses()
 	_check("装备加成按当前三槽汇总", bonuses.atk == 5 and bonuses.def == 3)
 	_check("非法丢弃返回 false", gd.discard_item(weapon_b.id, 0) == false)
-	_check("失败丢弃不卸下装备", gd.equipment.weapon == weapon_b.id)
+	_check("失败丢弃不卸下装备", gd.get_equipped_item_id("weapon") == weapon_b.id)
 	_check("超量丢弃返回 false", gd.discard_item(weapon_b.id, 2) == false)
-	_check("超量丢弃仍不卸装", gd.equipment.weapon == weapon_b.id)
+	_check("超量丢弃仍不卸装", gd.get_equipped_item_id("weapon") == weapon_b.id)
 	_check("成功丢弃已装备物品", gd.discard_item(weapon_b.id, 1) == true)
-	_check("成功丢弃先卸装并移除", gd.equipment.weapon.is_empty() and gd.get_item_count(weapon_b.id) == 0)
+	_check("成功丢弃先卸装并移除",
+		gd.get_equipped_item_id("weapon").is_empty() and gd.get_item_count(weapon_b.id) == 0)
 
 func _test_equipment_battle_copy() -> void:
 	var gd: Node = get_node("/root/GameData")
-	gd.inventory.clear()
-	gd.equipment = {"weapon": "", "armor": "", "accessory": ""}
+	_clear_gamedata_inventory(gd)
 	var weapon := ItemData.new()
 	weapon.id = "battle_copy_weapon"
 	weapon.category = ItemData.ItemCategory.WEAPON
@@ -1207,8 +1513,8 @@ func _test_equipment_battle_copy() -> void:
 	gd.equip_item(weapon.id)
 	gd.equip_item(armor.id)
 
-	var player: Dictionary = gd.party_members[0]
-	var companion: Dictionary = gd.party_members[1]
+	var player: PartyMemberState = gd.get_party_member(0)
+	var companion: PartyMemberState = gd.get_party_member(1)
 	var base_player_atk: int = player.atk
 	var base_player_def: int = player.def
 	var bonuses: Dictionary = gd.get_equipment_bonuses()
@@ -1224,11 +1530,168 @@ func _test_equipment_battle_copy() -> void:
 	_check("队友战斗副本不应用主角装备", companion_battle.atk == companion.atk
 		and companion_battle.def == companion.def)
 
+func _test_battle_session_transactions() -> void:
+	var gd: Node = get_node("/root/GameData")
+	_clear_gamedata_inventory(gd)
+	var potion := ItemData.new()
+	potion.id = "session_potion"
+	potion.category = ItemData.ItemCategory.CONSUMABLE
+	gd.add_item(potion, 2)
+	var member := gd.get_party_member(0) as PartyMemberState
+	gd.set_party_member_vitals(0, member.max_hp - 5, member.max_mp - 3)
+	var poison := StatusEffect.new()
+	poison.type = StatusEffect.Type.POISON
+	poison.duration = 3
+	gd.set_party_member_status_effects(0, [poison] as Array[StatusEffect])
+	gd.set_enemy_defeated("Enemy1", false)
+	gd.set_enemy_defeated("Enemy2", false)
+
+	var victory: BattleSession = gd.create_battle_session(["Enemy1", "Enemy2"] as Array[String])
+	victory.party_units[0].hp -= 4
+	victory.party_units[0].status_effects[0].duration = 1
+	victory.inventory.remove_item(potion.id)
+	_check("战斗会话修改不提前污染全局",
+		gd.get_party_member(0).hp == member.max_hp - 5
+		and gd.get_party_member(0).status_effects[0].duration == 3
+		and gd.get_item_count(potion.id) == 2)
+	_check("胜利结算只执行一次",
+		gd.settle_battle(victory, BattleSession.Outcome.VICTORY)
+		and not gd.settle_battle(victory, BattleSession.Outcome.VICTORY))
+	_check("胜利提交队伍、背包与全部敌人 key",
+		gd.get_party_member(0).hp == member.max_hp - 9
+		and gd.get_party_member(0).status_effects[0].duration == 1
+		and gd.get_item_count(potion.id) == 1
+		and gd.is_enemy_defeated("Enemy1") and gd.is_enemy_defeated("Enemy2"))
+	victory.party_units[0].status_effects[0].duration = 0
+	_check("结算后全局与会话不共享状态资源",
+		gd.get_party_member(0).status_effects[0].duration == 1)
+
+	gd.set_enemy_defeated("Enemy1", false)
+	var fled: BattleSession = gd.create_battle_session(["Enemy1"] as Array[String])
+	fled.inventory.remove_item(potion.id)
+	_check("逃跑提交消耗但不标记敌人",
+		gd.settle_battle(fled, BattleSession.Outcome.FLED)
+		and gd.get_item_count(potion.id) == 0
+		and not gd.is_enemy_defeated("Enemy1"))
+
+	gd.add_item(potion, 2)
+	var defeated: BattleSession = gd.create_battle_session(["Enemy1"] as Array[String])
+	defeated.party_units[0].hp = 1
+	defeated.inventory.remove_item(potion.id)
+	_check("失败丢弃会话背包并重置队伍",
+		gd.settle_battle(defeated, BattleSession.Outcome.DEFEAT)
+		and gd.get_item_count(potion.id) == 2
+		and gd.get_party_member(0).hp == gd.get_party_member(0).max_hp
+		and gd.get_party_member(0).status_effects.is_empty())
+
+	var defeated_key := "Enemy1_ForestMain_01"
+	var surviving_key := "Enemy1_ForestMain_02"
+	gd.set_enemy_defeated(defeated_key, false)
+	gd.set_enemy_defeated(surviving_key, false)
+	var forest_victory: BattleSession = gd.create_battle_session([defeated_key] as Array[String])
+	_check("森林主地图胜利只标记当前唯一敌人",
+		gd.settle_battle(forest_victory, BattleSession.Outcome.VICTORY)
+		and gd.is_enemy_defeated(defeated_key)
+		and not gd.is_enemy_defeated(surviving_key))
+	gd.set_enemy_defeated(defeated_key, false)
+	var forest_flee: BattleSession = gd.create_battle_session([defeated_key] as Array[String])
+	_check("森林主地图逃跑不标记当前敌人",
+		gd.settle_battle(forest_flee, BattleSession.Outcome.FLED)
+		and not gd.is_enemy_defeated(defeated_key))
+
+func _test_campfire_progression() -> void:
+	var gd: Node = get_node("/root/GameData")
+	_check("P4 成长原型只开放主角",
+		gd.get_level_up_cost(1) == 0
+		and not gd.upgrade_skill(1, "skill_heal"))
+	var embers_before_reward: int = gd.get_ember_count()
+	var reward_session: BattleSession = gd.create_battle_session(
+		["Enemy1_Progression"] as Array[String])
+	_check("战斗胜利按敌人数结算余烬且只结算一次",
+		gd.settle_battle(reward_session, BattleSession.Outcome.VICTORY)
+		and gd.get_ember_count() == embers_before_reward + GameData.VICTORY_EMBERS_PER_ENEMY
+		and not gd.settle_battle(reward_session, BattleSession.Outcome.VICTORY)
+		and gd.get_ember_count() == embers_before_reward + GameData.VICTORY_EMBERS_PER_ENEMY)
+
+	var player_before: PartyMemberState = gd.get_party_member(0)
+	var level_cost: int = gd.get_level_up_cost(0)
+	var missing_embers: int = level_cost - gd.get_ember_count()
+	if missing_embers > 0:
+		gd.add_embers(missing_embers)
+	var embers_before_upgrade: int = gd.get_ember_count()
+	_check("篝火升级消耗余烬、提升主角属性并发放技能点",
+		gd.upgrade_party_member(0)
+		and gd.get_ember_count() == embers_before_upgrade - level_cost
+		and gd.get_party_member(0).level == player_before.level + 1
+		and gd.get_party_member(0).max_hp == player_before.max_hp + GameData.LEVEL_HP_GAIN
+		and gd.get_party_member(0).max_mp == player_before.max_mp + GameData.LEVEL_MP_GAIN
+		and gd.get_party_member(0).atk == player_before.atk + GameData.LEVEL_ATK_GAIN
+		and gd.get_party_member(0).def == player_before.def + GameData.LEVEL_DEF_GAIN
+		and gd.get_party_member(0).spd == player_before.spd + GameData.LEVEL_SPD_GAIN
+		and gd.get_party_member(0).skill_points == player_before.skill_points + 1)
+
+	var player_after_level: PartyMemberState = gd.get_party_member(0)
+	var skill := player_after_level.stats_res.skills[0] as SkillData
+	var rank_before: int = gd.get_skill_rank(0, skill.id)
+	_check("技能点强化现有技能并进入战斗副本",
+		gd.upgrade_skill(0, skill.id)
+		and gd.get_skill_rank(0, skill.id) == rank_before + 1
+		and gd.get_party_member(0).skill_points == player_after_level.skill_points - 1
+		and BattleUnit.from_party_member(gd.get_party_member(0)).get_skill_power(skill)
+			== skill.power + rank_before * skill.power_per_rank)
+
+func _test_forest_battle_routing() -> void:
+	var battle: Node = load("res://scenes/Battle.tscn").instantiate()
+	var supports_return_destination: bool = battle.has_method("_get_return_destination")
+	_check("战斗支持可选来源地图返回数据", supports_return_destination)
+	var hunter = battle.call("_lookup_enemy_stats", "Enemy1_ForestMain_12")
+	var mutant = battle.call("_lookup_enemy_stats", "Enemy2_ForestMain_12")
+	_check("森林唯一键按前缀解析猎手与变异兽资源",
+		hunter != null and hunter.resource_path.ends_with("enemy_hunter.tres")
+		and mutant != null and mutant.resource_path.ends_with("enemy_mutant.tres"))
+	if supports_return_destination:
+		var legacy: Dictionary = battle.call("_get_return_destination", true)
+		_check("Wilderness 未传来源数据时保持原返回值",
+			legacy.get("path") == "res://scenes/Wilderness.tscn"
+			and legacy.get("scene_name") == "Wilderness")
+		battle.set("_return_scene_path", "res://scenes/ForestMain.tscn")
+		battle.set("_return_scene_name", "ForestMain")
+		var victory: Dictionary = battle.call("_get_return_destination", true)
+		var fled: Dictionary = battle.call("_get_return_destination", false, true)
+		var defeat: Dictionary = battle.call("_get_return_destination", false)
+		_check("胜利和逃跑返回 ForestMain，失败返回 ForestClearing",
+			victory.get("path") == "res://scenes/ForestMain.tscn"
+			and victory.get("scene_name") == "ForestMain"
+			and fled == victory
+			and defeat.get("path") == "res://scenes/ForestClearing.tscn"
+			and defeat.get("scene_name") == "ForestClearing")
+		var player_position := Vector2(1320, 880)
+		var enemy_position := Vector2(1260, 880)
+		battle.set("_return_context", {
+			"enemy_key": "Enemy2_ForestMain_06",
+			"player_position": player_position,
+			"enemy_position": enemy_position,
+		})
+		var victory_data: Dictionary = battle.call("_get_return_data", true)
+		var fled_data: Dictionary = battle.call("_get_return_data", false, true)
+		var defeat_data: Dictionary = battle.call("_get_return_data", false)
+		_check("胜利与逃跑回传遭遇双方精确位置",
+			victory_data.get("player_position") == player_position
+			and victory_data.get("enemy_position") == enemy_position
+			and victory_data.get("enemy_key") == "Enemy2_ForestMain_06"
+			and fled_data.get("player_position") == player_position
+			and fled_data.get("enemy_position") == enemy_position
+			and fled_data.get("fled", false))
+		_check("失败返回安全区时不携带遭遇位置",
+			not defeat_data.has("player_position")
+			and not defeat_data.has("enemy_position")
+			and not defeat_data.get("victory", true))
+	battle.free()
+
 func _test_inventory_pagination() -> void:
 	var gd: Node = get_node("/root/GameData")
-	gd.inventory.clear()
-	gd.equipment = {"weapon": "", "armor": "", "accessory": ""}
-	for i in range(21):
+	_clear_gamedata_inventory(gd)
+	for i in range(16):
 		var weapon := ItemData.new()
 		weapon.id = "page_weapon_%02d" % i
 		weapon.category = ItemData.ItemCategory.WEAPON
@@ -1240,9 +1703,31 @@ func _test_inventory_pagination() -> void:
 
 	var inv: InventoryUI = load("res://scenes/ui/InventoryUI.tscn").instantiate()
 	add_child(inv)
-	inv._refresh_grid()
-	_check("第 1 页只显示 20 种物品", inv._current_items.size() == 20)
+	inv.open()
+	_check("背包打开默认聚焦物品页顶层标签",
+		inv._top_page_index == InventoryUI.ITEMS_PAGE_INDEX
+		and inv._browse_level == inv.BrowseLevel.TOP_TABS)
+	_check("第 1 页只显示 15 种物品", inv._current_items.size() == 15)
 	_check("多页分类显示页码", inv._grid_hint_layer.get_node_or_null("PageIndicator") != null)
+	var first_subcategory: Rect2 = inv._rect_of(inv._layout.subcategories[0])
+	var first_well: Rect2 = inv._rect_of(inv._layout.wells[0])
+	var last_well: Rect2 = inv._rect_of(inv._layout.wells[inv._layout.wells.size() - 1])
+	_check("小类轻于物品格且后三排原尺寸上移",
+		inv._layout.subcategories.size() == 5 and inv._layout.wells.size() == 15
+		and first_subcategory == Rect2(257, 236, 96, 48)
+		and first_subcategory.size.x < first_well.size.x
+		and first_subcategory.size.y < first_well.size.y
+		and first_subcategory.get_center().x == first_well.get_center().x
+		and first_well == Rect2(246, 318, 118, 114)
+		and last_well == Rect2(818, 594, 118, 114))
+	inv._category_index = 2
+	inv._refresh_grid()
+	var empty_hint: Control = inv._grid_hint_layer.get_node("EmptyCategoryHint")
+	_check("空分类提示限制在 3×5 物品区内",
+		empty_hint.position == first_well.position
+		and empty_hint.size == last_well.end - first_well.position)
+	inv._category_index = 0
+	inv._refresh_grid()
 
 	inv._set_focus_index(4)
 	inv._move_focus(1, 0)
@@ -1252,24 +1737,61 @@ func _test_inventory_pagination() -> void:
 	_check("末页右边缘不循环", inv._get_page_index() == 1 and inv._get_focus_index() == 0)
 	inv._move_focus(-1, 0)
 	_check("左边缘返回上一页同行末格", inv._get_page_index() == 0 and inv._get_focus_index() == 4)
-
 	inv._move_focus(1, 0)
-	inv._handle_preview_input(KEY_E)
-	_check("E 切换到下一分类", inv._category_index == 1)
-	inv._handle_preview_input(KEY_Q)
-	_check("Q 切换到上一分类", inv._category_index == 0)
+
+	inv._browse_level = inv.BrowseLevel.SUBCATEGORY
+	inv._handle_preview_input(KEY_RIGHT)
+	_check("右方向切换到下一小类", inv._category_index == 1)
+	inv._handle_preview_input(KEY_LEFT)
+	_check("左方向切换到上一小类", inv._category_index == 0)
 	_check("切换分类后恢复分类页码", inv._get_page_index() == 1)
 	_check("切换分类后恢复分类焦点", inv._get_focus_index() == 0)
 
-	gd.remove_item("page_weapon_20")
+	inv._browse_level = inv.BrowseLevel.GRID
+	inv._set_focus_index(0)
+	inv._handle_preview_input(KEY_UP)
+	_check("网格第一行按上不进入小类框", inv._browse_level == inv.BrowseLevel.GRID)
+	inv._handle_preview_input(KEY_X)
+	_check("X 从网格返回小类", inv._browse_level == inv.BrowseLevel.SUBCATEGORY)
+	inv._handle_preview_input(KEY_X)
+	_check("X 从小类返回顶层标签", inv._browse_level == inv.BrowseLevel.TOP_TABS)
+	inv._handle_preview_input(KEY_Z)
+	inv._handle_preview_input(KEY_Z)
+	_check("Z 从物品页顶层依次进入小类和网格",
+		inv._browse_level == inv.BrowseLevel.GRID)
+	inv._handle_preview_input(KEY_X)
+	inv._handle_preview_input(KEY_X)
+	inv._handle_preview_input(KEY_A)
+	_check("A 从物品页切换到上一顶层标签",
+		inv._top_page_index == 0 and inv._browse_level == inv.BrowseLevel.TOP_TABS
+		and not inv._subcategory_layer.visible and not inv._grid_layer.visible
+		and not inv._grid_hint_layer.visible and not inv._detail_layer.visible
+		and inv._bg.texture.resource_path == InventoryWidgets.TEX_BG_BLANK)
+	inv._handle_preview_input(KEY_D)
+	_check("D 切回第二个物品标签",
+		inv._top_page_index == InventoryUI.ITEMS_PAGE_INDEX
+		and inv._browse_level == inv.BrowseLevel.TOP_TABS
+		and inv._subcategory_layer.visible and inv._grid_layer.visible
+		and inv._bg.texture.resource_path == InventoryWidgets.TEX_BG_CLEAN)
+	inv._handle_preview_input(KEY_RIGHT)
+	_check("右方向键切换到下一顶层标签", inv._top_page_index == 2)
+	inv._handle_preview_input(KEY_LEFT)
+	_check("左方向键切回第二个物品标签", inv._top_page_index == InventoryUI.ITEMS_PAGE_INDEX)
+	inv._handle_preview_input(KEY_Q)
+	inv._handle_preview_input(KEY_E)
+	_check("Q/E 不再切换顶层标签", inv._top_page_index == InventoryUI.ITEMS_PAGE_INDEX)
+
+	gd.remove_item("page_weapon_15")
 	inv._refresh_grid()
-	_check("删除末页最后一项后页码钳制", inv._get_page_index() == 0 and inv._current_items.size() == 20)
+	_check("删除末页最后一项后页码钳制", inv._get_page_index() == 0 and inv._current_items.size() == 15)
+	inv._handle_preview_input(KEY_X)
+	_check("顶层按 X 关闭背包", not inv.is_open())
+	await get_tree().create_timer(InventoryUI.FADE_DURATION + 0.05).timeout
 	inv.queue_free()
 
 func _test_inventory_detail_layout() -> void:
 	var gd: Node = get_node("/root/GameData")
-	gd.inventory.clear()
-	gd.equipment = {"weapon": "", "armor": "", "accessory": ""}
+	_clear_gamedata_inventory(gd)
 	var item := ItemData.new()
 	item.id = "layout_accessory"
 	item.display_name = "风蚀遗迹中无法辨认真名的古老守望者护符"
@@ -1307,3 +1829,46 @@ func _test_inventory_detail_layout() -> void:
 	_check("操作菜单严格嵌入 footer 分区", inv._action_menu_box.position == footer.position
 		and inv._action_menu_box.size == footer.size)
 	inv.queue_free()
+
+func _test_inventory_lifecycle() -> void:
+	var music_bus := AudioServer.get_bus_index(&"Music")
+	var original_volume := AudioServer.get_bus_volume_db(music_bus)
+	var inventory_scene := load("res://scenes/ui/InventoryUI.tscn") as PackedScene
+	var piano_bgm := get_node("/root/SceneManager/PianoBGM") as AudioStreamPlayer
+	var wind_bgm := get_node("/root/SceneManager/WindAndSnowBGM") as AudioStreamPlayer
+
+	var normal := inventory_scene.instantiate() as InventoryUI
+	add_child(normal)
+	normal.open()
+	_check("背包打开时暂停游戏且音乐以50%音量继续",
+		get_tree().paused
+		and is_equal_approx(db_to_linear(AudioServer.get_bus_volume_db(music_bus)),
+			db_to_linear(original_volume) * InventoryUI.INVENTORY_MUSIC_FACTOR)
+		and piano_bgm.can_process() and wind_bgm.can_process())
+	await normal.close()
+	_check("正常关闭恢复暂停与音量",
+		not get_tree().paused
+		and is_equal_approx(AudioServer.get_bus_volume_db(music_bus), original_volume))
+	normal.queue_free()
+	await get_tree().process_frame
+
+	get_tree().paused = true
+	var nested := inventory_scene.instantiate() as InventoryUI
+	add_child(nested)
+	nested.open()
+	await nested.close()
+	_check("背包不会解除其它系统已有的暂停", get_tree().paused)
+	nested.queue_free()
+	get_tree().paused = false
+	await get_tree().process_frame
+
+	var interrupted := inventory_scene.instantiate() as InventoryUI
+	add_child(interrupted)
+	interrupted.open()
+	interrupted.close()
+	interrupted.queue_free()
+	await get_tree().process_frame
+	await get_tree().create_timer(InventoryUI.FADE_DURATION + 0.05).timeout
+	_check("关闭动画中释放仍恢复暂停与音量",
+		not get_tree().paused
+		and is_equal_approx(AudioServer.get_bus_volume_db(music_bus), original_volume))

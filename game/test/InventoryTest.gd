@@ -6,7 +6,7 @@ extends Node2D
 ##   截菜单态：  INVENTORY_TEST_STATE=menu 加同样命令（--task inventory-ui-menu）
 ##
 ## 通过环境变量控制截图前进入的 UI 状态：
-##   INVENTORY_TEST_STATE：（空）= 预览态；menu = 操作选择态（ActionMenu 展开）
+##   INVENTORY_TEST_STATE：（空）= 网格；subcategory = 小类；top = 顶层；blank = 空白页；menu = 菜单
 ##   INVENTORY_TEST_CATEGORY：分类索引 0~4（武器/防具/饰品/消耗品/重要物品），默认 0
 ##   INVENTORY_TEST_ITEM_COUNT：为目标分类生成指定数量的占位物品；空值保留正式初始背包
 ##   INVENTORY_TEST_PAGE：截图前切到指定页（从 0 开始）
@@ -27,7 +27,7 @@ func _ready() -> void:
 
 	if not OS.get_environment("INVENTORY_TEST_CATEGORY").is_empty():
 		inv._category_index = category_index
-		inv._update_tab_styles()
+		inv._update_subcategory_styles()
 		inv._refresh_grid()
 		inv._refresh_detail()
 	var page_str := OS.get_environment("INVENTORY_TEST_PAGE")
@@ -37,17 +37,29 @@ func _ready() -> void:
 		inv._refresh_detail()
 
 	match OS.get_environment("INVENTORY_TEST_STATE"):
+		"subcategory":
+			inv._browse_level = inv.BrowseLevel.SUBCATEGORY
+			inv._update_browse_styles()
+		"top":
+			inv._browse_level = inv.BrowseLevel.TOP_TABS
+			inv._update_browse_styles()
+		"blank":
+			inv._top_page_index = 0
+			inv._browse_level = inv.BrowseLevel.TOP_TABS
+			inv._update_page_visibility()
+			inv._update_browse_styles()
 		"menu":
 			await get_tree().process_frame
 			inv._enter_action_menu()
 		"confirm":
 			await get_tree().process_frame
-			var slot: Dictionary = inv._focused_slot()
+			var slot: InventoryState.Slot = inv._focused_slot()
 			inv._open_discard_dialog(slot.item, slot.count)
 
 
 func _make_test_items(category_index: int, item_count: int) -> void:
-	GameData.inventory.clear()
+	for slot: InventoryState.Slot in GameData.get_inventory_slots():
+		GameData.remove_item(slot.item.id, slot.count)
 	var category: ItemData.ItemCategory = InventoryWidgets.CATEGORY_ORDER[category_index]
 	for i in range(item_count):
 		var item := ItemData.new()

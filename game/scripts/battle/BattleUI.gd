@@ -42,12 +42,14 @@ const TARGET_RETICLE_PRESS_SCALE: float = 0.82
 const TARGET_RETICLE_PULSE_SCALE: float = 1.85
 const TARGET_RETICLE_ENTER_SECONDS: float = 0.28
 const TARGET_RETICLE_MOVE_SECONDS: float = 0.2
-const TARGET_RETICLE_PRESS_SECONDS: float = 0.1
-const TARGET_RETICLE_PULSE_SECONDS: float = 0.42
-const TARGET_RETICLE_CANCEL_SECONDS: float = 0.12
+const TARGET_RETICLE_PRESS_SECONDS: float = 0.06
+const TARGET_RETICLE_PULSE_SECONDS: float = 0.18
+const TARGET_RETICLE_CANCEL_SECONDS: float = 0.08
 const INTENT_PRESS_SECONDS: float = 0.08
 const INTENT_PULSE_SECONDS: float = 0.25
 const INTENT_STAGGER_SECONDS: float = 0.1
+const HIT_FLASH_IN_SECONDS: float = 0.02
+const HIT_FLASH_OUT_SECONDS: float = 0.08
 
 # ── 攻击力度转盘（纯代码自绘，攻击流中实例化叠加在中央框上）──
 const ATTACK_WHEEL_SCENE: PackedScene = preload("res://scenes/battle/AttackPowerWheel.tscn")
@@ -135,11 +137,13 @@ func show_actor_turn(actor) -> void:
 		_set_menu_visible(false)
 		_message_label.text = "%s 正在行动..." % actor.display_name
 
-func show_battle_result(victory: bool) -> void:
+func show_battle_result(victory: bool, ember_reward: int = 0) -> void:
 	_clear_menu_highlight()
 	_set_menu_visible(false)
 	_clear_all_reticles()
 	_message_label.text = "战斗结束 — %s" % ("胜利！" if victory else "失败...")
+	if victory and ember_reward > 0:
+		_message_label.text += "\n获得余烬 ×%d" % ember_reward
 
 func run_timing_check(
 		attacker: BattleUnit,
@@ -171,6 +175,25 @@ func run_timing_check(
 func _on_timing_impact_feedback(amplitude: float) -> void:
 	_impact_camera_noise.noise.amplitude = amplitude
 	_impact_camera_noise.emit()
+
+func play_player_hit(target: BattleUnit, strength: float) -> void:
+	var avatar: Control = _find_avatar_for_unit(target)
+	if avatar == null or avatar.get_child_count() == 0:
+		return
+	var flash_overlay: CanvasItem = null
+	for child in avatar.get_children():
+		if child.has_meta("hit_flash_overlay"):
+			flash_overlay = child as CanvasItem
+			break
+	if flash_overlay == null:
+		return
+	flash_overlay.modulate.a = 1.0
+	_on_timing_impact_feedback(strength)
+	var flash_tween := create_tween()
+	flash_tween.set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
+	flash_tween.tween_interval(HIT_FLASH_IN_SECONDS)
+	flash_tween.tween_property(flash_overlay, "modulate:a", 0.001, HIT_FLASH_OUT_SECONDS)
+	await flash_tween.finished
 
 func finish_timing_check(target: BattleUnit, timing_result: Dictionary) -> void:
 	if is_instance_valid(_timing_result_label):
@@ -302,11 +325,20 @@ func _build_command_menu() -> void:
 func _show_action_menu() -> void:
 	_menu_mode = MENU_MODE_ACTION
 	_clear_menu_highlight()
-	_render_central_options_header("✦ 选择姿态（Z确认 / X返回）")
+	_render_central_options_header("✦ 选择行动")
 	_add_central_option("攻击", func(): _on_cmd_pressed("攻击"), false)
-	_add_central_option("防御", func(): _turn_state_machine.select_command(BattleCommands.DEFEND), false)
-	_add_central_option("闪避", func(): _turn_state_machine.select_command(BattleCommands.DODGE), false)
-	_add_central_option("返回", _build_command_menu, false)
+	var stance_row := HBoxContainer.new()
+	stance_row.set_meta("action_stance_row", true)
+	stance_row.custom_minimum_size.y = maxi(36, roundi(56.0 * _hud_scale))
+	stance_row.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	stance_row.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	stance_row.add_theme_constant_override("separation", maxi(16, roundi(24.0 * _hud_scale)))
+	stance_row.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_central_option_box.add_child(stance_row)
+	_add_central_option(
+		"防御", func(): _turn_state_machine.select_command(BattleCommands.DEFEND), false, stance_row)
+	_add_central_option(
+		"闪避", func(): _turn_state_machine.select_command(BattleCommands.DODGE), false, stance_row)
 	_select_menu_index(0)
 
 func _on_cmd_pressed(cmd: String) -> void:
@@ -369,7 +401,7 @@ func _show_item_menu() -> void:
 	_menu_mode = MENU_MODE_ITEM
 	_clear_menu_highlight()
 	_render_central_options_header("✦ 选择物品（Z确认 / X返回）")
-	for slot in GameData.inventory:
+	for slot in battle_controller.get_inventory_slots():
 		var item: ItemData = slot.item
 		if item.category != ItemData.ItemCategory.CONSUMABLE:
 			continue
@@ -385,7 +417,7 @@ func _create_item_action(item: ItemData) -> Callable:
 		_start_target_select(target_type, func(t): _turn_state_machine.select_command(BattleCommands.ITEM, item); _turn_state_machine.select_target(t))
 
 func _has_battle_usable_items() -> bool:
-	for slot in GameData.inventory:
+	for slot in battle_controller.get_inventory_slots():
 		if slot.count > 0 and slot.item.item_type != ItemData.ItemType.PALLIATIVE and slot.item.category == ItemData.ItemCategory.CONSUMABLE:
 			return true
 	return false
@@ -397,13 +429,18 @@ func _render_central_options_header(header: String) -> void:
 	_clear_central_options()
 	_message_label.text = header
 	_message_label.vertical_alignment = VERTICAL_ALIGNMENT_TOP
-	_central_option_box = BattleWidgets.make_central_option_box()
+	_central_option_box = BattleWidgets.make_central_option_box(_hud_scale)
 	_central_box.add_child(_central_option_box)
 
-func _add_central_option(label: String, action: Callable, disabled: bool) -> void:
-	var item := BattleWidgets.make_menu_option()
-	if _central_option_box != null:
-		_central_option_box.add_child(item)
+func _add_central_option(
+		label: String,
+		action: Callable,
+		disabled: bool,
+		parent: Container = null) -> void:
+	var item := BattleWidgets.make_menu_option(_hud_scale)
+	var target_parent: Container = parent if parent != null else _central_option_box
+	if target_parent != null:
+		target_parent.add_child(item)
 	_menu_buttons.append(item)
 	_menu_actions.append(action)
 	_menu_disabled.append(disabled)
@@ -452,7 +489,7 @@ func _find_enabled_menu_index(start: int, step: int) -> int:
 		index = posmod(index + step, _menu_buttons.size())
 	return -1
 
-## 选项高亮：金色描边 + 金色「> 」指针（§B.3：金色指针/描边；置灰项保留位置）。
+## 命令栏沿用文字指针；中央选项用卡片承载面，避免指针破坏文字几何居中。
 func _update_menu_selection() -> void:
 	for i in range(_menu_buttons.size()):
 		var node: Control = _menu_buttons[i]
@@ -460,22 +497,36 @@ func _update_menu_selection() -> void:
 			continue
 		var lbl: Label = node
 		var is_sel: bool = i == _selected_menu_index
-		if _menu_disabled[i]:
-			lbl.modulate = BattleWidgets.COL_DIM
-		else:
-			lbl.modulate = BattleWidgets.COL_GOLD if is_sel else BattleWidgets.COL_BONE
-		# 金色描边仅当前项
-		lbl.add_theme_constant_override("outline_size", 6 if is_sel else 0)
-		lbl.add_theme_color_override("font_outline_color", BattleWidgets.COL_GOLD if is_sel else Color(0, 0, 0, 0))
-		# 命令格用「>」指针；中央框选项同样加指针
 		var base: String = _menu_labels[i]
-		lbl.text = ("▸ %s" % base) if is_sel else base
+		if _menu_mode == MENU_MODE_COMMAND:
+			lbl.modulate = (
+				BattleWidgets.COL_DIM if _menu_disabled[i]
+				else BattleWidgets.COL_GOLD if is_sel
+				else BattleWidgets.COL_BONE)
+			lbl.add_theme_constant_override("outline_size", 6 if is_sel else 0)
+			lbl.add_theme_color_override(
+				"font_outline_color",
+				BattleWidgets.COL_GOLD if is_sel else Color.TRANSPARENT)
+			lbl.text = ("▸ %s" % base) if is_sel else base
+			continue
+		lbl.modulate = Color.WHITE
+		lbl.add_theme_constant_override("outline_size", 0)
+		lbl.add_theme_color_override(
+			"font_color",
+			BattleWidgets.COL_DIM if _menu_disabled[i]
+			else BattleWidgets.COL_GOLD if is_sel
+			else BattleWidgets.COL_BONE)
+		lbl.add_theme_stylebox_override(
+			"normal",
+			BattleWidgets.make_menu_option_style(is_sel, _menu_disabled[i], _hud_scale))
+		lbl.text = base
 
 func _activate_selected_menu_item() -> void:
 	if _selected_menu_index < 0 or _selected_menu_index >= _menu_actions.size():
 		return
 	if _menu_disabled[_selected_menu_index]:
 		return
+	_emit_confirm_particles(_menu_buttons[_selected_menu_index].get_global_rect().get_center())
 	_menu_actions[_selected_menu_index].call()
 
 # ───────────────────────────────────────────── 目标选择（沿用旧逻辑 + ⑥ 准星）
@@ -491,6 +542,18 @@ func _start_target_select(target_type: String, callback: Callable) -> void:
 		_valid_targets = _party_units.filter(func(u): return not u.is_dead())
 	_clear_central_options()
 	_set_menu_visible(false)
+	if _valid_targets.size() == 1:
+		var target = _valid_targets[0]
+		var picked_callback := _on_target_picked
+		_target_confirming = true
+		_is_selecting_target = false
+		_message_label.text = ""
+		await get_tree().process_frame
+		_valid_targets.clear()
+		_target_confirming = false
+		if picked_callback.is_valid():
+			picked_callback.call(target)
+		return
 	_update_target_message()
 	_update_target_reticle()
 
@@ -629,6 +692,7 @@ func _play_target_confirm_pulse() -> void:
 	await _target_reticle_tween.finished
 	_target_reticle_tween = null
 	var pulse := _target_reticle.duplicate() as Control
+	pulse.remove_meta("target_marker")
 	pulse.set_meta("target_pulse", true)
 	_reticle_layer.add_child(pulse)
 	pulse.position = _target_reticle.position
@@ -642,7 +706,6 @@ func _play_target_confirm_pulse() -> void:
 	pulse_tween.parallel().tween_property(
 		pulse, "modulate:a", 0.0, TARGET_RETICLE_PULSE_SECONDS)
 	pulse_tween.tween_callback(pulse.queue_free)
-	await pulse_tween.finished
 
 func _set_target_brightness(selected) -> void:
 	for unit in _valid_targets:
@@ -655,6 +718,41 @@ func _restore_target_brightness() -> void:
 		var avatar: Control = _find_avatar_for_unit(unit)
 		if avatar != null:
 			avatar.modulate = Color.WHITE
+
+func _emit_confirm_particles(screen_position: Vector2) -> void:
+	var particles := GPUParticles2D.new()
+	particles.set_meta("confirm_particles", true)
+	particles.amount = 16
+	particles.lifetime = 0.28
+	particles.one_shot = true
+	particles.explosiveness = 1.0
+	particles.fixed_fps = 30
+	particles.local_coords = false
+	particles.visibility_rect = Rect2(-240.0, -240.0, 480.0, 480.0)
+	particles.texture = DefenseTimingVFX.make_particle_texture()
+	particles.z_index = 130
+	var material := ParticleProcessMaterial.new()
+	material.direction = Vector3(0.0, -1.0, 0.0)
+	material.spread = 180.0
+	material.initial_velocity_min = 90.0
+	material.initial_velocity_max = 180.0
+	material.gravity = Vector3.ZERO
+	material.scale_min = 0.35
+	material.scale_max = 0.8
+	var fade := GradientTexture1D.new()
+	var gradient := Gradient.new()
+	gradient.colors = PackedColorArray([
+		BattleWidgets.COL_GOLD,
+		Color(BattleWidgets.COL_GOLD, 0.0),
+	])
+	fade.gradient = gradient
+	material.color_ramp = fade
+	particles.process_material = material
+	_reticle_layer.add_child(particles)
+	particles.global_position = screen_position
+	particles.finished.connect(particles.queue_free)
+	particles.restart()
+	particles.emitting = true
 
 func _clear_intent_markers() -> void:
 	if not is_instance_valid(_reticle_layer):
@@ -880,7 +978,7 @@ func _first_living_party():
 			return member
 	return null
 
-func _format_timing_result(target: BattleUnit, result: Dictionary) -> String:
+static func _format_timing_result(target: BattleUnit, result: Dictionary) -> String:
 	var outcome_text: String = "失败"
 	var hit_count: int = int(result.get("hit_count", 0))
 	var success_count: int = int(result.get("success_count", 0))
@@ -902,10 +1000,13 @@ func _format_timing_result(target: BattleUnit, result: Dictionary) -> String:
 func _find_avatar_for_unit(unit) -> Control:
 	var pools: Array = [_enemy_container, _party_container]
 	for pool in pools:
-		for card in pool.get_children():
-			for sub in card.get_children():
-				if sub is Control and sub.has_meta("unit_ref") and sub.get_meta("unit_ref") == unit:
-					return sub
+		var avatar: Control = null
+		for node in pool.find_children("*", "Control", true, false):
+			if not node.is_queued_for_deletion() \
+					and node.has_meta("unit_ref") and node.get_meta("unit_ref") == unit:
+				avatar = node
+		if avatar != null:
+			return avatar
 	return null
 
 # ───────────────────────────────────────────── 输入（键盘闭环，沿用旧规则）
@@ -924,6 +1025,12 @@ func _input(event: InputEvent) -> void:
 
 func _handle_menu_input(keycode: Key) -> void:
 	# 命令栏四格为横向 → 左右切换；中央框技能选项为纵向 → 上下切换。两套方向键都接受。
+	if _menu_mode == MENU_MODE_ACTION and keycode in [
+		KEY_UP, KEY_W, KEY_LEFT, KEY_A, KEY_DOWN, KEY_S, KEY_RIGHT, KEY_D,
+	]:
+		_move_action_menu_selection(keycode)
+		accept_event()
+		return
 	match keycode:
 		KEY_UP, KEY_W, KEY_LEFT, KEY_A:
 			_move_menu_selection(-1)
@@ -939,6 +1046,17 @@ func _handle_menu_input(keycode: Key) -> void:
 				_build_command_menu()
 				_message_label.text = _actor_turn_message(_current_actor)
 				accept_event()
+
+func _move_action_menu_selection(keycode: Key) -> void:
+	match keycode:
+		KEY_UP, KEY_W:
+			_select_menu_index(0)
+		KEY_DOWN, KEY_S:
+			_select_menu_index(1 if _selected_menu_index == 0 else _selected_menu_index)
+		KEY_LEFT, KEY_A:
+			_select_menu_index(1 if _selected_menu_index == 2 else _selected_menu_index)
+		KEY_RIGHT, KEY_D:
+			_select_menu_index(2 if _selected_menu_index == 1 else _selected_menu_index)
 
 func _handle_target_input(keycode: Key) -> void:
 	match keycode:
