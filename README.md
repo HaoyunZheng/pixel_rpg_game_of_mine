@@ -6,7 +6,7 @@
 
 *本地开发截图。地图、角色与界面仍在迭代；图片展示单个场景的实现状态。*
 
-本项目由 [郑皓云](https://github.com/HaoyunZheng) 独立主导产品设计与 AI 辅助开发，使用 **Godot 4.6 / GDScript**。目前是**开发中的系统原型，尚未形成完整可玩版本**，适合查看设计、代码与阶段性画面。完整体验、内容衔接和数值平衡仍在制作。
+本项目由 (https://github.com/HaoyunZheng) 独立主导产品设计与 AI 辅助开发，使用 **Godot 4.6 / GDScript**。目前是**开发中的系统原型，尚未形成完整可玩版本**，适合查看设计、代码与阶段性画面。完整体验、内容衔接和数值平衡仍在制作。
 
 [玩法与系统](#正在构建的体验) · [运行工程](#运行工程) · [开发笔记](docs/showcase/development.md) · [世界设定](game/world-bible/canon-status.md)
 
@@ -90,8 +90,7 @@ godot --editor --path game
 
 ## 制作与致谢
 
-郑皓云负责玩法与交互规格、世界观推演、范围取舍、工具分工和实现审阅，并参与脚本与配置的修改和问题定位。AI 工具参与设计讨论、图像/像素素材、编码和音乐制作；具体分工见开发笔记。
+本人负责玩法与交互规格、世界观推演、范围取舍、工具分工和实现审阅，并参与脚本与配置的修改和问题定位。AI 工具参与设计讨论、图像/像素素材、编码和音乐制作；具体分工见开发笔记。
 
 工程使用 Godot，以及 Dialogic、Phantom Camera、Godot Resource Groups 等插件；字体包括 Fusion Pixel。各第三方组件的原署名及许可仍保留在其目录中。游戏本体和素材目前未统一声明再分发许可，复用前请核对具体来源与授权范围。
 
-[个人作品集](https://glistening-phoenix-8eeca1.netlify.app) · [GitHub](https://github.com/HaoyunZheng)
